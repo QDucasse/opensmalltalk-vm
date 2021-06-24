@@ -191,14 +191,6 @@ UnicornARMv5Simulator >> framePointerRegister [
 ]
 
 { #category : #accessing }
-UnicornARMv5Simulator >> getLastAddress: abstractInstructions [ 
-	
-	| last |
-	last := (abstractInstructions reject: [ :e | e isLiteral ]) last.
-	^ last address + last machineCodeSize 
-]
-
-{ #category : #accessing }
 UnicornARMv5Simulator >> getReturnAddress [
 	
 	^ self linkRegisterValue

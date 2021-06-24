@@ -103,6 +103,12 @@ UnicornSimulator >> doStartAt: startAddress until: until timeout: timeout count:
 				ifTrue: [ ^ result ]]
 ]
 
+{ #category : #'memory mapping' }
+UnicornSimulator >> finishMappingMemory [
+
+ "	doNothing"
+]
+
 { #category : #'handling invalid accesses' }
 UnicornSimulator >> handleInvalidAccess: invalidAccess [ 
 

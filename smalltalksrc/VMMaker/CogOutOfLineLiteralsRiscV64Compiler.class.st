@@ -16,9 +16,21 @@ CogOutOfLineLiteralsRiscV64Compiler >> addImmediate: anImmediate toRegister: sou
 	self assert: (anImmediate bitAnd: 16reff) = anImmediate.
 	riscvOpcode := 2r0010011.
 	self flag: #TODO.
-	^ ((anImmediate << 20 bitOr: (sourceRegister bitAnd: 16r1f) << 15) 
+	^ (((anImmediate bitAnd: 16reff) << 20 bitOr: (sourceRegister bitAnd: 16r1f) << 15) 
 		   bitOr: (destinationRegister bitAnd: 16r1f) << 7) bitOr:
 		  riscvOpcode
+]
+
+{ #category : #assembler }
+CogOutOfLineLiteralsRiscV64Compiler >> addUpperImmediateToPCWithOffset: anImmediate toRegister: destinationRegister [
+
+	| riscvOpcode |
+	self assert: (anImmediate bitAnd: 16rfffff) = anImmediate.
+	riscvOpcode := 2r0010111.
+	self flag: #TODO.
+	^ (((anImmediate bitAnd: 16rfffff) << 12 
+	    bitOr: (destinationRegister bitAnd: 16r1f) << 7 )
+	    bitOr: riscvOpcode)
 ]
 
 { #category : #accessing }
@@ -29,7 +41,22 @@ CogOutOfLineLiteralsRiscV64Compiler >> cmpC32RTempByteSize [
 { #category : #'generate machine code - concretize' }
 CogOutOfLineLiteralsRiscV64Compiler >> concretizeLiteral [
 	"Generate an out-of-line literal.  Copy the value and any annotation from the stand-in in the literals manager."
-		1halt
+	| twoComplement literal |
+	self assert: (dependent notNil and: [dependent opcode = Literal]).
+	dependent annotation ifNotNil:
+	[self assert: annotation isNil.
+		 annotation := dependent annotation].
+	dependent address ifNotNil: [self assert: dependent address = address].
+	dependent address: address.
+
+	literal := operands at: 0.
+	twoComplement := literal < 0
+		ifTrue: [ 16rFFFFFFFFFFFFFFFF - literal abs + 1 ]
+		ifFalse: [ literal ].
+
+	self machineCodeAt: 0 put: (twoComplement bitAnd: 16rFFFFFFFF).
+	self machineCodeAt: 4 put: (twoComplement >> 32).
+	machineCodeSize := 8
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -248,10 +275,27 @@ CogOutOfLineLiteralsRiscV64Compiler >> literalOpcodeIndex [
 ]
 
 { #category : #assembler }
+CogOutOfLineLiteralsRiscV64Compiler >> loadDoubleWordFromRegister: baseRegister withOffset: offset toRegister: destinationRegister [ 
+
+	| riscvOpcode |
+	self assert: (offset bitAnd: 16rfff) = offset.
+	riscvOpcode :=  2r0000011.
+	self flag: #TODO.
+	^ ((((((offset bitAnd: 16rfff) << 20) 
+	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
+	  bitOr: 2r011 << 	12)
+	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode) 
+
+
+	
+]
+
+{ #category : #assembler }
 CogOutOfLineLiteralsRiscV64Compiler >> loadImmediate: anImmediate inRegister: aRegisterID [
 
 	"Load immediate is an addimmediate with register X0 (always holding the value 0)"
-	^ self	addImmediate: anImmediate toRegister: R0 inRegister: aRegisterID
+	^ self	addImmediate: anImmediate toRegister: X0 inRegister: aRegisterID
 ]
 
 { #category : #accessing }
@@ -301,7 +345,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> moveCw: constant intoR: destReg [
 { #category : #assembler }
 CogOutOfLineLiteralsRiscV64Compiler >> nop [
 	
-	^ self addImmediate: 0 toRegister: R0 inRegister: R0 
+	^ self addImmediate: 0 toRegister: X0 inRegister: X0 
 ]
 
 { #category : #'compile abstract instructions' }
@@ -587,7 +631,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 										ifFalse: [^ true ] ]].
 								
 		[PushCw]		-> [^(self inCurrentCompilation: (operands at: 0)) not].
-		[PushCq]		-> [^self shiftable16bitImmediate: (operands at: 0) ifTrue: [:r :i| false] ifFalse: [true]].
+		[PushCq]		-> [^ ((operands at: 0) bitAnd: 16reff) ~= (operands at: 0)].
 		[PrefetchAw] 	-> [^(self isAddressRelativeToVarBase: (operands at: 0)) ifTrue: [false] ifFalse: [true]].
 
 		"Patcheable instruction. Moves a literal. Uses out of line literal."

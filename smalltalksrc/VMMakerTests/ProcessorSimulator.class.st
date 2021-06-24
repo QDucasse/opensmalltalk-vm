@@ -170,8 +170,10 @@ ProcessorSimulator >> framePointerRegisterValue: aValue [
 
 { #category : #accessing }
 ProcessorSimulator >> getLastAddress: abstractInstructions [ 
-
-	^ abstractInstructions last address + abstractInstructions last machineCodeSize
+	
+	| last |
+	last := (abstractInstructions reject: [ :e | e isLiteral ]) last.
+	^ last address + last machineCodeSize 
 ]
 
 { #category : #testing }

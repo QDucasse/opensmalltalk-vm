@@ -24,15 +24,15 @@ Class {
 		'ConcreteIPReg2',
 		'ConcretePCReg',
 		'ConcreteVarBaseReg',
-		'D0',
-		'D1',
-		'D2',
-		'D3',
-		'D4',
-		'D5',
-		'D6',
-		'D7',
 		'EQ',
+		'F0',
+		'F1',
+		'F2',
+		'F3',
+		'F4',
+		'F5',
+		'F6',
+		'F7',
 		'GE',
 		'GT',
 		'HI',
@@ -53,30 +53,6 @@ Class {
 		'OverflowFlag',
 		'PC',
 		'PL',
-		'R0',
-		'R1',
-		'R10',
-		'R11',
-		'R12',
-		'R16',
-		'R17',
-		'R19',
-		'R2',
-		'R20',
-		'R21',
-		'R22',
-		'R23',
-		'R24',
-		'R25',
-		'R26',
-		'R27',
-		'R3',
-		'R4',
-		'R5',
-		'R6',
-		'R7',
-		'R8',
-		'R9',
 		'RsbOpcode',
 		'SDIV',
 		'SMLALOpcode',
@@ -88,6 +64,34 @@ Class {
 		'TstOpcode',
 		'VC',
 		'VS',
+		'X0',
+		'X1',
+		'X10',
+		'X11',
+		'X12',
+		'X13',
+		'X14',
+		'X15',
+		'X16',
+		'X17',
+		'X18',
+		'X19',
+		'X2',
+		'X20',
+		'X21',
+		'X22',
+		'X23',
+		'X24',
+		'X25',
+		'X26',
+		'X27',
+		'X3',
+		'X4',
+		'X5',
+		'X6',
+		'X7',
+		'X8',
+		'X9',
 		'XorOpcode'
 	],
 	#category : #'VMMaker-JIT'
@@ -137,61 +141,66 @@ CogRiscV64Compiler class >> identifyingPredefinedMacros [
 { #category : #'class initialization' }
 CogRiscV64Compiler class >> initialize [
 
-	"Initialize various ARM instruction-related constants."
-	"CogRiscV64Compiler initialize"
+	"Initialize various RISCV instruction-related constants."
+	"CogRiscV64Compiler initialize might be required to make changes effective"
 
 	super initialize.
 	self ~~ CogRiscV64Compiler ifTrue: [^self].
 
-	"ARM general registers"
-	R0 := 0.
-	R1 := 1.
-	R2 := 2.
-	R3 := 3.
-	R4 := 4.
-	R5 := 5.
-	R6 := 6.
-	R7 := 7.
-	R8 := 8.
-	R9 := 9.
-	R10 := 10.
-	R11 := 11.
-	R12 := 12.
+	"RISCV general registers"
+	X0 := 0.
+	X1 := 1.
+	X2 := 2.
+	X3 := 3.
+	X4 := 4.
+	X5 := 5.
+	X6 := 6.
+	X7 := 7.
+	X8 := 8.
+	X9 := 9.
+	X10 := 10.
+	X11 := 11.
+	X12 := 12.
+	X13 := 13.
+	X14 := 14.
+	X15 := 15.
+	"Scratch Registers"
+	X16 := 16.
+	X17 := 17.
+	"Extra Registers"
+	X18 := 18.
+	X19 := 19.
+	X20 := 20.
+	X21 := 21.
+	X22 := 22.
+	X23 := 23.
+	X24 := 24.
+	X25 := 25.
+	X26 := 26.
+	X27 := 27.
+
+	SP := X2. "Stack Pointer"
+	LR := X1. "Link Register"
 	
-	R16 := 16.
-	R17 := 17.
-
-	R19 := 19.
-	R20 := 20.
-	R21 := 21.
-	R22 := 22.
-	R23 := 23.
-	R24 := 24.
-	R25 := 25.
-	R26 := 26.
-	R27 := 27.
-
-	SP := R2.
-	LR := R1.
-	"ARM VFP Double precision floating point registers"
-	D0 := 0.
-	D1 := 1.
-	D2 := 2.
-	D3 := 3.
-	D4 := 4.
-	D5 := 5.
-	D6 := 6.
-	D7 := 7.
-
+	"RISCV Floating Point Registers"
+	F0 := 0.
+	F1 := 1.
+	F2 := 2.
+	F3 := 3.
+	F4 := 4.
+	F5 := 5.
+	F6 := 6.
+	F7 := 7.
+	"Function arguments registers"
 	CArg0Reg := 0.
 	CArg1Reg := 1.
 	CArg2Reg := 2.
 	CArg3Reg := 3.
-
-	ConcreteVarBaseReg := R26.
-	"X16 and X17 are the Intra procedural scratch registers"
-	ConcreteIPReg := R5.
-	ConcreteIPReg2 := R6.
+	"Base register that will serve as anchor to trampoline between stacks"
+	ConcreteVarBaseReg := X26.
+	"X5 and X6 are temporary registers used as the intra procedural scratch registers"
+	ConcreteIPReg := X5.
+	ConcreteIPReg2 := X6.
 
 	"C3.1.1 Conditional branch
 	Conditional branches change the flow of execution depending on the current state of the Condition flags or the value in a general-purpose register."
@@ -246,57 +255,50 @@ CogRiscV64Compiler class >> initializeAbstractRegisters [
 
 	super initializeAbstractRegisters.
 
-	"According to IHI0042E ARM Architecture Procedure Calling Standard, in section 5.1.1:
-		A subroutine must preserve the contents of the registers r4-r8, r10, r11 and SP (and r9 in PCS variants that designate r9 as v6).
-	 SP = r13, so the callee-saved regs are r4-r8 & r10-r12.
-	 The caller-saved registers are those that are not callee-saved and not reserved for hardware/abi uses,
-	
-	 
+	"https://en.wikichip.org/wiki/risc-v/registers
 	Caller saved Registers:
-	X0 - X7 are to pass arguments.
-	X8 is indirect return address.
-	X9 - X15 general purpose.
-	
-	X16 - X17 - Intra procedure scratch register.
+	X1     | RA    | Return Address Register
+	X5 -7  | T0-2  | Temporary Registers
+	X10-11 | A0-1  | Function Arguments / Return Values Registers 
+	X12-17 | A2-7  | Function Arguments 
+	X28-31 | T3-6  | Temporary Registers 
 	
 	Callee saved registers:
-	X18 is caller saved but platform specific (user programs should not use it).	
-	X19 - X29 are callee saved.
+	X2     | SP    | Stack Pointer 
+	X8     | S0/FP | Saved Register / Frame Pointer 
+	X9     | S1    | Saved Register
+	X18-27 | S2-11 | Saved Regsiters 
 	
-	X30 is LR.
-	X31 is SP.
-	
-	 We exclude registers 0 & 1 (TempReg/CArg0Reg & CArg1Reg) from the CallerSavedRegisterMask because we only
-	 use them for argument passing and so never want to save and restore them.  In fact restoring TempReg/CArg0Reg
-	 would overwrite function results, so it shouldn't be included under any circumstances."
+	X1 is LR.
+	X8 is SP."
 
 	CallerSavedRegisterMask := self registerMaskFor: 3 and: 4.
 
-	TempReg := R22.
-	ClassReg := R23.
-	ReceiverResultReg := R24.
-	SendNumArgsReg := R25.
-	SPReg := R2. "X2 as the same stack pointer"
-	FPReg := R8. "X8 as the frame pointer"
-	Arg0Reg := R10. "X10/X11 function argument "
-	Arg1Reg := R11.
-	Extra0Reg := R19. "These are callee saved registers"
-	Extra1Reg := R20.
-	Extra2Reg := R21.
-	VarBaseReg := R26. "Base address for calls from machine code. Must be callee saved"
-	self assert: ConcreteVarBaseReg = R26.
-	LinkReg := R1. "X1"
+	TempReg := X22.
+	ClassReg := X23.
+	ReceiverResultReg := X24.
+	SendNumArgsReg := X25.
+	SPReg := X2. "X2 as the same stack pointer"
+	FPReg := X8. "X8 as the frame pointer"
+	Arg0Reg := X10.	 "X10/X11 function argument" 	
+	Arg1Reg := X11.
+	Extra0Reg := X18.  "These are callee saved registers"
+	Extra1Reg := X19.
+	Extra2Reg := X20.
+	VarBaseReg := X26. "Base address for calls from machine code. Must be callee saved"
+	self assert: ConcreteVarBaseReg = X26.
+	LinkReg := X1. "X1"
 
 	NumRegisters := 16.
 
-	DPFPReg0 := D0.
-	DPFPReg1 := D1.
-	DPFPReg2 := D2.
-	DPFPReg3 := D3.
-	DPFPReg4 := D4.
-	DPFPReg5 := D5.
-	DPFPReg6 := D6.
-	DPFPReg7 := D7.
+	DPFPReg0 := F0.
+	DPFPReg1 := F1.
+	DPFPReg2 := F2.
+	DPFPReg3 := F3.
+	DPFPReg4 := F4.
+	DPFPReg5 := F5.
+	DPFPReg6 := F6.
+	DPFPReg7 := F7.
 
 	NumFloatRegisters := 8
 ]
@@ -467,7 +469,7 @@ CogRiscV64Compiler >> byteReadsZeroExtend [
 CogRiscV64Compiler >> cResultRegister [
 	"Answer the register through which C funcitons return integral results."
 	<inline: true>
-	^R0
+	^X0
 ]
 
 { #category : #accessing }
@@ -772,7 +774,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[MoveXwrRR]			-> [^4].
 		[MoveRXwrR]			-> [^4].
 		[PopR]					-> [^4].
-		[PushR]					-> [^4].
+		[PushR]					-> [^8].
 		[PushCw]				-> [^self literalLoadInstructionBytes = 4
 										ifTrue: [self literalLoadInstructionBytes + 4]
 										ifFalse:
@@ -782,7 +784,10 @@ CogRiscV64Compiler >> computeMaximumSize [
 													[self rotateable8bitBitwiseImmediate: (operands at: 0)
 														ifTrue: [:r :i :n| 8]
 														ifFalse: [self literalLoadInstructionBytes + 4]]]].
-		[PushCq]				  -> [ ^ 12 ]. "Three instructions for now" 
+		[PushCq]				  -> [ 
+						^ ((operands at: 0) bitAnd: 16reff) ~= (operands at: 0)
+							ifTrue: [16] ifFalse: [12]
+						]. "If there is a literal -> 4 instructions otherwise 3" 
 		[PrefetchAw] 			-> [^(self isAddressRelativeToVarBase: (operands at: 0))
 										ifTrue: [4]
 										ifFalse: [self literalLoadInstructionBytes + 4]].
@@ -2228,26 +2233,36 @@ CogRiscV64Compiler >> concretizePushCq [
 
 	<var: #word type: #sqInt>
 	<inline: true>
-	| cq |
+	| cq instrOffset literalAddress distance |
 	cq := operands at: 0.
 	"Store a double word at the position of the stack pointer	  
 		li  ConcreteIPReg, cq
 		addi sp, sp, 8
-		sd  ConcreteIPReg, 0(sp)
-		"
+		sd  ConcreteIPReg, 0(sp)"
+	dependent
+		ifNil: [ 
+			self
+				machineCodeAt: 0
+				put: (self loadImmediate: cq inRegister: ConcreteIPReg).
+			instrOffset := 4 ]
+		ifNotNil: [ 
+			literalAddress := (cogit cCoerceSimple: dependent to: #'AbstractInstruction *') address.
+			distance := literalAddress - address.
+			self machineCodeAt: 0 put: (self addUpperImmediateToPCWithOffset: 0 toRegister: ConcreteIPReg).
+			self machineCodeAt: 4 put: (self
+					 loadDoubleWordFromRegister: ConcreteIPReg
+					 withOffset: distance
+					 toRegister: ConcreteIPReg).
+			instrOffset := 8 ].
+
 	self
-		machineCodeAt: 0
-		put: (self loadImmediate: cq inRegister: ConcreteIPReg).
-	self
-		machineCodeAt: 4
+		machineCodeAt: instrOffset
 		put: (self addImmediate: 8 toRegister: SP inRegister: SP).
-	self machineCodeAt: 8 put: (self
+	self machineCodeAt: instrOffset + 4 put: (self
 			 storeDoubleWordFromRegister: ConcreteIPReg
 			 toRegister: SP
-			 withOffset: 0).	
-	^ machineCodeSize := 12
-
-
+			 withOffset: 0).
+	^ machineCodeSize := instrOffset + 8
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2266,9 +2281,17 @@ CogRiscV64Compiler >> concretizePushR [
 	<inline: true>
 	| srcReg |
 	srcReg := operands at: 0.
-	"cond | 010 | 1001 | 0 | -Rn- | -Rd- | 0000 0000 0100"	"STR srcReg, [sp, #-4]"
-	self machineCodeAt: 0 put: (self pushR: srcReg).
-	^ machineCodeSize := 4
+	"Store the content of a register at the position of the stack pointer	  
+		addi sp, sp, 8
+		sd   srcReg, 0(sp)"
+	self
+		machineCodeAt: 0
+		put: (self addImmediate: 8 toRegister: SP inRegister: SP).
+	self machineCodeAt: 4 put: (self
+			 storeDoubleWordFromRegister: srcReg
+			 toRegister: SP
+			 withOffset: 0).	
+	^ machineCodeSize := 8
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -3000,7 +3023,7 @@ CogRiscV64Compiler >> genCaptureCStackPointers: captureFramePointer [
 	Make sure to reuse a caller-saved register: we can reuse it freely"
 	self hasVarBaseRegister ifTrue:
 		[cogit
-			MoveR: VarBaseReg R: R1;
+			MoveR: VarBaseReg R: X1;
 			MoveCq: cogit varBaseAddress R: VarBaseReg].
 	captureFramePointer ifTrue:
 		[cogit MoveR: FPReg Aw: cogit cFramePointerAddress].
@@ -3010,7 +3033,7 @@ CogRiscV64Compiler >> genCaptureCStackPointers: captureFramePointer [
 	
 	"Restore the base register for our caller"
 	self hasVarBaseRegister ifTrue:
-		[cogit MoveR: R1 R: VarBaseReg].
+		[cogit MoveR: X1 R: VarBaseReg].
 
 	cogit RetN: 0.
 ]
@@ -3177,16 +3200,16 @@ CogRiscV64Compiler >> genRestoreRegs: regMask [
 	"Restore the registers in regMask as saved by genSaveRegs:."
 	<inline: true>
 	| registerCount |
-	self assert: (R12 > R1 and: [R12 - R1 + 1 = 12]).
+	self assert: (X12 > X1 and: [X12 - X1 + 1 = 12]).
 	self deny: (regMask anyMask: (cogit registerMaskFor: SPReg and: FPReg)).
 	
 	registerCount := 0.
-	R1 to: R12 do:
+	X1 to: X12 do:
 		[:reg|
 		 (regMask anyMask: (cogit registerMaskFor: reg)) ifTrue:
 			[registerCount := registerCount + 1]].
 	
-	R1 to: R12 do:
+	X1 to: X12 do:
 		[:reg|
 		 (regMask anyMask: (cogit registerMaskFor: reg)) ifTrue:
 			[cogit PopR: reg]].
@@ -3195,7 +3218,7 @@ CogRiscV64Compiler >> genRestoreRegs: regMask [
 	Then, lets pop the extra thing to force the stack alignment"
 	registerCount \\ 2 == 0
 		ifFalse: [ 
-			cogit PopR: R0  ].
+			cogit PopR: X0  ].
 	
 	^0
 ]
@@ -3212,11 +3235,11 @@ CogRiscV64Compiler >> genSaveRegs: regMask [
 	"Save the registers in regMask for a call into the C run-time from a trampoline"
 	<inline: true>
 	| registerCount |
-	self assert: (R12 > R1 and: [R12 - R1 + 1 = 12]).
+	self assert: (X12 > X1 and: [X12 - X1 + 1 = 12]).
 	self deny: (regMask anyMask: (cogit registerMaskFor: SPReg and: FPReg)).
 	
 	registerCount := 0.
-	R12 to: R1 by: -1 do:
+	X12 to: X1 by: -1 do:
 		[:reg|
 		 (regMask anyMask: (cogit registerMaskFor: reg)) ifTrue:
 			[registerCount := registerCount + 1]].
@@ -3226,7 +3249,7 @@ CogRiscV64Compiler >> genSaveRegs: regMask [
 	registerCount \\ 2 == 0
 		ifFalse: [ cogit PushCq: 16rBEEF "Marker smallinteger to generate a valid stack" ].
 	
-	R12 to: R1 by: -1 do:
+	X12 to: X1 by: -1 do:
 		[:reg|
 		 (regMask anyMask: (cogit registerMaskFor: reg)) ifTrue:
 			[cogit PushR: reg]].
@@ -3255,19 +3278,19 @@ CogRiscV64Compiler >> generalPurposeRegisterMap [
 	<doNotGenerate>
 	"Answer a Dictionary from register getter to register index."
 	^Dictionary newFromPairs:
-		{	#r0. R0.
-			#r1. R1.
-			#r2. R2.
-			#r3. R3.
-			#r4. R4.
-			#r5. R5.
-			#r6. R6.
-			#r7. R7.
-			#r8. R8.
-			#r9. R9.
-			#r10. R10.
-			#r11. R11.
-			#r12. R12	}
+		{	#r0. X0.
+			#r1. X1.
+			#r2. X2.
+			#r3. X3.
+			#r4. X4.
+			#r5. X5.
+			#r6. X6.
+			#r7. X7.
+			#r8. X8.
+			#r9. X9.
+			#r10. X10.
+			#r11. X11.
+			#r12. X12	}
 ]
 
 { #category : #testing }
