@@ -419,6 +419,13 @@ UnicornX64Simulator >> simulateJumpCallOf: address memory: aMemory [
 ]
 
 { #category : #'as yet unclassified' }
+UnicornX64Simulator >> simulateLeafCallOf: address nextpc: nextpc memory: aMemory [
+
+	self pushWord: nextpc.
+	self rip: address
+]
+
+{ #category : #'as yet unclassified' }
 UnicornX64Simulator >> simulateReturnIn: aMemory [
 
 	self rbp: (self popWord).

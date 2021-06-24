@@ -67,10 +67,10 @@ UnicornARMv8Simulator >> cpacr_el1: anInteger [
 { #category : #'as yet unclassified' }
 UnicornARMv8Simulator >> createUnicorn [
 
-	unicorn := Unicorn arm64.
+	simulator := Unicorn arm64.
 	"Enable floating point..."
 	self cpacr_el1: (self cpacr_el1 bitOr: 2r11 << 20).
-	^ unicorn
+	^ simulator
 ]
 
 { #category : #disassembling }

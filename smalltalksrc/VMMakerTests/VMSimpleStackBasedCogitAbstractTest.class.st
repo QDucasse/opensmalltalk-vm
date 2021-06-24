@@ -37,6 +37,7 @@ Class {
 VMSimpleStackBasedCogitAbstractTest class >> testParameters [
 
 	^ ParametrizedTestMatrix new
+		addCase: { #ISA -> #'riscv64' . #wordSize -> 8 };
 		addCase: { #ISA -> #'aarch64'. #wordSize -> 8};
 		addCase: { #ISA -> #'IA32'. #wordSize -> 4};
 		addCase: { #ISA -> #'X64'. #wordSize -> 8};
@@ -753,7 +754,7 @@ VMSimpleStackBasedCogitAbstractTest >> setUp [
 	
 	machineSimulator := cogit processor machineSimulator.
 	
-	cogit generateStackPointerCapture.
+	"cogit generateStackPointerCapture."
 	cogit methodZone manageFrom: cogit cogCodeBase to: initialAddress + self initialCodeSize.
 
 	memory coInterpreter numStackPages: 8.
@@ -767,6 +768,7 @@ VMSimpleStackBasedCogitAbstractTest >> setUp [
 VMSimpleStackBasedCogitAbstractTest >> setUpCPUSimulator [
 
 	machineSimulator := UnicornSimulator perform: isa asSymbol.
+	self halt.
 	machineSimulator memory: memory.
 	memory memory memoryObject pinInMemory.
 	machineSimulator mapMemory: memory memory memoryObject at: initialAddress.

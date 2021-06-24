@@ -84,14 +84,14 @@ UnicornARMv5Simulator >> createUnicorn [
 	Create a region of 4KB and map it also at a multiple of 4KB."
 	mappedMemory := ByteArray new: 4096.
 	mappedMemory replaceFrom: 1 to: bytes size with: bytes.
-	unicorn := Unicorn arm.
-	unicorn mapHostMemory: mappedMemory atAddress: 4096 withPermissions: UnicornConstants permissionAll.
+	simulator := Unicorn arm.
+	simulator mapHostMemory: mappedMemory atAddress: 4096 withPermissions: UnicornConstants permissionAll.
 
-	unicorn doStartAt: 4096 until: 0 timeout: 0 count: 5 "instructions".
+	simulator doStartAt: 4096 until: 0 timeout: 0 count: 5 "instructions".
 
 	"Cleanup: unmap the memory so the ByteArray can be safely get garbage collected and that memory region can be reused"
-	unicorn unmapMemoryAt: 4096 size: 4096.
-	^ unicorn
+	simulator unmapMemoryAt: 4096 size: 4096.
+	^ simulator
 ]
 
 { #category : #disassembling }
@@ -115,7 +115,7 @@ UnicornARMv5Simulator >> doStartAt: startAddress until: until timeout: timeout c
 
 	[ true ]
 		whileTrue: [ 
-			[result :=  unicorn
+			[result :=  simulator
 				startAt: self instructionPointerValue
 				until: 0
 				timeout: 0
@@ -127,7 +127,7 @@ UnicornARMv5Simulator >> doStartAt: startAddress until: until timeout: timeout c
 						error signal ].
 		
 			"If execution did not stop because of a stop reason, verify the error code"
-			unicorn verifyErrorCode: result.
+			simulator verifyErrorCode: result.
 
 			
 					actualCount := actualCount + 1] 
