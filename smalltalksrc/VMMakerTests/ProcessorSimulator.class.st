@@ -84,7 +84,7 @@ ProcessorSimulator >> cReturnRegisterValue: anInteger [
 { #category : #registers }
 ProcessorSimulator >> classRegister [
 	
-	^ self subclassResponsibility
+	^ SpikeRISCVRegisters x23
 ]
 
 { #category : #registers }

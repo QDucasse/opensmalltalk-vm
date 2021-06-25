@@ -539,7 +539,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[Fill32]					-> [^4].
 		[Nop]					-> [^4].
 		"Control"
-		[Call]					-> [^4].
+		[Call]					-> [^8].
 		[CallFull]				-> [^self literalLoadInstructionBytes + 4].
 		[JumpR]					-> [^4].
 		[Jump]					-> [^4].
@@ -799,7 +799,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[MoveRRd]				-> [^4].
 				
 		"This is a fixed size instruction using a literal. We need exactly 1 instructions to move a literal from a PC relative position, so this takes ALWAYS 1 instruction of 4 bytes"
-		[MovePatcheableC32R] -> [ ^ 4 ]
+		[MovePatcheableC32R] -> [ ^ 8 ]
 		}.
 	^0 "to keep C compiler quiet"
 
@@ -1004,14 +1004,28 @@ CogRiscV64Compiler >> concretizeCall [
 	"Call is used only for calls within code-space, See CallFull for general anywhere in address space calling"
 
 	<inline: true>
-	| offset |
+	| offset offsetHigh offsetLow signedOffset |
 	self assert: (operands at: 0) ~= 0.
 	self assert: (operands at: 0) \\ 4 = 0.
-	offset := (operands at: 0) signedIntFromLong
-		- address signedIntFromLong.	"normal pc offset"
-	self assert: (self isInImmediateJumpRange: offset).	"+- 24Mb is plenty of range in code space"
-	self machineCodeAt: 0 put: (self bl: offset).
-	^ machineCodeSize := 4
+	"Compute the offset from the PC"
+  offset := (operands at: 0) signedIntFromLong - address signedIntFromLong.
+	signedOffset  := offset < 0
+		                   ifTrue: [ "Compute the two's complement" 
+		                   16rfffff - offset abs + 1 ]
+		                   ifFalse: [ offset ].
+	offsetHigh := signedOffset >> 12.
+	offsetLow := signedOffset bitAnd: 16rFFF.
+
+  offset abs >= (1 << 19) ifTrue: [ 
+		"In the case the offset is larger than 20bits, more operations need to be done to handle it
+		and add (or substract) it to the PC"
+	  self halt.
+	].
+
+	self machineCodeAt: 0 put: (self addUpperImmediateToPC: 0 toRegister: ConcreteIPReg).
+	self machineCodeAt: 4 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStoresPreviousPCin: LR).
+	^ machineCodeSize := 8
+
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -1735,51 +1749,21 @@ CogRiscV64Compiler >> concretizeMoveMbrR [
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMoveMwrR [
+
 	"Will get inlined into concretizeAt: switch."
 
-	<var: #offset type: #sqInt>
 	<inline: true>
-	| srcReg offset destReg instrOffset |
+	| baseReg offset destReg instrOffset |
+	self flag: #TODO.
 	offset := operands at: 0.
-	srcReg := operands at: 1.
+	baseReg := operands at: 1.
 	destReg := operands at: 2.
-
-	"If it is a positive 12 bit value this can be encoded as a LDR with a positive 12bit offset"
-	(offset >= 0 and: [ (offset bitAnd: 16rFFF) = offset ]) ifTrue: [
-		self
-			machineCodeAt: 0
-			put:
-				(self
-					ldrSize: 1"is64Bits"
-					baseRegister: srcReg
-					unsignedOffset: offset
-					destinationRegister: destReg).
-		^ machineCodeSize := 4
-	].
-	
-	"If it is negative, maybe we can encode it as a LDUR signed 9bit offset"
-	self
-		is9BitValue: offset
-		ifTrue: [ :immediate | 
-			self
-				machineCodeAt: 0
-				put:
-					(self
-						ldurSize: 1 "64bits"
-						baseRegister: srcReg
-						signedOffset: immediate
-						destinationRegister: destReg).
-			^ machineCodeSize := 4 ]
-		ifFalse: [
-			"Otherwise, this may be a literal"
-			self assert: dependent notNil.
-			instrOffset := self moveCw: offset intoR: ConcreteIPReg.
-			self
-				machineCodeAt: instrOffset
-				put: (self ldrSize: 1 indexRegister: ConcreteIPReg baseRegister: srcReg destinationRegister: destReg).
-			^ machineCodeSize := instrOffset + 4 ].
-		
-	^ 0	"to keep Slang happy"
+	self assert: (offset bitAnd: 16rfff) = offset.
+	self machineCodeAt: 0 put: (self
+			 loadDoubleWordFromRegister: baseReg
+			 withOffset: offset
+			 toRegister: destReg).
+	^ machineCodeSize := 4.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2234,21 +2218,31 @@ CogRiscV64Compiler >> concretizePushCq [
 	<var: #word type: #sqInt>
 	<inline: true>
 	| cq instrOffset literalAddress distance |
+	self flag: #DONE.
 	cq := operands at: 0.
-	"Store a double word at the position of the stack pointer	  
+	"Store a double word at the position of the stack pointer if the constant is not a literal  
 		li  ConcreteIPReg, cq
 		addi sp, sp, 8
-		sd  ConcreteIPReg, 0(sp)"
+		sd  ConcreteIPReg, 0(sp)
+	
+	If it is a literal:
+	  auipc ConcreteIPReg, 0
+	  ld ConcreteIPReg, cqdistance(ConcreteIPReg)
+		addi sp, sp, 8
+		sd  ConcreteIPReg, 0(sp)
+		"
 	dependent
 		ifNil: [ 
+			"No literal -> Direct load into a scratch register"
 			self
 				machineCodeAt: 0
 				put: (self loadImmediate: cq inRegister: ConcreteIPReg).
 			instrOffset := 4 ]
 		ifNotNil: [ 
+			"No literal -> Direct load into a scratch register"
 			literalAddress := (cogit cCoerceSimple: dependent to: #'AbstractInstruction *') address.
 			distance := literalAddress - address.
-			self machineCodeAt: 0 put: (self addUpperImmediateToPCWithOffset: 0 toRegister: ConcreteIPReg).
+			self machineCodeAt: 0 put: (self addUpperImmediateToPC: 0 toRegister: ConcreteIPReg).
 			self machineCodeAt: 4 put: (self
 					 loadDoubleWordFromRegister: ConcreteIPReg
 					 withOffset: distance
@@ -2284,6 +2278,7 @@ CogRiscV64Compiler >> concretizePushR [
 	"Store the content of a register at the position of the stack pointer	  
 		addi sp, sp, 8
 		sd   srcReg, 0(sp)"
+	self flag: #DONE.
 	self
 		machineCodeAt: 0
 		put: (self addImmediate: 8 toRegister: SP inRegister: SP).
@@ -2296,10 +2291,31 @@ CogRiscV64Compiler >> concretizePushR [
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeRetN [
+
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
-	1halt.
+	| offset instrOffset |
+	self flag: #DONE.
+	"Jumps to the address stored in the Link Register + a given offset.
+	If the offset is 0:
+	(ret)	jalr, x0, 0(LR)
+	Else, the offset is added to the LR before the jump:
+	       addi, LR, offset(LR)
+	(ret)  jalr, x0, 0(LR)
+	"
+	instrOffset := 0.
+	offset := operands at: 0.
+	"If the offset is different than 0, an addimmediate instruction is used on the stack pointer"
+	offset = 0 ifFalse: [ 
+		self assert: (offset bitAnd: 16rfff) = offset.
+		self
+			machineCodeAt: instrOffset
+			put: (self addImmediate: offset toRegister: SP inRegister: SP).
+		instrOffset := 4 ].
+
+	self machineCodeAt: instrOffset put: self ret.
+	^ machineCodeSize := instrOffset + 4
 ]
 
 { #category : #concretize }

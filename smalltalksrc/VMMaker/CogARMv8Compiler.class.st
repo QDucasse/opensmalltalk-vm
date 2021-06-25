@@ -1503,6 +1503,7 @@ CogARMv8Compiler >> concretizeCall [
 
 	<inline: true>
 	| offset |
+	self halt.
 	self assert: (operands at: 0) ~= 0.
 	self assert: (operands at: 0) \\ 4 = 0.
 	offset := (operands at: 0) signedIntFromLong

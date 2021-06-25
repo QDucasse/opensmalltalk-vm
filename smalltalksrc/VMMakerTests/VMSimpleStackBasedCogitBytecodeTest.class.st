@@ -1336,7 +1336,7 @@ VMSimpleStackBasedCogitBytecodeTest >> testSendLiteralOneWithZeroArgsMovesSelect
 	Literal 1 -> our selector"
 	
 	sendAddress := self compile: [ cogit genSendLiteralSelector0ArgsBytecode ].
-
+	
 	"Push receiver, arg, then send"
 	self pushAddress: memory falseObject.
 	self runFrom: sendAddress until: sendTrampolineAddress.

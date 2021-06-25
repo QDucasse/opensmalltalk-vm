@@ -12,25 +12,42 @@ CogOutOfLineLiteralsRiscV64Compiler class >> literalsManagerClass [
 { #category : #assembler }
 CogOutOfLineLiteralsRiscV64Compiler >> addImmediate: anImmediate toRegister: sourceRegister inRegister: destinationRegister [
 
+	"Adds the sign-extended immediate to register x[rs1] and writes the result to x[rd]. 
+	 Arithmetic overflow is ignored.
+	
+	31                 20  19   15  14  12  11  7  6         0
+	|  	immediate[11:0]  |  rs1   |  000  |  rd  |  0010011  |
+	"
+	
 	| riscvOpcode |
-	self assert: (anImmediate bitAnd: 16reff) = anImmediate.
+	self assert: (anImmediate bitAnd: 16rfff) = anImmediate.
 	riscvOpcode := 2r0010011.
-	self flag: #TODO.
-	^ (((anImmediate bitAnd: 16reff) << 20 bitOr: (sourceRegister bitAnd: 16r1f) << 15) 
-		   bitOr: (destinationRegister bitAnd: 16r1f) << 7) bitOr:
-		  riscvOpcode
+	self flag: #DONE.
+	^ (((anImmediate bitAnd: 16rfff) << 20 
+	  bitOr: (sourceRegister bitAnd: 16r1f) << 15) 
+	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
+	  bitOr: riscvOpcode
 ]
 
 { #category : #assembler }
-CogOutOfLineLiteralsRiscV64Compiler >> addUpperImmediateToPCWithOffset: anImmediate toRegister: destinationRegister [
+CogOutOfLineLiteralsRiscV64Compiler >> addUpperImmediateToPC: anImmediate toRegister: destinationRegister [
 
-	| riscvOpcode |
+	"Adds the sign-extended 20-bit immediate, left-shifted by 12 bits, to the pc, and writes the result to x[rd].
+	
+	31                  12  11    7  6         0
+	|  	immediate[31:12]  |   rd   |   0010111  |
+	"
+
+	| riscvOpcode signedImmediate |
 	self assert: (anImmediate bitAnd: 16rfffff) = anImmediate.
+	signedImmediate := anImmediate < 0
+		                   ifTrue: [ "Compute the two's complement" 
+		                   16rfffff - anImmediate abs + 1 ]
+		                   ifFalse: [ anImmediate ].
 	riscvOpcode := 2r0010111.
-	self flag: #TODO.
-	^ (((anImmediate bitAnd: 16rfffff) << 12 
-	    bitOr: (destinationRegister bitAnd: 16r1f) << 7 )
-	    bitOr: riscvOpcode)
+	self flag: #DONE.
+	^ ((anImmediate bitAnd: 16rfffff) << 12 bitOr:
+		   (destinationRegister bitAnd: 16r1f) << 7) bitOr: riscvOpcode
 ]
 
 { #category : #accessing }
@@ -127,8 +144,18 @@ CogOutOfLineLiteralsRiscV64Compiler >> concretizeMoveMbrR [
 { #category : #'as yet unclassified' }
 CogOutOfLineLiteralsRiscV64Compiler >> concretizeMovePatcheableC32R [
 	
-	self loadRelativeLiteralIn: (operands at: 1).
-	^ machineCodeSize := 4
+	| literalAddress distance |
+	
+	self flag: #TODO.
+	self assert: dependent isNotNil.
+	literalAddress := (cogit cCoerceSimple: dependent to: #'AbstractInstruction *') address.
+	distance := literalAddress - address.
+	self machineCodeAt: 0 put: (self addUpperImmediateToPC: 0 toRegister: ConcreteIPReg).
+	self machineCodeAt: 4 put: (self
+					 loadDoubleWordFromRegister: ConcreteIPReg
+					 withOffset: distance
+					 toRegister: (operands at: 1)).
+	^ machineCodeSize := 8
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -248,6 +275,26 @@ CogOutOfLineLiteralsRiscV64Compiler >> isSharable [
 	^operands at: 1
 ]
 
+{ #category : #assembler }
+CogOutOfLineLiteralsRiscV64Compiler >> jumpTo: sourceRegisterValueAddress withOffset: offset andStoresPreviousPCin: destinationRegister [ 
+	"jalr: Sets the pc to x[rs1] + sign-extend(offset), masking off the least-significant bit of the computed address, 
+	 then writes the previous pc+4 to x[rd]. If rd is omitted, x1 is assumed.
+	
+	 31             20  19    15  14   12  11    7  6         0
+	|  	offset[11:0]  |   rs1   |  000   |   rd   |   1100111  |
+	"
+
+	| riscvOpcode |
+	riscvOpcode := 2r1100111.
+	self assert: (offset bitAnd: 16rfff) = offset.
+	self flag: #DONE.
+	^ (((((offset bitAnd: 16rfff) << 20 
+		bitOr: (sourceRegisterValueAddress bitAnd: 16r1f) << 15)
+		bitOr: 2r000)
+		bitOr: (destinationRegister bitAnd: 16r1f) << 7)
+		bitOr: riscvOpcode)
+]
+
 { #category : #'inline cacheing' }
 CogOutOfLineLiteralsRiscV64Compiler >> literalBeforeFollowingAddress: followingAddress [
 	"Return the literal referenced by the instruction immediately preceding followingAddress."
@@ -277,10 +324,16 @@ CogOutOfLineLiteralsRiscV64Compiler >> literalOpcodeIndex [
 { #category : #assembler }
 CogOutOfLineLiteralsRiscV64Compiler >> loadDoubleWordFromRegister: baseRegister withOffset: offset toRegister: destinationRegister [ 
 
+	"Loads eight bytes from memory at address x[rs1] + sign-extend(offset) and writes them to x[rd].
+	
+	 31       20  19    15  14   12  11    7  6         0
+	|  	offset  |   rs1   |  001   |   rd   |   0000011  |
+	"
+
 	| riscvOpcode |
 	self assert: (offset bitAnd: 16rfff) = offset.
+	self flag: #DONE.
 	riscvOpcode :=  2r0000011.
-	self flag: #TODO.
 	^ ((((((offset bitAnd: 16rfff) << 20) 
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
 	  bitOr: 2r011 << 	12)
@@ -294,7 +347,8 @@ CogOutOfLineLiteralsRiscV64Compiler >> loadDoubleWordFromRegister: baseRegister 
 { #category : #assembler }
 CogOutOfLineLiteralsRiscV64Compiler >> loadImmediate: anImmediate inRegister: aRegisterID [
 
-	"Load immediate is an addimmediate with register X0 (always holding the value 0)"
+	"li: Load immediate is an addimmediate with register X0 (always holding the value 0)"
+	self flag: #TODO.
 	^ self	addImmediate: anImmediate toRegister: X0 inRegister: aRegisterID
 ]
 
@@ -309,13 +363,13 @@ CogOutOfLineLiteralsRiscV64Compiler >> loadRelativeLiteralIn: destReg [
 
 	<inline: true>
 
+	self flag: #TODO.
+	self halt.
 	self assert: dependent opcode = Literal.
 	self assert: (cogit addressIsInCurrentCompilation: dependent address).
 	self assert: (dependent address - (address + 8)) abs < (1 << 12).
-	self machineCodeAt: 0 put: (self
-			 ldrSize: 1
-			 programCounterRelativeOffset: dependent address - address
-			 destinationRegister: destReg) "64 bits"
+	self machineCodeAt: 0 put: (self loadImmediate: dependent address - address
+		  	 inRegister:  destReg).
 ]
 
 { #category : #'generate machine code - support' }
@@ -345,6 +399,8 @@ CogOutOfLineLiteralsRiscV64Compiler >> moveCw: constant intoR: destReg [
 { #category : #assembler }
 CogOutOfLineLiteralsRiscV64Compiler >> nop [
 	
+	"nop expands to addi x0, 0(x0)"
+	self flag: #DONE.
 	^ self addImmediate: 0 toRegister: X0 inRegister: X0 
 ]
 
@@ -391,6 +447,14 @@ CogOutOfLineLiteralsRiscV64Compiler >> relocateMethodReferenceBeforeAddress: pc 
 		[litAddr := self pcRelativeAddressAt: pcPrecedingLoad.
 		 reference := objectMemory long64At: litAddr.
 		 objectMemory long64At: litAddr put: reference + delta - 4]
+]
+
+{ #category : #assembler }
+CogOutOfLineLiteralsRiscV64Compiler >> ret [
+	
+	"ret corresponds to jalr, x0, 0(x1)"
+  ^ self jumpTo: LR  withOffset: 0 andStoresPreviousPCin: X0
+	
 ]
 
 { #category : #'inline cacheing' }
@@ -491,16 +555,22 @@ CogOutOfLineLiteralsRiscV64Compiler >> sizePCDependentInstructionAt: eventualAbs
 { #category : #assembler }
 CogOutOfLineLiteralsRiscV64Compiler >> storeDoubleWordFromRegister: sourceRegister toRegister: destinationAddressRegister withOffset: offset [
 
-	| riscvOpcodePart1 riscvOpcodePart2 |
+	"Stores the eight bytes in register x[rs2] to memory at address x[rs1] + sign-extend(offset).
+	
+	 31             25  24    20  19    15  14   12  11             7  6         0
+	|  	offset[11:5]  |   rs2   |   rs1   |  011   |   offset[4:0]   |   0100011  |
+	"
+
+	| riscvOpcodePart1 |
 	"The offset can hold up to 12 bits"
-	self assert: (offset bitAnd: 16reff) = offset.
+	self assert: (offset bitAnd: 16rfff) = offset.
 	riscvOpcodePart1 := 2r0100011.	
-	riscvOpcodePart2 := 2r011.
+	self flag: #DONE.
 	^ ((((((
 	  offset >> 5 bitAnd: 16r3f) << 25) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 20 )
 	  bitOr: (destinationAddressRegister bitAnd: 16r1f) << 15) 
-	  bitOr: riscvOpcodePart2 << 12)
+	  bitOr: 2r011 << 12)
 	  bitOr: (offset bitAnd: 16r1f) << 7) 
 	  bitOr: riscvOpcodePart1
 	
@@ -631,7 +701,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 										ifFalse: [^ true ] ]].
 								
 		[PushCw]		-> [^(self inCurrentCompilation: (operands at: 0)) not].
-		[PushCq]		-> [^ ((operands at: 0) bitAnd: 16reff) ~= (operands at: 0)].
+		[PushCq]		-> [^ ((operands at: 0) bitAnd: 16rfff) ~= (operands at: 0)].
 		[PrefetchAw] 	-> [^(self isAddressRelativeToVarBase: (operands at: 0)) ifTrue: [false] ifFalse: [true]].
 
 		"Patcheable instruction. Moves a literal. Uses out of line literal."
