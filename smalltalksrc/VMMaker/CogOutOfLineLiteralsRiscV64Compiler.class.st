@@ -9,47 +9,6 @@ CogOutOfLineLiteralsRiscV64Compiler class >> literalsManagerClass [
 	^OutOfLineLiteralsManager
 ]
 
-{ #category : #assembler }
-CogOutOfLineLiteralsRiscV64Compiler >> addImmediate: anImmediate toRegister: sourceRegister inRegister: destinationRegister [
-
-	"Adds the sign-extended immediate to register x[rs1] and writes the result to x[rd]. 
-	 Arithmetic overflow is ignored.
-	
-	31                 20  19   15  14  12  11  7  6         0
-	|  	immediate[11:0]  |  rs1   |  000  |  rd  |  0010011  |
-	"
-	
-	| riscvOpcode |
-	self assert: (anImmediate bitAnd: 16rfff) = anImmediate.
-	riscvOpcode := 2r0010011.
-	self flag: #DONE.
-	^ (((anImmediate bitAnd: 16rfff) << 20 
-	  bitOr: (sourceRegister bitAnd: 16r1f) << 15) 
-	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcode
-]
-
-{ #category : #assembler }
-CogOutOfLineLiteralsRiscV64Compiler >> addUpperImmediateToPC: anImmediate toRegister: destinationRegister [
-
-	"Adds the sign-extended 20-bit immediate, left-shifted by 12 bits, to the pc, and writes the result to x[rd].
-	
-	31                  12  11    7  6         0
-	|  	immediate[31:12]  |   rd   |   0010111  |
-	"
-
-	| riscvOpcode signedImmediate |
-	self assert: (anImmediate bitAnd: 16rfffff) = anImmediate.
-	signedImmediate := anImmediate < 0
-		                   ifTrue: [ "Compute the two's complement" 
-		                   16rfffff - anImmediate abs + 1 ]
-		                   ifFalse: [ anImmediate ].
-	riscvOpcode := 2r0010111.
-	self flag: #DONE.
-	^ ((anImmediate bitAnd: 16rfffff) << 12 bitOr:
-		   (destinationRegister bitAnd: 16r1f) << 7) bitOr: riscvOpcode
-]
-
 { #category : #accessing }
 CogOutOfLineLiteralsRiscV64Compiler >> cmpC32RTempByteSize [
 	^8
@@ -275,26 +234,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> isSharable [
 	^operands at: 1
 ]
 
-{ #category : #assembler }
-CogOutOfLineLiteralsRiscV64Compiler >> jumpTo: sourceRegisterValueAddress withOffset: offset andStoresPreviousPCin: destinationRegister [ 
-	"jalr: Sets the pc to x[rs1] + sign-extend(offset), masking off the least-significant bit of the computed address, 
-	 then writes the previous pc+4 to x[rd]. If rd is omitted, x1 is assumed.
-	
-	 31             20  19    15  14   12  11    7  6         0
-	|  	offset[11:0]  |   rs1   |  000   |   rd   |   1100111  |
-	"
-
-	| riscvOpcode |
-	riscvOpcode := 2r1100111.
-	self assert: (offset bitAnd: 16rfff) = offset.
-	self flag: #DONE.
-	^ (((((offset bitAnd: 16rfff) << 20 
-		bitOr: (sourceRegisterValueAddress bitAnd: 16r1f) << 15)
-		bitOr: 2r000)
-		bitOr: (destinationRegister bitAnd: 16r1f) << 7)
-		bitOr: riscvOpcode)
-]
-
 { #category : #'inline cacheing' }
 CogOutOfLineLiteralsRiscV64Compiler >> literalBeforeFollowingAddress: followingAddress [
 	"Return the literal referenced by the instruction immediately preceding followingAddress."
@@ -321,55 +260,10 @@ CogOutOfLineLiteralsRiscV64Compiler >> literalOpcodeIndex [
 	^(operands at: 2) asInteger
 ]
 
-{ #category : #assembler }
-CogOutOfLineLiteralsRiscV64Compiler >> loadDoubleWordFromRegister: baseRegister withOffset: offset toRegister: destinationRegister [ 
-
-	"Loads eight bytes from memory at address x[rs1] + sign-extend(offset) and writes them to x[rd].
-	
-	 31       20  19    15  14   12  11    7  6         0
-	|  	offset  |   rs1   |  001   |   rd   |   0000011  |
-	"
-
-	| riscvOpcode |
-	self assert: (offset bitAnd: 16rfff) = offset.
-	self flag: #DONE.
-	riscvOpcode :=  2r0000011.
-	^ ((((((offset bitAnd: 16rfff) << 20) 
-	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
-	  bitOr: 2r011 << 	12)
-	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode) 
-
-
-	
-]
-
-{ #category : #assembler }
-CogOutOfLineLiteralsRiscV64Compiler >> loadImmediate: anImmediate inRegister: aRegisterID [
-
-	"li: Load immediate is an addimmediate with register X0 (always holding the value 0)"
-	self flag: #TODO.
-	^ self	addImmediate: anImmediate toRegister: X0 inRegister: aRegisterID
-]
-
 { #category : #accessing }
 CogOutOfLineLiteralsRiscV64Compiler >> loadLiteralByteSize [
 	"Answer the byte size of a MoveCwR opcode's corresponding machine code. On ARM this is a single instruction pc-relative register load - unless we have made a mistake and not turned on the out of line literals manager"
 	^4
-]
-
-{ #category : #literals }
-CogOutOfLineLiteralsRiscV64Compiler >> loadRelativeLiteralIn: destReg [
-
-	<inline: true>
-
-	self flag: #TODO.
-	self halt.
-	self assert: dependent opcode = Literal.
-	self assert: (cogit addressIsInCurrentCompilation: dependent address).
-	self assert: (dependent address - (address + 8)) abs < (1 << 12).
-	self machineCodeAt: 0 put: (self loadImmediate: dependent address - address
-		  	 inRegister:  destReg).
 ]
 
 { #category : #'generate machine code - support' }
@@ -394,14 +288,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> moveCw: constant intoR: destReg [
 	<inline: true>
 	self loadRelativeLiteralIn: destReg.
 	^machineCodeSize := 4
-]
-
-{ #category : #assembler }
-CogOutOfLineLiteralsRiscV64Compiler >> nop [
-	
-	"nop expands to addi x0, 0(x0)"
-	self flag: #DONE.
-	^ self addImmediate: 0 toRegister: X0 inRegister: X0 
 ]
 
 { #category : #'compile abstract instructions' }
@@ -447,14 +333,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> relocateMethodReferenceBeforeAddress: pc 
 		[litAddr := self pcRelativeAddressAt: pcPrecedingLoad.
 		 reference := objectMemory long64At: litAddr.
 		 objectMemory long64At: litAddr put: reference + delta - 4]
-]
-
-{ #category : #assembler }
-CogOutOfLineLiteralsRiscV64Compiler >> ret [
-	
-	"ret corresponds to jalr, x0, 0(x1)"
-  ^ self jumpTo: LR  withOffset: 0 andStoresPreviousPCin: X0
-	
 ]
 
 { #category : #'inline cacheing' }
@@ -552,30 +430,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> sizePCDependentInstructionAt: eventualAbs
 	^machineCodeSize := maxSize
 ]
 
-{ #category : #assembler }
-CogOutOfLineLiteralsRiscV64Compiler >> storeDoubleWordFromRegister: sourceRegister toRegister: destinationAddressRegister withOffset: offset [
-
-	"Stores the eight bytes in register x[rs2] to memory at address x[rs1] + sign-extend(offset).
-	
-	 31             25  24    20  19    15  14   12  11             7  6         0
-	|  	offset[11:5]  |   rs2   |   rs1   |  011   |   offset[4:0]   |   0100011  |
-	"
-
-	| riscvOpcodePart1 |
-	"The offset can hold up to 12 bits"
-	self assert: (offset bitAnd: 16rfff) = offset.
-	riscvOpcodePart1 := 2r0100011.	
-	self flag: #DONE.
-	^ ((((((
-	  offset >> 5 bitAnd: 16r3f) << 25) 
-	  bitOr: (sourceRegister bitAnd: 16r1f) << 20 )
-	  bitOr: (destinationAddressRegister bitAnd: 16r1f) << 15) 
-	  bitOr: 2r011 << 12)
-	  bitOr: (offset bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcodePart1
-	
-]
-
 { #category : #'inline cacheing' }
 CogOutOfLineLiteralsRiscV64Compiler >> storeLiteral: literal beforeFollowingAddress: followingAddress [
 	"Rewrite the literal in the instruction immediately preceding followingAddress."
@@ -610,11 +464,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[AddCqR]		-> [ | constant |
 			constant := operands at: 0.
 			^ (constant abs bitAnd: 16rfff) ~= constant abs].
-		[AndCqR]		-> [^ self
-				encodeLogicalImmediate: (operands at: 0)
-				registerSize: 64
-				ifPossible: [ :value | false ]
-				ifNotPossible: [ true ] ].
+		[AndCqR]		-> [^ false ].
 		[AndCqRR]		-> [^ self
 				encodeLogicalImmediate: (operands at: 0)
 				registerSize: 64
@@ -634,11 +484,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[SubCqR]		-> [ | constant |
 			constant := operands at: 0.
 			^ (constant bitAnd: 16rfff) ~= constant ].
-		[TstCqR]		-> [ ^self
-				encodeLogicalImmediate: (operands at: 0)
-				registerSize: 64
-				ifPossible: [ :v | false ]
-				ifNotPossible: [ true ] ].
+		[TstCqR]		-> [ ^ false].
 		[XorCqR]		-> [^self rotateable8bitBitwiseImmediate: (operands at: 0) ifTrue: [:r :i :n| false] ifFalse: [true]].
 		[AddCwR]		-> [^true].
 		[AndCwR]		-> [^true].

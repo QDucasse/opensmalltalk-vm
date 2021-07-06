@@ -667,6 +667,7 @@ VMSimpleStackBasedCogitBytecodeTest >> testPush9thTempVariableWithArgumentsPushe
 { #category : #'tests - single bytecode' }
 VMSimpleStackBasedCogitBytecodeTest >> testPushConstantFalseBytecodePushesFalse [
 	
+	
 	self compile: [ cogit genPushConstantFalseBytecode ].	
 	self runGeneratedCode.
 
@@ -1563,7 +1564,7 @@ VMSimpleStackBasedCogitBytecodeTest >> testSendOneArgSpecialMessageMovesReceiver
 { #category : #'tests - special sends' }
 VMSimpleStackBasedCogitBytecodeTest >> testSendOneArgSpecialMessageMovesSelectorIntoClassRegisterIn32bits [
 	
-	self wordSize = 8 ifTrue: [ self skip ].
+	self wordSize = 8 ifTrue: [ ^ self skip ].
 	
 	sentSelector := #+.
 	self createSpecialSelectorArray.
@@ -1767,7 +1768,7 @@ VMSimpleStackBasedCogitBytecodeTest >> testSendZeroArgSpecialMessageMovesReceive
 { #category : #'tests - special sends' }
 VMSimpleStackBasedCogitBytecodeTest >> testSendZeroArgSpecialMessageMovesSelectorIntoClassRegisterIn32Bits [
 	
-	self wordSize = 8 ifTrue: [ self skip ].
+	self wordSize = 8 ifTrue: [ ^ self skip ].
 	
 	sentSelector := #atEnd.
 	self createSpecialSelectorArray.

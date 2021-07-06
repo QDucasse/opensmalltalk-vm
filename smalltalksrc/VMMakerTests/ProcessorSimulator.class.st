@@ -420,7 +420,7 @@ ProcessorSimulator >> returnRegisterValue: aValue [
 { #category : #registers }
 ProcessorSimulator >> sendNumberOfArgumentsRegister [
 
-	self subclassResponsibility
+	^ SpikeRISCVRegisters x25
 ]
 
 { #category : #registers }
