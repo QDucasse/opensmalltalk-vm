@@ -35,6 +35,7 @@ Class {
 		'F6',
 		'F7',
 		'GE',
+		'GEU',
 		'GT',
 		'HI',
 		'LDMFD',
@@ -42,6 +43,7 @@ Class {
 		'LR',
 		'LS',
 		'LT',
+		'LTU',
 		'MI',
 		'MRS',
 		'MSR',
@@ -204,6 +206,16 @@ CogRiscV64Compiler class >> initialize [
 
 	"Flag register for conditions"
 	ConcreteFlagReg := X27.
+	
+	"Branch Condition Codes"
+	EQ  := 2r000. "Equal"
+	NE  := 2r001. "Not equal"
+	GE  := 2r101. "Greater or Equal"
+	GEU := 2r111. "Greater or Equal Unsigned"
+	LT  := 2r100. "Less Than"
+	LTU := 2r110. "Less Than Unsigned"
+	
+	
 
 
 ]
@@ -420,6 +432,114 @@ CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg1 andRegister: sourceR
 	  bitOr: 111 << 12)
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
 	  bitOr: riscvopcode
+	
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> branchTo: offset ifCondition: condition betweenRegister: srcReg1 andRegister: srcReg2 [ 
+
+	"Offset handling common to all branches. The condition is the three bit code.
+	
+	31                25 24   20 19   15 14         12 11             7 6         0
+	|  	offset[12|10:5]  |  rs2  |  rs1  |  condition  | offset[4:1|11] | 1100011 
+	"	
+
+	| riscvopcode |
+	self flag: #DONE.
+	riscvopcode := 2r1100011.
+	self assert: (offset bitAnd: 16r1fff) = offset.
+	^ ((((((((offset bitAnd: 16r1000) << 30)
+	  bitOr: (offset bitAnd: 16r7e0)  << 25)
+	  bitOr: (srcReg2 bitAnd: 16r1f)  << 20)
+	  bitOr: (srcReg1 bitAnd: 16r1f)  << 15)
+	  bitOr: (condition bitAnd: 16r7) << 12)
+	  bitOr: (offset bitAnd: 16r1e)   << 8)
+	  bitOr: (offset bitAnd: 16r800)  << 7)
+	  bitOr: riscvopcode 
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> branchTo: offset ifRegisterValue: srcReg1 isEqualToRegisterValue: srcReg2 [
+	
+	"beq: If register x[rs1] equals x[rs2], set the PC to the current PC plus the sign-extended offset
+	
+	31                25 24   20 19   15 14   12 11             7 6         0
+	|  	offset[12|10:5]  |  rs2  |  rs1  |  000  | offset[4:1|11] | 1100011 
+	"
+	self flag: #DONE.
+	^ self branchTo: offset ifCondition: 2r000 betweenRegister: srcReg1 andRegister: srcReg2
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> branchTo: offset ifRegisterValue: srcReg1 isGreaterThanOrEqualRegisterValue: srcReg2 [
+	
+	"bge: If register x[rs1] is greater than or equal x[rs2], treating the values as two's complement numbers,
+	 set the PC to the current PC plus the sign-extended offset
+	
+	31                25 24   20 19   15 14   12 11             7 6         0
+	|  	offset[12|10:5]  |  rs2  |  rs1  |  101  | offset[4:1|11] | 1100011 
+	"
+	self flag: #DONE.
+	^ self branchTo: offset ifCondition: 2r101 betweenRegister: srcReg1 andRegister: srcReg2
+	
+	
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> branchTo: offset ifRegisterValue: srcReg1 isLessThanRegisterValue: srcReg2 [
+	
+	"blt: If register x[rs1] is less than x[rs2], treating the values as two's complement numbers,
+	 set the PC to the current PC plus the sign-extended offset
+	
+	31                25 24   20 19   15 14   12 11             7 6         0
+	|  	offset[12|10:5]  |  rs2  |  rs1  |  100  | offset[4:1|11] | 1100011 
+	"
+	self flag: #DONE.
+	^ self branchTo: offset ifCondition: 2r100 betweenRegister: srcReg1 andRegister: srcReg2
+	
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> branchTo: offset ifRegisterValue: srcReg1 isNotEqualToRegisterValue: srcReg2 [
+	
+	"bne: If register x[rs1] does not equal x[rs2], set the PC to the current PC plus the sign-extended offset
+	
+	31                25 24   20 19   15 14   12 11             7 6         0
+	|  	offset[12|10:5]  |  rs2  |  rs1  |  001  | offset[4:1|11] | 1100011 
+	"
+	self flag: #DONE.
+	^ self branchTo: offset ifCondition: 2r001 betweenRegister: srcReg1 andRegister: srcReg2
+	
+	
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> branchTo: offset ifRegisterValueUnsigned: srcReg1 isGreaterThanOrEqualRegisterValueUnsigned: srcReg2 [
+	
+	"bgeu: If register x[rs1] is greater than or equal x[rs2], treating the values as unsigned numbers,
+	 set the PC to the current PC plus the sign-extended offset
+	
+	31                25 24   20 19   15 14   12 11             7 6         0
+	|  	offset[12|10:5]  |  rs2  |  rs1  |  111  | offset[4:1|11] | 1100011 
+	"
+	self flag: #DONE.
+	^ self branchTo: offset ifCondition: 2r111 betweenRegister: srcReg1 andRegister: srcReg2
+	
+	
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> branchTo: offset ifRegisterValueUnsigned: srcReg1 isLessThanRegisterValueUnsigned: srcReg2 [
+	
+	"blt: If register x[rs1] is less than x[rs2], treating the values as two's complement numbers,
+	 set the PC to the current PC plus the sign-extended offset
+	
+	31                25 24   20 19   15 14   12 11             7 6         0
+	|  	offset[12|10:5]  |  rs2  |  rs1  |  110  | offset[4:1|11] | 1100011 
+	"
+	self flag: #DONE.
+	^ self branchTo: offset ifCondition: 2r110 betweenRegister: srcReg1 andRegister: srcReg2
+	
 	
 ]
 
