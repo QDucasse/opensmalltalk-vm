@@ -859,7 +859,7 @@ CogRiscV64Compiler >> concretizeAndCqR [
 				machineCodeAt: 0
 				put: (self addUpperImmediateToPC: 0 toRegister: ConcreteIPReg).
 			self machineCodeAt: 4 put: (self
-					 loadDoubleWordFromRegister: ConcreteIPReg
+					 loadDoubleWordFromAddressInRegister: ConcreteIPReg
 					 withOffset: distance
 					 toRegister: ConcreteIPReg).
 			self machineCodeAt: 8 put: (self
@@ -1064,8 +1064,17 @@ CogRiscV64Compiler >> concretizeCmpCwR [
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeCmpRR [
 
+	"CMP is a SUB operation where the result is discarded (here saved in the FLAG register)"
 	<inline: true>
-	1halt.
+	| srcReg1 srcReg2 |
+	self flag: #DONE.
+	srcReg1 := operands at: 0.
+	srcReg2 := operands at: 1.
+	self machineCodeAt: 0 put: (self
+			 substractValueFromRegister: srcReg1
+			 toRegister: srcReg2
+			 intoRegister: ConcreteFlagReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -1630,16 +1639,17 @@ CogRiscV64Compiler >> concretizeMoveMbrR [
 CogRiscV64Compiler >> concretizeMoveMwrR [
 
 	"Will get inlined into concretizeAt: switch."
-
+	"Load a word (64 bits) from memory where the address is at a constant offset from an address in a register
+	 Expands to: ld rd, rs1(offset)"
 	<inline: true>
 	| baseReg offset destReg instrOffset |
-	self flag: #TODO.
+	self flag: #DONE.
 	offset := operands at: 0.
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
 	self assert: (offset bitAnd: 16rfff) = offset.
 	self machineCodeAt: 0 put: (self
-			 loadDoubleWordFromRegister: baseReg
+			 loadDoubleWordFromAddressInRegister: baseReg
 			 withOffset: offset
 			 toRegister: destReg).
 	^ machineCodeSize := 4.
@@ -1741,8 +1751,21 @@ CogRiscV64Compiler >> concretizeMoveRMbr [
 { #category : #'as yet unclassified' }
 CogRiscV64Compiler >> concretizeMoveRMwr [
 
-	<doNotGenerate>
-	self subclassResponsibility 
+	"Stores a word (64 bits) from memory where the address is at a constant offset from an address in a register
+	 Expands to: sd rd, rs1(offset)"
+
+	<inline: true>
+	| srcReg offset baseReg instrOffset |
+	self flag: #DONE.
+	srcReg := operands at: 0.
+	offset := operands at: 1.
+	baseReg := operands at: 2.
+	self assert: (offset bitAnd: 16rfff) = offset.
+	self machineCodeAt: 0 put: (self
+			 storeDoubleWordFromRegister: srcReg
+			 toAddressInRegister: baseReg
+			 withOffset: offset).
+	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2060,7 +2083,7 @@ CogRiscV64Compiler >> concretizePopR [
 	| destReg |
 	self flag: #TODO.
 	destReg := operands at: 0.
-	self machineCodeAt: 0 put: (self loadDoubleWordFromRegister: SP withOffset: 0 toRegister: destReg).	
+	self machineCodeAt: 0 put: (self loadDoubleWordFromAddressInRegister: SP withOffset: 0 toRegister: destReg).	
 	self machineCodeAt: 4	put: (self addImmediate: (16rFFF - 8 abs + 1) toRegister: SP inRegister: SP).
 	^ machineCodeSize := 8	
 ]
@@ -2130,7 +2153,7 @@ CogRiscV64Compiler >> concretizePushCq [
 		put: (self addImmediate: 8 toRegister: SP inRegister: SP).
 	self machineCodeAt: instrOffset + 4 put: (self
 			 storeDoubleWordFromRegister: ConcreteIPReg
-			 toRegister: SP
+			 toAddressInRegister: SP
 			 withOffset: 0).
 	^ machineCodeSize := instrOffset + 8
 ]
@@ -2157,7 +2180,7 @@ CogRiscV64Compiler >> concretizePushR [
 	self machineCodeAt: 0 put: (self addImmediate: 8 toRegister: SP inRegister: SP).
 	self machineCodeAt: 4 put: (self
 			 storeDoubleWordFromRegister: srcReg
-			 toRegister: SP
+			 toAddressInRegister: SP
 			 withOffset: 0).	
 	^ machineCodeSize := 8
 ]
@@ -2345,7 +2368,7 @@ CogRiscV64Compiler >> concretizeTstCqR [
 			distance := literalAddress - address.
 			self machineCodeAt: 0 put: (self addUpperImmediateToPC: 0 toRegister: ConcreteIPReg).
 			self machineCodeAt: 4 put: (self
-					 loadDoubleWordFromRegister: ConcreteIPReg
+					 loadDoubleWordFromAddressInRegister: ConcreteIPReg
 					 withOffset: distance
 					 toRegister: ConcreteIPReg).
 			self machineCodeAt: 8 put: (self
@@ -3368,7 +3391,7 @@ CogRiscV64Compiler >> loadCwInto: destReg [
 ]
 
 { #category : #assembler }
-CogRiscV64Compiler >> loadDoubleWordFromRegister: baseRegister withOffset: offset toRegister: destinationRegister [ 
+CogRiscV64Compiler >> loadDoubleWordFromAddressInRegister: baseRegister withOffset: offset toRegister: destinationRegister [ 
 
 	"ld: Loads eight bytes from memory at address x[rs1] + sign-extend(offset) and writes them to x[rd].
 	
@@ -3453,7 +3476,7 @@ CogRiscV64Compiler >> loadLiteral: destReg [
 	distance := literalAddress - address.
 	^ {  
 		self addUpperImmediateToPC: 0 toRegister: destReg.
-   		self loadDoubleWordFromRegister: destReg withOffset: distance toRegister: destReg
+   		self loadDoubleWordFromAddressInRegister: destReg withOffset: distance toRegister: destReg
 	}
 
 ]
@@ -4071,7 +4094,7 @@ CogRiscV64Compiler >> stopsFrom: startAddr to: endAddr [
 ]
 
 { #category : #assembler }
-CogRiscV64Compiler >> storeDoubleWordFromRegister: sourceRegister toRegister: destinationAddressRegister withOffset: offset [
+CogRiscV64Compiler >> storeDoubleWordFromRegister: sourceRegister toAddressInRegister: destinationAddressRegister withOffset: offset [
 
 	"sd: Stores the eight bytes in register x[rs2] to memory at address x[rs1] + sign-extend(offset).
 	

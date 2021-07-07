@@ -111,7 +111,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> concretizeMovePatcheableC32R [
 	distance := literalAddress - address.
 	self machineCodeAt: 0 put: (self addUpperImmediateToPC: 0 toRegister: ConcreteIPReg).
 	self machineCodeAt: 4 put: (self
-					 loadDoubleWordFromRegister: ConcreteIPReg
+					 loadDoubleWordFromAddressInRegister: ConcreteIPReg
 					 withOffset: distance
 					 toRegister: (operands at: 1)).
 	^ machineCodeSize := 8
@@ -156,49 +156,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> concretizeMoveRM32r [
 					self
 						machineCodeAt: 4
 						put: (self strSize: 0 "32 bits" baseRegister: baseReg offsetRegister: ConcreteIPReg extension: 2r011 "LSL" shift: 0 "no LSL" storedRegister: srcReg).
-					^ machineCodeSize := 8 ]].
-	^ 0	"to keep Slang happy"
-]
-
-{ #category : #'generate machine code - concretize' }
-CogOutOfLineLiteralsRiscV64Compiler >> concretizeMoveRMwr [
-	"Will get inlined into concretizeAt: switch."
-
-	<var: #offset type: #sqInt>
-	<inline: true>
-	| srcReg offset baseReg |
-
-	srcReg := operands at: 0.
-	offset := operands at: 1.
-	baseReg := operands at: 2.
-	self
-		is9BitValue: offset
-		ifTrue: [ :value |
-			self
-				machineCodeAt: 0
-				put:(self
-					sturSize: 1
-					baseRegister: baseReg
-					signedOffset: offset
-					destinationRegister: srcReg).
-			^ machineCodeSize := 4 ]
-		ifFalse: [
-			self
-				shiftable16bitImmediate: offset
-				ifTrue: [ :shift :value | 
-					self assert: shift = 0.
-					self
-						machineCodeAt: 0
-						put: (self movSize: 1 destinationRegister: ConcreteIPReg imm: value shift: shift).
-					self
-						machineCodeAt: 4
-						put: (self strSize: 1 baseRegister: baseReg offsetRegister: ConcreteIPReg extension: 2r011 "LSL" shift: 0 "no LSL" storedRegister: srcReg).
-					^ machineCodeSize := 8  ]
-				ifFalse: [ 
-						self loadRelativeLiteralIn: ConcreteIPReg.
-					self
-						machineCodeAt: 4
-						put: (self strSize: 1 baseRegister: baseReg offsetRegister: ConcreteIPReg extension: 2r011 "LSL" shift: 0 "no LSL" storedRegister: srcReg).
 					^ machineCodeSize := 8 ]].
 	^ 0	"to keep Slang happy"
 ]
