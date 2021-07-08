@@ -436,6 +436,23 @@ CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg1 andRegister: sourceR
 ]
 
 { #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> branchTo: offset ifCondition: condition [ 
+
+	"The base condition checking should be between the ConcreteFlagReg and the ConcreteIPReg
+	"	
+	self flag: #TODO.
+	"Test all conditions and call according methods"
+	condition caseOf: { 
+		[ EQ ]  -> [ ^ self branchTo: offset ifRegisterValue: ConcreteIPReg isEqualToRegisterValue: ConcreteFlagReg ].
+	   [ NE ]  -> [ ^ self branchTo: offset ifRegisterValue: ConcreteIPReg isNotEqualToRegisterValue: ConcreteFlagReg ].
+		[ GE ]  -> [ ^ self branchTo: offset ifRegisterValue: ConcreteIPReg isGreaterThanOrEqualRegisterValue: ConcreteFlagReg ].
+	   [ GEU ] -> [ ^ self branchTo: offset ifRegisterValueUnsigned: ConcreteIPReg isGreaterThanOrEqualRegisterValueUnsigned: ConcreteFlagReg ].
+		[ LT ]  -> [ ^ self branchTo: offset ifRegisterValue: ConcreteIPReg isLessThanRegisterValue: ConcreteFlagReg ].
+		[ LTU ] -> [ ^ self branchTo: offset ifRegisterValueUnsigned: ConcreteIPReg isLessThanRegisterValueUnsigned: ConcreteFlagReg ].
+	}.
+]
+
+{ #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> branchTo: offset ifCondition: condition betweenRegister: srcReg1 andRegister: srcReg2 [ 
 
 	"Offset handling common to all branches. The condition is the three bit code.
@@ -444,17 +461,22 @@ CogRiscV64Compiler >> branchTo: offset ifCondition: condition betweenRegister: s
 	|  	offset[12|10:5]  |  rs2  |  rs1  |  condition  | offset[4:1|11] | 1100011 
 	"	
 
-	| riscvopcode |
+	| riscvopcode signedOffset |
 	self flag: #DONE.
 	riscvopcode := 2r1100011.
-	self assert: (offset bitAnd: 16r1fff) = offset.
-	^ ((((((((offset bitAnd: 16r1000) << 30)
-	  bitOr: (offset bitAnd: 16r7e0)  << 25)
+	
+	 "Check for sign extension"	
+	signedOffset := offset < 0
+		                ifTrue: [ 16r1fff - offset abs + 1 ] "Compute two's complement"
+		                ifFalse: [ offset ].
+	self assert: (signedOffset bitAnd: 16r1fff) = signedOffset.
+	^ ((((((((signedOffset bitAnd: 16r1000) << 30)
+	  bitOr: (signedOffset bitAnd: 16r7e0)  << 25)
 	  bitOr: (srcReg2 bitAnd: 16r1f)  << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f)  << 15)
 	  bitOr: (condition bitAnd: 16r7) << 12)
-	  bitOr: (offset bitAnd: 16r1e)   << 8)
-	  bitOr: (offset bitAnd: 16r800)  << 7)
+	  bitOr: (signedOffset bitAnd: 16r1e)   << 8)
+	  bitOr: (signedOffset bitAnd: 16r800)  << 7)
 	  bitOr: riscvopcode 
 ]
 
@@ -467,7 +489,7 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValue: srcReg1 isEqualToRegiste
 	|  	offset[12|10:5]  |  rs2  |  rs1  |  000  | offset[4:1|11] | 1100011 
 	"
 	self flag: #DONE.
-	^ self branchTo: offset ifCondition: 2r000 betweenRegister: srcReg1 andRegister: srcReg2
+	^ self branchTo: offset ifCondition: EQ betweenRegister: srcReg1 andRegister: srcReg2
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -480,7 +502,31 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValue: srcReg1 isGreaterThanOrE
 	|  	offset[12|10:5]  |  rs2  |  rs1  |  101  | offset[4:1|11] | 1100011 
 	"
 	self flag: #DONE.
-	^ self branchTo: offset ifCondition: 2r101 betweenRegister: srcReg1 andRegister: srcReg2
+	^ self branchTo: offset ifCondition: GE betweenRegister: srcReg1 andRegister: srcReg2
+	
+	
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> branchTo: offset ifRegisterValue: srcReg1 isGreaterThanRegisterValue: srcReg2 [
+	
+	"bgt: Pseudo-instruction that adds the offset to the PC if x[rs1] > x[rs2] 
+	 Expands to blt rs2, rs1, offset
+	"
+	self flag: #DONE.
+	^ self branchTo: offset ifCondition: LT betweenRegister: srcReg2 andRegister: srcReg1
+	
+	
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> branchTo: offset ifRegisterValue: srcReg1 isLessThanOrEqualRegisterValue: srcReg2 [
+	
+	"ble: Pseudo-instruction that adds the offset to the PC if x[rs1] <= x[rs2] 
+	 Expands to bge rs2, rs1, offset
+	"
+	self flag: #DONE.
+	^ self branchTo: offset ifCondition: GE betweenRegister: srcReg2 andRegister: srcReg1
 	
 	
 ]
@@ -495,7 +541,7 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValue: srcReg1 isLessThanRegist
 	|  	offset[12|10:5]  |  rs2  |  rs1  |  100  | offset[4:1|11] | 1100011 
 	"
 	self flag: #DONE.
-	^ self branchTo: offset ifCondition: 2r100 betweenRegister: srcReg1 andRegister: srcReg2
+	^ self branchTo: offset ifCondition: LT betweenRegister: srcReg1 andRegister: srcReg2
 	
 ]
 
@@ -508,7 +554,31 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValue: srcReg1 isNotEqualToRegi
 	|  	offset[12|10:5]  |  rs2  |  rs1  |  001  | offset[4:1|11] | 1100011 
 	"
 	self flag: #DONE.
-	^ self branchTo: offset ifCondition: 2r001 betweenRegister: srcReg1 andRegister: srcReg2
+	^ self branchTo: offset ifCondition: NE betweenRegister: srcReg1 andRegister: srcReg2
+	
+	
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> branchTo: offset ifRegisterValueIsEqualToZero: srcReg [
+	
+	"beqz: Pseudo instruction that branches to the offset if the value in the register is 0
+	Expands to beq x[rs1], x0, offset
+ 	"
+	self flag: #DONE.
+	^ self branchTo: offset ifCondition: EQ betweenRegister: srcReg andRegister: X0
+	
+	
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> branchTo: offset ifRegisterValueIsNotEqualToZero: srcReg [
+	
+	"bnez: Pseudo instruction that branches to the offset if the value in the register is not 0
+	Expands to bne x[rs1], x0, offset
+ 	"
+	self flag: #DONE.
+	^ self branchTo: offset ifCondition: NE betweenRegister: srcReg andRegister: X0
 	
 	
 ]
@@ -523,7 +593,7 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValueUnsigned: srcReg1 isGreate
 	|  	offset[12|10:5]  |  rs2  |  rs1  |  111  | offset[4:1|11] | 1100011 
 	"
 	self flag: #DONE.
-	^ self branchTo: offset ifCondition: 2r111 betweenRegister: srcReg1 andRegister: srcReg2
+	^ self branchTo: offset ifCondition: GEU betweenRegister: srcReg1 andRegister: srcReg2
 	
 	
 ]
@@ -531,14 +601,14 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValueUnsigned: srcReg1 isGreate
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> branchTo: offset ifRegisterValueUnsigned: srcReg1 isLessThanRegisterValueUnsigned: srcReg2 [
 	
-	"blt: If register x[rs1] is less than x[rs2], treating the values as two's complement numbers,
+	"bltu: If register x[rs1] is less than x[rs2], treating the values as unsigned numbers,
 	 set the PC to the current PC plus the sign-extended offset
 	
 	31                25 24   20 19   15 14   12 11             7 6         0
 	|  	offset[12|10:5]  |  rs2  |  rs1  |  110  | offset[4:1|11] | 1100011 
 	"
 	self flag: #DONE.
-	^ self branchTo: offset ifCondition: 2r110 betweenRegister: srcReg1 andRegister: srcReg2
+	^ self branchTo: offset ifCondition: LTU betweenRegister: srcReg1 andRegister: srcReg2
 	
 	
 ]
@@ -1072,7 +1142,7 @@ CogRiscV64Compiler >> concretizeCall [
 	].
 
 	self machineCodeAt: 0 put: (self addUpperImmediateToPC: 0 toRegister: ConcreteIPReg).
-	self machineCodeAt: 4 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStoresPreviousPCin: LR).
+	self machineCodeAt: 4 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: LR).
 	^ machineCodeSize := 8
 
 ]
@@ -1224,7 +1294,12 @@ CogRiscV64Compiler >> concretizeConditionalJump: conditionCode [
 		Otherwise instructions must have a machineCodeSize which must be kept to."
 
 	<inline: true>
+	| offset |
+	offset := self computeJumpTargetOffsetPlus: 8.
+ 	self assert: (self isInImmediateJumpRange: offset).
 	1 halt.
+	self machineCodeAt: 0 put: (self branchTo: offset ifCondition: conditionCode).
+	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -1321,6 +1396,19 @@ CogRiscV64Compiler >> concretizeInvertibleDataOperationCqR: armOpcode [
 ]
 
 { #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> concretizeJump [ 
+
+	"Will get inlined into concretizeAt: switch."
+	<inline: true>
+	| offset |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 8.
+ 	self assert: (self isInImmediateJumpRange: offset).
+	self machineCodeAt: 0 put: (self jumpToOffset: offset).
+	^ machineCodeSize := 4
+]
+
+{ #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeJumpFull [
 "Will get inlined into concretizeAt: switch."
 
@@ -1336,6 +1424,58 @@ CogRiscV64Compiler >> concretizeJumpFull [
 	instrOffset := self moveCw: jumpTarget intoR: ConcreteIPReg.
 	self flag: #TODO.
 	1halt.
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> concretizeJumpGreater [
+
+	"Will get inlined into concretizeAt: switch."
+	<inline: true>
+	| offset |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 8.
+ 	self assert: (self isInImmediateJumpRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: ConcreteFlagReg isGreaterThanRegisterValue: ConcreteIPReg).
+	^ machineCodeSize := 4
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> concretizeJumpGreaterOrEqual [ 
+
+	"Will get inlined into concretizeAt: switch."
+	<inline: true>
+	| offset |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 8.
+ 	self assert: (self isInImmediateJumpRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: ConcreteFlagReg isGreaterThanOrEqualRegisterValue: ConcreteIPReg).
+	^ machineCodeSize := 4
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> concretizeJumpLess [
+
+	"Will get inlined into concretizeAt: switch."
+	<inline: true>
+	| offset |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 8.
+ 	self assert: (self isInImmediateJumpRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: ConcreteFlagReg isLessThanRegisterValue: ConcreteIPReg).
+	^ machineCodeSize := 4
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> concretizeJumpLessOrEqual [ 
+
+	"Will get inlined into concretizeAt: switch."
+	<inline: true>
+	| offset |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 8.
+ 	self assert: (self isInImmediateJumpRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: ConcreteFlagReg isLessThanOrEqualRegisterValue: ConcreteIPReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code' }
@@ -1382,13 +1522,27 @@ CogRiscV64Compiler >> concretizeJumpLongZero [
 ]
 
 { #category : #'generate machine code - concretize' }
-CogRiscV64Compiler >> concretizeJumpR [
-	"Will get inlined into concretizeAt: switch."
+CogRiscV64Compiler >> concretizeJumpNonZero [
 
+	"Will get inlined into concretizeAt: switch."
 	<inline: true>
-	| reg |
+	| offset |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 8.
+ 	self assert: (self isInImmediateJumpRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNotEqualToZero: ConcreteFlagReg).
+	^ machineCodeSize := 4
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> concretizeJumpR [
+
+	"Will get inlined into concretizeAt: switch."
+	<inline: true>
+	| reg|
+	self flag: #TODO.
 	reg := operands at: 0.
-	self machineCodeAt: 0 put: (self br: reg).
+	self machineCodeAt: 0 put: (self jumpToRegisterValue: reg).
 	^ machineCodeSize := 4
 ]
 
@@ -2590,21 +2744,21 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[JumpR]						-> [^self concretizeJumpR].
 		[JumpFull]					-> [^self concretizeJumpFull]."jump within address space"
 		[JumpLong]					-> [^self concretizeJumpLong]."jumps witihn code space"
-		[JumpLongZero]			-> [^self concretizeJumpLongZero].
-		[JumpLongNonZero]		-> [^self concretizeJumpLongNonZero].
-		[Jump]						-> [^self concretizeConditionalJump: AL].
-		[JumpZero]					-> [^self concretizeConditionalJump: EQ].
-		[JumpNonZero]				-> [^self concretizeConditionalJump: NE].
+		[JumpLongZero]			   -> [^self concretizeJumpLongZero].
+		[JumpLongNonZero]	     	-> [^self concretizeJumpLongNonZero].
+		[Jump]				     		-> [^self concretizeJump].
+		[JumpZero]					-> [^self concretizeJumpZero ].
+		[JumpNonZero]				-> [^self concretizeJumpNonZero ].
 		[JumpNegative]				-> [^self concretizeConditionalJump: MI].
 		[JumpNonNegative]			-> [^self concretizeConditionalJump: PL].
 		[JumpOverflow]				-> [^self concretizeConditionalJump: VS].
 		[JumpNoOverflow]			-> [^self concretizeConditionalJump: VC].
 		[JumpCarry]				-> [^self concretizeConditionalJump: CS].
 		[JumpNoCarry]				-> [^self concretizeConditionalJump: CC].
-		[JumpLess]					-> [^self concretizeConditionalJump: LT].
-		[JumpGreaterOrEqual]		-> [^self concretizeConditionalJump: GE].
-		[JumpGreater]				-> [^self concretizeConditionalJump: GT].
-		[JumpLessOrEqual]			-> [^self concretizeConditionalJump: LE].
+		[JumpLess]					-> [^self concretizeJumpLess ].
+		[JumpGreaterOrEqual]		-> [^self concretizeJumpGreaterOrEqual ].
+		[JumpGreater]				-> [^self concretizeJumpGreater ].
+		[JumpLessOrEqual]			-> [^self concretizeJumpLessOrEqual ].
 		[JumpBelow]				-> [^self concretizeConditionalJump: CC]. "unsigned lower"
 		[JumpAboveOrEqual]		-> [^self concretizeConditionalJump: CS]. "unsigned greater or equal"
 		[JumpAbove]				-> [^self concretizeConditionalJump: HI].
@@ -3394,7 +3548,7 @@ CogRiscV64Compiler >> jumpTargetPCAt: pc [
 ]
 
 { #category : #assembler }
-CogRiscV64Compiler >> jumpTo: sourceRegisterValueAddress withOffset: offset andStoresPreviousPCin: destinationRegister [ 
+CogRiscV64Compiler >> jumpTo: sourceRegisterValueAddress withOffset: offset andStorePreviousPCPlus4in: destinationRegister [ 
 	"jalr: Sets the pc to x[rs1] + sign-extend(offset), masking off the least-significant bit of the computed address, 
 	 then writes the previous pc+4 to x[rd]. If rd is omitted, x1 is assumed.
 	
@@ -3411,6 +3565,46 @@ CogRiscV64Compiler >> jumpTo: sourceRegisterValueAddress withOffset: offset andS
 		bitOr: 2r000)
 		bitOr: (destinationRegister bitAnd: 16r1f) << 7)
 		bitOr: riscvOpcode)
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> jumpToOffset: offset [
+	"j: Pseudo-instruction that writes PC+offset to the PC 
+	 Expands to jal, x0, offset
+	"
+	self flag: #DONE.
+	^ self jumpToOffset: offset andStorePreviousPCPlus4in: X0
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> jumpToOffset: offset andStorePreviousPCPlus4in: destinationRegister [ 
+	"jal: Writes the address of the next instruction (pc+4) to x[rd],
+	 then sets the pc to the current pc plus the sign-extended offset. 
+	 If rd is omitted, x1 is assumed
+	
+	 31                          12 11     7 6         0
+	|  	 offset[20|10:1|11|19:12]   |   rd   |   1101111  |
+	"
+
+	| riscvOpcode |
+	riscvOpcode := 2r1101111.
+	self assert: (offset bitAnd: 16r1fffff) = offset.
+	self flag: #DONE.
+	^  ((((((offset bitAnd: 16r100000) << 30) 
+		bitOr: (offset bitAnd: 16r7fe) << 21)
+		bitOr: (offset bitAnd: 16r800) << 20)
+		bitOr: (offset bitAnd: 16rff000) << 12)
+		bitOr: (destinationRegister bitAnd: 16r1f) << 7)
+		bitOr: riscvOpcode
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> jumpToRegisterValue: sourceReg [ 
+	"jr: Pseudo-instruction that writes x[rs] to the PC 
+	 Expands to jalr, x0, 0(rs)
+	"
+	self flag: #DONE.
+	^ self jumpTo: sourceReg withOffset: 0 andStorePreviousPCPlus4in: X0
 ]
 
 { #category : #'private-bit-manipulation' }
@@ -3814,7 +4008,7 @@ CogRiscV64Compiler >> ret [
 	
 	"ret: Pseudoinstruction that expands to jalr, x0, 0(x1)"
 	self flag: #DONE.
-   ^ self jumpTo: LR  withOffset: 0 andStoresPreviousPCin: X0
+   ^ self jumpTo: LR  withOffset: 0 andStorePreviousPCPlus4in: X0
 	
 ]
 
