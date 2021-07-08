@@ -704,7 +704,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[JumpNonNegative]		-> [^4].
 		[JumpOverflow]			-> [^4].
 		[JumpNoOverflow]		-> [^4].
-		[JumpCarry]			-> [^4].
+		[JumpCarry]		      	-> [^4].
 		[JumpNoCarry]			-> [^4].
 		[JumpLess]				-> [^4].
 		[JumpGreaterOrEqual]	-> [^4].
@@ -934,10 +934,12 @@ CogRiscV64Compiler >> computeMaximumSize [
 													[self rotateable8bitBitwiseImmediate: (operands at: 0)
 														ifTrue: [:r :i :n| 8]
 														ifFalse: [self literalLoadInstructionBytes + 4]]]].
-		[PushCq]				  -> [ 
-						^ ((operands at: 0) bitAnd: 16rfff) ~= (operands at: 0)
-							ifTrue: [20] ifFalse: [16]
-						]. "If there is a literal -> 4 instructions otherwise 3" 
+		[PushCq]				  -> [ | loadOffset |
+						self halt.
+						loadOffset := dependent ifNil: [ self immediateLoadInstructionBytes: (operands at: 0) ] "Load immediate = 4/8/16/24 or 32"
+						                        ifNotNil: [ self literalLoadInstructionBytes ]. "Load literal = 8"
+						^ loadOffset + 8
+						]. 
 		[PrefetchAw] 			-> [^(self isAddressRelativeToVarBase: (operands at: 0))
 										ifTrue: [4]
 										ifFalse: [self literalLoadInstructionBytes + 4]].
@@ -1009,7 +1011,7 @@ CogRiscV64Compiler >> concretizeAndCqR [
 		"
 
 	<inline: true>
-	| cq destReg sourceReg literalAddress distance instrOffset |
+	| cq destReg sourceReg instrOffset |
 	self flag: #TODO.
 	cq := operands at: 0.
 	sourceReg := operands at: 1.
@@ -1033,22 +1035,12 @@ CogRiscV64Compiler >> concretizeAndCqR [
 					instrOffset := instrOffset + 4 ] 
 				]
 		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
-			literalAddress := (cogit
-				                   cCoerceSimple: dependent
-				                   to: #'AbstractInstruction *') address.
-			distance := literalAddress - address.
-			self
-				machineCodeAt: 0
-				put: (self addUpperImmediateToPC: 0 toRegister: ConcreteIPReg).
-			self machineCodeAt: 4 put: (self
-					 loadDoubleWordFromAddressInRegister: ConcreteIPReg
-					 withOffset: distance
-					 toRegister: ConcreteIPReg).
-			self machineCodeAt: 8 put: (self
+			instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: destReg).
+			self machineCodeAt: instrOffset put: (self
 					 bitwiseAndBetweenRegister: sourceReg
 					 andRegister: ConcreteIPReg
 					 toRegister: destReg).
-			instrOffset := 12 ].
+			instrOffset := instrOffset + 4 ].
 	^ machineCodeSize := instrOffset
 ]
 
@@ -1765,12 +1757,22 @@ CogRiscV64Compiler >> concretizeMoveC32R [
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMoveCqR [
+
 	"Will get inlined into concretizeAt: switch."
 
-	"If the quick constant is in fact a shiftable 8bit, generate the apropriate MOV, otherwise do what is necessary for a whole word."
-
 	<inline: true>
-	1halt
+	| cq reg instrOffset |
+	self flag: #TODO.
+	cq := operands at: 0.
+	reg := operands at: 1.
+	dependent
+		ifNil: [ "Immediate value"
+			instrOffset := self machineCodeWriteInstructions:
+				               (self loadImmediate: cq inRegister: reg) ]
+		ifNotNil: [ "Literal"
+			instrOffset := self machineCodeWriteInstructions:
+				               (self loadLiteralInRegister: reg) ].
+	^ machineCodeSize := instrOffset
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2403,7 +2405,7 @@ CogRiscV64Compiler >> concretizePushCq [
 
 	"Will get inlined into concretizeAt: switch."
 	"Push (store) a double word at the position of the stack pointer if the constant is not a literal  
-		li  ConcreteIPReg, cq
+		li  ConcreteIPReg, cq (or up to li addiw slli addi slli addi slli addi)
 		addi sp, sp, 8
 		sd  ConcreteIPReg, 0(sp)
 	
@@ -2419,13 +2421,12 @@ CogRiscV64Compiler >> concretizePushCq [
 	cq := operands at: 0.
 	dependent
 		ifNil: [ 
-			"No literal -> Direct load into a scratch register"
-			self machineCodeAt: 0 put: (self load12BitsImmediate: cq inRegister: ConcreteIPReg).
-			instrOffset := 4.
+			"No literal -> Direct load into a scratch register, number of instructions depends on immediate size"
+			instrOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg)
 			]
 		ifNotNil: [ 
 			"Literal -> Compute the distance from the current address and add auipc then ld instructions"
-			instrOffset := self machineCodeWriteInstructions: (self loadLiteral: ConcreteIPReg) 
+			instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) 
 			].
 	self
 		machineCodeAt: instrOffset
@@ -2434,6 +2435,7 @@ CogRiscV64Compiler >> concretizePushCq [
 			 storeDoubleWordFromRegister: ConcreteIPReg
 			 toAddressInRegister: SP
 			 withOffset: 0).
+	self halt.
 	^ machineCodeSize := instrOffset + 8
 ]
 
@@ -3309,6 +3311,25 @@ CogRiscV64Compiler >> hasVarBaseRegister [
 	^true "r10/sl"
 ]
 
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> immediateLoadInstructionBytes: anImmediate [ 
+
+	"Returns the number of bytes (instructions * 4) needed to generate
+	 For an immediate
+	 if < 16rfff                      -> addi                                    | 4 
+	 else if < 16rffff ffff           -> lui addiw                               | 8
+	 else if < 16rffff ffff fff       -> lui addiw slli addi                     | 16
+	 else if < 16rffff ffff ffff ff   -> lui addiw slli addi slli addi           | 24
+	 else if < 16rffff ffff ffff ffff -> lui addiw slli addi slli addi slli addi | 32"
+	<inline:true>
+	self flag: #DONE.
+	anImmediate <= 16rfff ifTrue: [ ^ 4 ].
+	anImmediate <= 16rffffffff ifTrue: [ ^ 8 ].
+	anImmediate <= 16rfffffffffff ifTrue: [ ^ 16 ].	
+	anImmediate <= 16rffffffffffffff ifTrue: [ ^ 24 ].
+	anImmediate <= 16rffffffffffffffff ifTrue: [ ^ 32 ].	
+]
+
 { #category : #'generate machine code' }
 CogRiscV64Compiler >> initialize [
 	"This method intializes the Smalltalk instance.  The C instance is merely a struct and doesn't need initialization."
@@ -3746,7 +3767,7 @@ CogRiscV64Compiler >> loadImmediate: anImmediate inRegister: destReg [
 	 else if < 16rffff ffff ffff ff   -> lui addiw slli addi slli addi
 	 else if < 16rffff ffff ffff ffff -> lui addiw slli addi slli addi slli addi"
 
-	self flag: #TODO.
+	self flag: #TODO. "Check for sign???"
 	anImmediate < 16rfff ifTrue: [ ^ { self load12BitsImmediate: anImmediate inRegister: destReg }].
 	anImmediate < 16rffffffff ifTrue: [ 
 		^ {  
@@ -3788,7 +3809,7 @@ CogRiscV64Compiler >> loadImmediate: anImmediate inRegister: destReg [
 ]
 
 { #category : #assembler }
-CogRiscV64Compiler >> loadLiteral: destReg [
+CogRiscV64Compiler >> loadLiteralInRegister: destReg [
 
 	| literalAddress distance |
 	"Compute the distance from the current address

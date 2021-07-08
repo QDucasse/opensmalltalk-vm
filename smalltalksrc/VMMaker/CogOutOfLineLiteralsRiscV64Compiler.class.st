@@ -200,14 +200,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> literalBeforeFollowingAddress: followingA
 			ifFalse: [ self instructionAddressBefore: followingAddress - 4]))
 ]
 
-{ #category : #accessing }
-CogOutOfLineLiteralsRiscV64Compiler >> literalLoadInstructionBytes [
-	"Answer the size of a literal load instruction (which does not include the size of the literal).
-	 With out-of-line literals this is always a single LDR instruction that refers to the literal."
-	<inline: true>
-	^4
-]
-
 { #category : #'generate machine code - support' }
 CogOutOfLineLiteralsRiscV64Compiler >> literalOpcodeIndex [
 	"Hack:  To know how far away a literal is from its referencing instruction we store
