@@ -441,15 +441,7 @@ CogRiscV64Compiler >> branchTo: offset ifCondition: condition [
 	"The base condition checking should be between the ConcreteFlagReg and the ConcreteIPReg
 	"	
 	self flag: #TODO.
-	"Test all conditions and call according methods"
-	condition caseOf: { 
-		[ EQ ]  -> [ ^ self branchTo: offset ifRegisterValue: ConcreteIPReg isEqualToRegisterValue: ConcreteFlagReg ].
-	   [ NE ]  -> [ ^ self branchTo: offset ifRegisterValue: ConcreteIPReg isNotEqualToRegisterValue: ConcreteFlagReg ].
-		[ GE ]  -> [ ^ self branchTo: offset ifRegisterValue: ConcreteIPReg isGreaterThanOrEqualRegisterValue: ConcreteFlagReg ].
-	   [ GEU ] -> [ ^ self branchTo: offset ifRegisterValueUnsigned: ConcreteIPReg isGreaterThanOrEqualRegisterValueUnsigned: ConcreteFlagReg ].
-		[ LT ]  -> [ ^ self branchTo: offset ifRegisterValue: ConcreteIPReg isLessThanRegisterValue: ConcreteFlagReg ].
-		[ LTU ] -> [ ^ self branchTo: offset ifRegisterValueUnsigned: ConcreteIPReg isLessThanRegisterValueUnsigned: ConcreteFlagReg ].
-	}.
+	self halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -1543,6 +1535,19 @@ CogRiscV64Compiler >> concretizeJumpR [
 	self flag: #TODO.
 	reg := operands at: 0.
 	self machineCodeAt: 0 put: (self jumpToRegisterValue: reg).
+	^ machineCodeSize := 4
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> concretizeJumpZero [
+
+	"Will get inlined into concretizeAt: switch."
+	<inline: true>
+	| offset |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 8.
+ 	self assert: (self isInImmediateJumpRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsEqualToZero: ConcreteFlagReg).
 	^ machineCodeSize := 4
 ]
 
@@ -3586,14 +3591,18 @@ CogRiscV64Compiler >> jumpToOffset: offset andStorePreviousPCPlus4in: destinatio
 	|  	 offset[20|10:1|11|19:12]   |   rd   |   1101111  |
 	"
 
-	| riscvOpcode |
+	| riscvOpcode signedOffset |
 	riscvOpcode := 2r1101111.
-	self assert: (offset bitAnd: 16r1fffff) = offset.
+	"Check for sign extension"	
+	signedOffset := offset < 0
+		                ifTrue: [ 16r1fff - offset abs + 1 ] "Compute two's complement"
+		                ifFalse: [ offset ].
+	self assert: (signedOffset bitAnd: 16r1fffff) = signedOffset.
 	self flag: #DONE.
-	^  ((((((offset bitAnd: 16r100000) << 30) 
-		bitOr: (offset bitAnd: 16r7fe) << 21)
-		bitOr: (offset bitAnd: 16r800) << 20)
-		bitOr: (offset bitAnd: 16rff000) << 12)
+	^  ((((((signedOffset bitAnd: 16r100000) << 30) 
+		bitOr: (signedOffset bitAnd: 16r7fe) << 21)
+		bitOr: (signedOffset bitAnd: 16r800) << 20)
+		bitOr: (signedOffset bitAnd: 16rff000) << 12)
 		bitOr: (destinationRegister bitAnd: 16r1f) << 7)
 		bitOr: riscvOpcode
 ]
