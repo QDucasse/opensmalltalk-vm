@@ -669,7 +669,6 @@ VMSimpleStackBasedCogitBytecodeTest >> testPushConstantFalseBytecodePushesFalse 
 	
 	
 	self compile: [ cogit genPushConstantFalseBytecode ].	
-	self halt.
 	self runGeneratedCode.
 
 	self assert: self popAddress equals: memory falseObject
