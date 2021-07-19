@@ -37,67 +37,17 @@ CogOutOfLineLiteralsRiscV64Compiler >> concretizeLiteral [
 
 { #category : #'generate machine code - concretize' }
 CogOutOfLineLiteralsRiscV64Compiler >> concretizeMoveC32R [
-	"Will get inlined into concretizeAt: switch."
-	<var: #quickConstant type: #sqInt>
-	<inline: true>
-	| quickConstant |
-	
-	quickConstant := operands at: 0.
-	quickConstant < 0 ifTrue: [ 
-		self shiftable16bitImmediate: quickConstant negated - 1
-			ifTrue: [ :shift :value |
-					self machineCodeAt: 0 put: (self
-						movSize: 1
-						destinationRegister: (operands at: 1)
-						negatedImm: value
-						shift: shift).
-				^ machineCodeSize := 4 ]
-			ifFalse: [ 
-			self loadCwInto: (operands at: 1).
-			^ machineCodeSize := 4 ]].
 
-	self shiftable16bitImmediate: quickConstant
-		ifTrue: [ :shift :value |
-				self machineCodeAt: 0 put: (self
-					movSize: 1
-					destinationRegister: (operands at: 1)
-					imm: value
-					shift: shift).
-			^ machineCodeSize := 4 ]
-		ifFalse: [ 
-			self loadCwInto: (operands at: 1).
-			^ machineCodeSize := 4 ]
+	<inline: true>
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
 CogOutOfLineLiteralsRiscV64Compiler >> concretizeMoveMbrR [
 	"Will get inlined into concretizeAt: switch."
 
-	<var: #offset type: #sqInt>
 	<inline: true>
-	| srcReg offset destReg |
-	offset := operands at: 0.
-	srcReg := operands at: 1.
-	destReg := operands at: 2.
-
-	self
-		is9BitValue: offset
-		ifTrue: [ :immediate9bitTwoComplementValue |
-			self
-				machineCodeAt: 0
-				put: (self movSize: 1 destinationRegister: destReg imm: 0 shift: 0).
-			self
-				machineCodeAt: 4
-				put: (self ldurbSize: 1 baseRegister: srcReg signedOffset: immediate9bitTwoComplementValue destinationRegister: destReg).
-			^ machineCodeSize := 8 ]
-		ifFalse: [
-			self loadRelativeLiteralIn: ConcreteIPReg.
-			self
-				machineCodeAt: 4
-				put: (self ldrbSourceRegister: srcReg offsetRegister: ConcreteIPReg destinationRegister: destReg).
-
-			^ machineCodeSize := 8 ].
-	^ 0	"to keep Slang happy"
+	1halt.
 ]
 
 { #category : #'as yet unclassified' }
@@ -121,43 +71,8 @@ CogOutOfLineLiteralsRiscV64Compiler >> concretizeMovePatcheableC32R [
 CogOutOfLineLiteralsRiscV64Compiler >> concretizeMoveRM32r [
 	"Will get inlined into concretizeAt: switch."
 
-	<var: #offset type: #sqInt>
 	<inline: true>
-	| srcReg offset baseReg |
-
-	srcReg := operands at: 0.
-	offset := operands at: 1.
-	baseReg := operands at: 2.
-	self
-		is9BitValue: offset
-		ifTrue: [ :value |
-			self
-				machineCodeAt: 0
-				put:(self
-					sturSize: 0 "32 bits"
- 					baseRegister: baseReg
-					signedOffset: offset
-					destinationRegister: srcReg).
-			^ machineCodeSize := 4 ]
-		ifFalse: [
-			self
-				shiftable16bitImmediate: offset
-				ifTrue: [ :shift :value | 
-					self assert: shift = 0.
-					self
-						machineCodeAt: 0
-						put: (self movSize: 1 destinationRegister: ConcreteIPReg imm: value shift: shift).
-					self
-						machineCodeAt: 4
-						put: (self strSize: 0 "32 bits" baseRegister: baseReg offsetRegister: ConcreteIPReg extension: 2r011 "LSL" shift: 0 "no LSL" storedRegister: srcReg).
-					^ machineCodeSize := 8  ]
-				ifFalse: [ 
-						self loadRelativeLiteralIn: ConcreteIPReg.
-					self
-						machineCodeAt: 4
-						put: (self strSize: 0 "32 bits" baseRegister: baseReg offsetRegister: ConcreteIPReg extension: 2r011 "LSL" shift: 0 "no LSL" storedRegister: srcReg).
-					^ machineCodeSize := 8 ]].
-	^ 0	"to keep Slang happy"
+	1halt.
 ]
 
 { #category : #accessing }

@@ -581,7 +581,7 @@ CogMIPSELCompiler >> concretizeAndRR [
 	rightReg := operands at: 0.
 	destReg := leftReg := operands at: 1.
 	self machineCodeAt: 0 put: (self andR: destReg R: leftReg R: rightReg).
-	^machineCodeSize := 4
+	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code - concretize' }

@@ -315,7 +315,7 @@ CogRiscV64Compiler class >> wordSize [
 { #category : #assembler }
 CogRiscV64Compiler >> addImmediate: anImmediate toRegister: sourceRegister inRegister: destinationRegister [
 
-	"Adds the sign-extended immediate to register x[rs1] and writes the result to x[rd]. 
+	"addi: Adds the sign-extended immediate to register x[rs1] and writes the result to x[rd]. 
 	 Arithmetic overflow is ignored.
 	
 	31                 20  19   15  14  12  11  7  6         0
@@ -326,8 +326,8 @@ CogRiscV64Compiler >> addImmediate: anImmediate toRegister: sourceRegister inReg
 	self flag: #DONE.	
 	riscvOpcode := 2r0010011.	
 	"Check size and sign"
-	self assertValue: anImmediate isContainedIn: 12.
 	signExtendedImmediate := self computeSignExtendedValueOf: anImmediate ofSize: 12.
+	self assertValue: signExtendedImmediate isContainedIn: 12.
 	^ ((((signExtendedImmediate bitAnd: 16rfff) << 20) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 15) 
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
@@ -335,9 +335,28 @@ CogRiscV64Compiler >> addImmediate: anImmediate toRegister: sourceRegister inReg
 ]
 
 { #category : #assembler }
+CogRiscV64Compiler >> addRegister: sourceRegister1 toRegister: sourceRegister2 inRegister: destinationRegister [
+
+	"add: Adds register x[rs2] to register x[rs1] and writes the result to x[rd]. 
+	Arithmetic overflow is ignored.
+	
+	31        25 24   20 19   15 14  12  11  7  6         0
+	|  	0000000  |  rs2  |  rs1  |  000  |  rd  |  0110011  |
+	"
+	
+	| riscvOpcode |
+	self flag: #DONE.	
+	riscvOpcode := 2r0110011.	
+	^ ((((sourceRegister2 bitAnd: 16r1f) << 20)
+	  bitOr: (sourceRegister1 bitAnd: 16r1f) << 15) 
+	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
+	  bitOr: riscvOpcode
+]
+
+{ #category : #assembler }
 CogRiscV64Compiler >> addUpperImmediateToPC: anImmediate toRegister: destinationRegister [
 
-	"Adds the sign-extended 20-bit immediate, left-shifted by 12 bits, to the pc, and writes the result to x[rd].
+	"auipc: Adds the sign-extended 20-bit immediate, left-shifted by 12 bits, to the pc, and writes the result to x[rd].
 	
 	31                  12  11    7  6         0
 	|  	immediate[31:12]  |   rd   |   0010111  |
@@ -346,8 +365,8 @@ CogRiscV64Compiler >> addUpperImmediateToPC: anImmediate toRegister: destination
 	| riscvOpcode signExtendedImmediate |
 	self flag: #DONE.
 	"Check size and sign"	
-	self assertValue: anImmediate isContainedIn: 20.
 	signExtendedImmediate := self computeSignExtendedValueOf: anImmediate ofSize: 20.
+	self assertValue: signExtendedImmediate isContainedIn: 20.
 	riscvOpcode := 2r0010111.
 	^ (((signExtendedImmediate bitAnd: 16rfffff) << 12) 
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
@@ -369,10 +388,30 @@ CogRiscV64Compiler >> addWordImmediate: anImmediate toRegister: sourceRegister i
 	self flag: #DONE.
 	riscvOpcode := 2r0011011.
 	"Check size and sign"
-   self assertValue: anImmediate isContainedIn: 12.
 	signExtendedImmediate := self computeSignExtendedValueOf: anImmediate ofSize: 12.
+	self assertValue: signExtendedImmediate isContainedIn: 12.
 	^ ((((signExtendedImmediate bitAnd: 16rfff) << 20) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 15) 
+	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
+	  bitOr: riscvOpcode
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> addWordRegister: sourceRegister1 toRegister: sourceRegister2 inRegister: destinationRegister [
+
+	"addw: Adds register x[rs2] to register x[rs1], truncates the result to 32 bits, 
+	 and writes the sign-extended result to x[rd]. 
+	 Arithmetic overflow is ignored.
+	
+	31        25 24   20 19   15 14   12 11   7 6         0
+	|  	0000000  |  rs2  |  rs1  |  000  |  rd  | 0111011  |
+	"
+	
+	| riscvOpcode |
+	self flag: #DONE.
+	riscvOpcode := 2r0111011.
+	^ ((((sourceRegister1 bitAnd: 16r1f) << 20) 
+	  bitOr: (sourceRegister2 bitAnd: 16r1f) << 15) 
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
 	  bitOr: riscvOpcode
 ]
@@ -413,8 +452,8 @@ CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg andImmediate: anImmed
 	self flag: #DONE.
 	riscvopcode := 2r0010011.
 	"Check size and sign"
-	self assertValue: anImmediate isContainedIn: 12.
 	signExtendedImmediate := self computeSignExtendedValueOf: anImmediate ofSize: 12.
+	self assertValue: signExtendedImmediate isContainedIn: 12.
 	^ (((((signExtendedImmediate bitAnd: 16rfff) << 20)
 	  bitOr: (sourceReg bitAnd: 16r1f) << 15)
 	  bitOr: 111 << 12)
@@ -440,6 +479,49 @@ CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg1 andRegister: sourceR
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
 	  bitOr: riscvopcode
 	
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> bitwiseXorBetweenRegister: srcReg andImmediate: immediate intoRegister: destReg [
+
+	"xori: Computes the bitwise exclusive-OR of the sign-extended immediate
+	 and register x[rs1] and writes the result to x[rd]
+	
+	 31               20 19   15 14   12 11     7 6         0
+	|  	immediate[11:0]  |  rs1  |  100  |   rd   |  0010011  |
+	"
+
+	| riscvOpcode signExtendedImmediate |
+	self flag: #DONE.	
+	riscvOpcode := 2r0010011.	
+	"Check for sign and size"
+	signExtendedImmediate :=	self computeSignExtendedValueOf: immediate ofSize: 12.
+	self assertValue: signExtendedImmediate isContainedIn: 12.
+	^ (((((signExtendedImmediate bitAnd: 16rfff) << 20)
+	  bitOr: (srcReg bitAnd: 16r1f) << 15)
+	  bitOr: (2r100 << 12))
+	  bitOr: (destReg bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> bitwiseXorBetweenRegister: srcReg1 andRegister: srcReg2 intoRegister: destReg [
+
+	"xor: Computes the bitwise exclusive-OR of registers x[rs1] and x[rs2] 
+	 and writes the result to x[rd]
+	
+	 31       25 24   20 19   15 14   12 11     7 6         0
+	|  	0000000  |  rs2  |  rs1  |  100  |   rd   |  0110011  |
+	"
+
+	| riscvOpcode |
+	self flag: #DONE.	
+	riscvOpcode := 2r0110011.	
+	^ (((((srcReg2 bitAnd: 16r1f) << 20)
+	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
+	  bitOr: (2r100 << 12))
+	  bitOr: (destReg bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -834,7 +916,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[MSUB]					-> [^4].
 				
 		"Data Movement"						
-		[MoveCqR]				-> [^4].
+		[MoveCqR]				-> [^8].
 		[MoveC32R]			-> [^4].
 		[MoveCwR]				-> [^self literalLoadInstructionBytes = 4
 										ifTrue: [self literalLoadInstructionBytes]
@@ -974,7 +1056,6 @@ CogRiscV64Compiler >> computeSignExtendedValueOf: aValue ofSize: aSize [
 CogRiscV64Compiler >> concretizeAddCqR [
 
 	<inline: true>
-
 	1halt.
 
 ]
@@ -982,13 +1063,22 @@ CogRiscV64Compiler >> concretizeAddCqR [
 { #category : #'as yet unclassified' }
 CogRiscV64Compiler >> concretizeAddCwR [
 	
+	<inline: true>
 	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeAddRR [
 
-	1halt.
+	<inline: true>
+	| srcReg1 srcReg2 destReg |
+	self flag: #TODO.
+	srcReg1 := operands at: 0.
+	srcReg2 := operands at: 1.
+	destReg := operands at: 2.
+	self machineCodeAt: 0 put: (self addRegister: srcReg1 toRegister: srcReg2 inRegister: destReg).
+	^ machineCodeSize := 4
+	
 
 ]
 
@@ -1027,8 +1117,7 @@ CogRiscV64Compiler >> concretizeAndCqR [
 	| cq destReg sourceReg instrOffset |
 	self flag: #TODO.
 	cq := operands at: 0.
-	sourceReg := operands at: 1.
-	destReg := sourceReg.
+	sourceReg := destReg := operands at: 1.
 	dependent
 		ifNil: [ 
 			cq < 16rfff
@@ -1040,7 +1129,7 @@ CogRiscV64Compiler >> concretizeAndCqR [
 					instrOffset := 4 ]
 				ifFalse: [ "Move to a register before performing AND on the registers"	
 					"Load the immediate to a register"
-					instrOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: destReg).
+					instrOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg).
 					self machineCodeAt: instrOffset put: (self
 							 bitwiseAndBetweenRegister: sourceReg
 							 andRegister: ConcreteIPReg
@@ -1048,7 +1137,7 @@ CogRiscV64Compiler >> concretizeAndCqR [
 					instrOffset := instrOffset + 4 ] 
 				]
 		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
-			instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: destReg).
+			instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
 			self machineCodeAt: instrOffset put: (self
 					 bitwiseAndBetweenRegister: sourceReg
 					 andRegister: ConcreteIPReg
@@ -1070,7 +1159,13 @@ CogRiscV64Compiler >> concretizeAndCqRR [
 { #category : #'as yet unclassified' }
 CogRiscV64Compiler >> concretizeAndRR [
 
-	1halt.
+	<inline: true>
+	| srcReg1 srcReg2 destReg |
+	self flag: #TODO.
+	srcReg1 := operands at: 0.
+	destReg := srcReg2 := operands at: 1.
+	self machineCodeAt: 0 put: (self bitwiseAndBetweenRegister: srcReg1 andRegister: srcReg2 toRegister: destReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -1696,29 +1791,7 @@ CogRiscV64Compiler >> concretizeMoveAbR [
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
-	| srcAddr destReg instrOffset |
-	srcAddr := operands at: 0.
-	destReg := operands at: 1.
-	(self isAddressRelativeToVarBase: srcAddr) ifTrue: [ | offset |
-		offset := srcAddr - cogit varBaseAddress.
-		self assert: (offset bitAnd: 16rfff) = offset.
-		self
-			machineCodeAt: 0
-			put: (self
-				ldrbSourceRegister: ConcreteVarBaseReg
-				destinationRegister: destReg
-				offset: srcAddr - cogit varBaseAddress).
-		^ machineCodeSize := 4 ].
-
-	"load the address into ConcreteIPReg"
-	instrOffset := self moveCw: srcAddr intoR: ConcreteIPReg.
-	self
-		machineCodeAt: instrOffset
-		put:
-			(self
-				ldrbSourceRegister: ConcreteIPReg
-				destinationRegister: destReg).
-	^ machineCodeSize := instrOffset + 4
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -1726,41 +1799,7 @@ CogRiscV64Compiler >> concretizeMoveAwR [
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
-	| srcAddr destReg instrOffset |
-	srcAddr := operands at: 0.
-	destReg := operands at: 1.
-	(self isAddressRelativeToVarBase: srcAddr) ifTrue: [ | actualDestination |
-		actualDestination := destReg = SP
-			ifTrue: [ ConcreteIPReg ]
-			ifFalse: [ destReg ].
-		self
-			machineCodeAt: 0
-			put: (self
-				ldrSize: 1
-				baseRegister: ConcreteVarBaseReg
-				unsignedOffset: srcAddr - cogit varBaseAddress
-				destinationRegister: actualDestination).
-		machineCodeSize := 4.
-			
-		destReg = SP ifTrue: [ 
-			self machineCodeAt: 4 put: (self movToFromSP: SP rn: actualDestination).
-			machineCodeSize := machineCodeSize + 4.
-		].
-
-		^ machineCodeSize ].
-	
-	"load the address into ConcreteIPReg"
-	instrOffset := self moveCw: srcAddr intoR: ConcreteIPReg.
-	self
-		machineCodeAt: instrOffset
-		put: (self ldurSize: 1
-			baseRegister: ConcreteIPReg
-			signedOffset: 0
-			destinationRegister: ConcreteIPReg).
-	self
-		machineCodeAt: instrOffset + 4
-		put: (self movSize: 1 sourceRegisterMaybeSP: ConcreteIPReg destinationRegisterMaybeSP: destReg).
-	^ machineCodeSize := instrOffset + 8
+	1halt.	
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -1793,133 +1832,35 @@ CogRiscV64Compiler >> concretizeMoveCwR [
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
-	^ machineCodeSize := self loadCwInto: (operands at: 1)
+	1halt.	
 ]
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMoveM16rR [
-	"Will get inlined into concretizeAt: switch."
 
-	"ldrh destReg, [srcReg, #immediate],
-	or 
-	move offset to ConcreteIPReg
-	ldrh destReg, [srcReg, ConcreteIPReg]"
-
-	<var: #offset type: #sqInt>
 	<inline: true>
-	| baseRegister offset destReg |
-	offset := operands at: 0.
-	baseRegister := operands at: 1.
-	destReg := operands at: 2.
-
-	(offset >= 0 and: [ (offset / 2 bitAnd: 16rFFF) = (offset / 2)]) 
-		ifTrue: [ self
-				machineCodeAt: 0
-				put:
-					(self
-						ldrhBaseRegister: baseRegister
-						offsetDividedBy2: offset / 2
-						destinationRegister: destReg).
-			^ machineCodeSize := 4  ].
-	
-	self notYetImplemented.
-	
-	^0
+	1halt.	
 ]
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMoveM32rR [
-	"Will get inlined into concretizeAt: switch."
 
-	<var: #offset type: #sqInt>
 	<inline: true>
-	| srcReg offset destReg instrOffset |
-	offset := operands at: 0.
-	srcReg := operands at: 1.
-	destReg := operands at: 2.
-
-	"If it is a positive 12 bit value this can be encoded as a LDR with a positive 12bit offset"
-	(offset >= 0 and: [ (offset bitAnd: 16rFFF) = offset ]) ifTrue: [
-		self
-			machineCodeAt: 0
-			put:
-				(self
-					ldrSize: 0"is32Bits"
-					baseRegister: srcReg
-					unsignedOffset: offset
-					destinationRegister: destReg).
-		^ machineCodeSize := 4
-	].
-	
-	"If it is negative, maybe we can encode it as a LDUR signed 9bit offset"
-	self
-		is9BitValue: offset
-		ifTrue: [ :immediate | 
-			self
-				machineCodeAt: 0
-				put:
-					(self
-						ldurSize: 0 "32bits"
-						baseRegister: srcReg
-						signedOffset: immediate
-						destinationRegister: destReg).
-			^ machineCodeSize := 4 ]
-		ifFalse: [
-			"Otherwise, this may be a literal"
-			self assert: dependent notNil.
-			instrOffset := self moveCw: offset intoR: ConcreteIPReg.
-			self
-				machineCodeAt: instrOffset
-				put: (self ldrSize: 0 "32 bits" indexRegister: ConcreteIPReg baseRegister: srcReg destinationRegister: destReg).
-			^ machineCodeSize := instrOffset + 4 ].
-		
-	^ 0	"to keep Slang happy"
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMoveM32rRs [
-	"Will get inlined into concretizeAt: switch."
-	"Load a float from srcReg+offset into FP destReg"
-
-	<inline: true>
-	| srcReg offset destReg |
-	offset := operands at: 0.
-	srcReg := operands at: 1.
-	destReg := operands at: 2.
-	"offset should a 12bit multiple of 8 constant"
-	self assert: (offset >> 3 bitAnd: 16rfff) << 3 = offset.
-	machineCode
-		at: 0
-		put: (self
-			ldrSize: 2r10 "32bits"
-			baseRegister: srcReg
-			unsignedOffset: offset / 8
-			destinationFloatingPointRegister: destReg
-			is128BitVariant: 0).
-	^ machineCodeSize := 4
+		
+	<inline: true>	
+	1halt.	
 ]
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMoveM64rRd [
-	"Will get inlined into concretizeAt: switch."
-	"Load a float from srcReg+offset into FP destReg"
-
+	
 	<inline: true>
-	| srcReg offset destReg |
-	offset := operands at: 0.
-	srcReg := operands at: 1.
-	destReg := operands at: 2.
-	"offset should a 12bit multiple of 8 constant"
-	self assert: (offset >> 3 bitAnd: 16rfff) << 3 = offset.
-	machineCode
-		at: 0
-		put: (self
-			ldrSize: 2r11 "64bits"
-			baseRegister: srcReg
-			unsignedOffset: offset / 8
-			destinationFloatingPointRegister: destReg
-			is128BitVariant: 0).
-	^ machineCodeSize := 4
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -1941,7 +1882,6 @@ CogRiscV64Compiler >> concretizeMoveMwrR [
 	offset := operands at: 0.
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
-	self assert: (offset bitAnd: 16rfff) = offset.
 	self machineCodeAt: 0 put: (self
 			 loadDoubleWordFromAddressInRegister: baseReg
 			 withOffset: offset
@@ -1951,30 +1891,9 @@ CogRiscV64Compiler >> concretizeMoveMwrR [
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMoveRAb [
-	"Will get inlined into concretizeAt: switch."
-
-	"LEA ConcreteIPReg
-	strb srcReg, [ConcreteIPReg]"
 
 	<inline: true>
-	| srcReg destAddr instrOffset |
-	srcReg := operands at: 0.
-	destAddr := operands at: 1.
-	(self isAddressRelativeToVarBase: destAddr)
-		ifTrue: [ | offset |
-			offset := destAddr - cogit varBaseAddress.
-			self assert: (offset bitAnd: 16rfff) = offset.
-			self
-				machineCodeAt: 0
-				put: (self strbSourceRegister: srcReg destinationRegister: ConcreteVarBaseReg offset: offset).
-			^ machineCodeSize := 4 ].
-	"load the address into ConcreteIPReg"
-	instrOffset := self moveCw: destAddr intoR: ConcreteIPReg.
-	"We *could* overwrite the last instruction above with a LDR a, b, last-byte-of-srcAddr BUT that would break if we change to loading literals instead of forming long constants"
-	self
-		machineCodeAt: instrOffset
-		put: (self strbSourceRegister: srcReg destinationRegister: ConcreteIPReg).
-	^ machineCodeSize := instrOffset + 4
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -1988,27 +1907,8 @@ CogRiscV64Compiler >> concretizeMoveRAw [
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMoveRM16r [
 
-	<var: #offset type: #sqInt>
 	<inline: true>
-	| srcReg offset baseReg instrOffset |
-	srcReg := operands at: 0.
-	offset := operands at: 1.
-	baseReg := operands at: 2.
-
-	self assert: offset >= 0.
-	self assert: offset \\ 2 = 0.
-
-	self
-		is12BitValue: offset / 2 
-		ifTrue: [ :u :immediate | 
-			self
-				machineCodeAt: 0
-				put: (self strhSourceRegister: srcReg destinationRegister: baseReg offset: offset / 2).
-			^ machineCodeSize := 4 ]
-		ifFalse: [ 
-			self notYetImplemented.
-			^ machineCodeSize := instrOffset + 4 ].
-	^ 0	"to keep Slang happy"
+	1halt.
 ]
 
 { #category : #'as yet unclassified' }
@@ -2020,26 +1920,9 @@ CogRiscV64Compiler >> concretizeMoveRM32r [
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMoveRMbr [
-	"Will get inlined into concretizeAt: switch."
-
-	<var: #offset type: #sqInt>
+	
 	<inline: true>
-	| srcReg offset baseReg |
-	
-	srcReg := operands at: 0.
-	offset := operands at: 1.
-	baseReg := operands at: 2.
-	
-	(offset >= 0 and: [ (offset bitAnd: 16rFFF) = offset]) 
-		ifTrue: [ self
-				machineCodeAt: 0
-				put:
-					(self strbSourceRegister: srcReg destinationRegister: baseReg offset: offset). 
-				^ machineCodeSize := 4 ]
-		ifFalse: [ 
-			self notYetImplemented.
-			^ machineCodeSize := 4  ].
-	^ 0	"to keep Slang happy"
+	1halt.
 ]
 
 { #category : #'as yet unclassified' }
@@ -2049,12 +1932,11 @@ CogRiscV64Compiler >> concretizeMoveRMwr [
 	 Expands to: sd rd, rs1(offset)"
 
 	<inline: true>
-	| srcReg offset baseReg instrOffset |
+	| srcReg offset baseReg |
 	self flag: #DONE.
 	srcReg := operands at: 0.
 	offset := operands at: 1.
 	baseReg := operands at: 2.
-	self assert: (offset bitAnd: 16rfff) = offset.
 	self machineCodeAt: 0 put: (self
 			 storeDoubleWordFromRegister: srcReg
 			 toAddressInRegister: baseReg
@@ -2067,24 +1949,19 @@ CogRiscV64Compiler >> concretizeMoveRR [
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
-	1halt
+	| srcReg destReg |
+	self flag: #DONE.
+	srcReg := operands at: 0.
+	destReg := operands at: 1.
+	self machineCodeAt: 0 put: (self moveRegister: srcReg toRegister: destReg). 
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretize }
 CogRiscV64Compiler >> concretizeMoveRRd [
 
 	<inline: true>
-	| sourceRegister destinationRegister |
-	sourceRegister := operands at: 0.
-	destinationRegister := operands at: 1.
-
-	self
-		machineCodeAt: 0
-		put: (self
-			fMoveSize: 1
-			fromScalarRegister: sourceRegister
-			toDoublePrecisionFloatRegister: destinationRegister).
-	^ machineCodeSize := 4
+	1halt.
 ]
 
 { #category : #'as yet unclassified' }
@@ -2093,20 +1970,7 @@ CogRiscV64Compiler >> concretizeMoveRX32rR [
 	"Write the word in R(src) into memory at address (base+4*index)"
 
 	<inline: true>
-	| index base src |
-	src := operands at: 0.
-	index := operands at: 1.	"index is number of *words* = 4* bytes"
-	base := operands at: 2.
-	
-	self
-		machineCodeAt: 0
-		put: (self
-			strSize: 0
-			baseRegister: base
-			offsetRegister: index
-			extension: 3 shift: 1
-			storedRegister: src).
-	^ machineCodeSize := 4
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2116,38 +1980,15 @@ CogRiscV64Compiler >> concretizeMoveRXbrR [
 	"Write the word in R(src) into memory at address (base+1*index)"
 
 	<inline: true>
-	| index base src |
-	src := operands at: 0.
-	index := operands at: 1.
-	base := operands at: 2.
-
-	self machineCodeAt: 0 put: (self strbBaseRegister: base offsetRegister: index extension: 3 shift: 1 srcRegister: src).
-	^ machineCodeSize := 4
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMoveRXwrR [
 	"Will get inlined into concretizeAt: switch."
 
-	"Write the word in R(src) into memory at address (base+8*index)"
-
 	<inline: true>
-	| index base src |
-	src := operands at: 0.
-	index := operands at: 1.	"index is number of *words* = 8* bytes"
-	base := operands at: 2.
-	"str		src, [base, +index, LSL #2]"
-	"cond 011 1100 0 base srcR 00010 00 0 inde"
-	
-	self
-		machineCodeAt: 0
-		put: (self
-			strSize: 1
-			baseRegister: base
-			offsetRegister: index
-			extension: 3 shift: 1
-			storedRegister: src).
-	^ machineCodeSize := 4
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2158,35 +1999,14 @@ CogRiscV64Compiler >> concretizeMoveRdM64r [
 	"Store FP fpReg to dstReg+offset"
 
 	<inline: true>
-	| baseRegister offset fpReg |
-	fpReg := operands at: 0.
-	offset := operands at: 1.
-	baseRegister := operands at: 2.
-
-	self assert: offset >= 0.
-
-	self machineCodeAt: 0 put: (self
-			 strBaseRegister: baseRegister
-			 positiveOffset: offset
-			 sourceFloatingPointRegister: fpReg
-			 precision: 2r11). "64 bits"
-	^ machineCodeSize := 4
+	1halt.
 ]
 
 { #category : #concretize }
 CogRiscV64Compiler >> concretizeMoveRdR [
-	<inline: true>
-	| sourceDoublePrecisionRegister destinationScalerRegister |
-	sourceDoublePrecisionRegister := operands at: 0.
-	destinationScalerRegister := operands at: 1.
 
-	self
-		machineCodeAt: 0
-		put: (self
-			fMoveSize: 1
-			fromDoublePrecisionFloatRegister: sourceDoublePrecisionRegister
-			toScalarRegister: destinationScalerRegister).
-	^ machineCodeSize := 4
+	<inline: true>
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2197,19 +2017,7 @@ CogRiscV64Compiler >> concretizeMoveRsM32r [
 	"Store FP fpReg to dstReg+offset"
 
 	<inline: true>
-	| baseRegister offset fpReg |
-	fpReg := operands at: 0.
-	offset := operands at: 1.
-	baseRegister := operands at: 2.
-
-	self assert: offset >= 0.
-
-	self machineCodeAt: 0 put: (self
-			 strBaseRegister: baseRegister
-			 positiveOffset: offset
-			 sourceFloatingPointRegister: fpReg
-			 precision: 2r10). "32 bits"
-	^ machineCodeSize := 4
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2220,20 +2028,7 @@ CogRiscV64Compiler >> concretizeMoveX32rRR [
 	"This Instruction as all the memory access should Zero-Extend the value"
 
 	<inline: true>
-	| index base dest |
-	index := operands at: 0.
-	base := operands at: 1.
-	dest := operands at: 2.
-	
-	self machineCodeAt: 0 put: (self
-			 ldrSize: 0
-			 indexRegister: index
-			 option: 2r011 "LSL"
-			 scale: 1
-			 baseRegister: base
-			 destinationRegister: dest). "32bits"
-
-	^ machineCodeSize := 4
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2241,15 +2036,7 @@ CogRiscV64Compiler >> concretizeMoveXbrRR [
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
-	| index base dest |
-	index := operands at: 0.
-	base := operands at: 1.
-	dest := operands at: 2.
-	self machineCodeAt: 0 put: (self
-		ldrbSourceRegister: base
-		offsetRegister: index
-		destinationRegister: dest).
-	^ machineCodeSize := 4
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2257,22 +2044,7 @@ CogRiscV64Compiler >> concretizeMoveXwrRR [
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
-	| indexRegister baseRegister destinationRegister |
-	indexRegister := operands at: 0.
-	baseRegister := operands at: 1.
-	destinationRegister := operands at: 2.
-
-	self
-		machineCodeAt: 0
-		put: (
-			self
-				ldrSize: 1
-				indexRegister: indexRegister
-				option: 2r011 "LSL"
-				scale: 1
-				baseRegister: baseRegister
-				destinationRegister: destinationRegister).
-	^ machineCodeSize := 4
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2280,14 +2052,7 @@ CogRiscV64Compiler >> concretizeMulRdRd [
 	"FP multiply regLHS by regRHS and stick result in regLHS"
 
 	<inline: true>
-	| registerA registerB destinationRegister |
-	registerA := operands at: 0.
-	destinationRegister := registerB := operands at: 1.
-	machineCode at: 0 put: (self
-		fMulFirstRegister: registerA
-		secondRegister: registerB
-		destinationRegister: destinationRegister).
-	^ machineCodeSize := 4
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2295,13 +2060,7 @@ CogRiscV64Compiler >> concretizeNegateR [
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
-	self machineCodeAt: 0 put: 
-		(self negateSize: 1
-			sourceRegister: (operands at: 0)
-			sourceRegisterShiftType: 0 "LSL"
-			sourceRegisterShift: 0 "no shift"
-			destinationRegister: (operands at: 0)).
-	^ machineCodeSize := 4
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2315,53 +2074,17 @@ CogRiscV64Compiler >> concretizeNop [
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeOrCqR [
-	<var: #val type: #sqInt>
-	<inline: true>
-	| val rd rn |
-	val := operands at: 0.
 	
-	"Both source and destination register are the same..."
-	rn := operands at: 1.
-	rd := rn.
-	self
-		encodeLogicalImmediate: val
-		registerSize: 64
-		ifPossible: [ :encodedValue |
-			self
-				machineCodeAt: 0
-				put: (self
-					orSize: 1
-					immediate13bitValue: encodedValue
-					sourceRegister: rn
-					destinationRegister: rd).
-			^ machineCodeSize := 4
-		] ifNotPossible: [
-			"If this does not fit in a logical immediate value => Try to move it to a register, then AND the registers"
-			self moveCw: val intoR: ConcreteIPReg.
-			self
-				machineCodeAt: 4
-				put: (self
-					orSize: 1
-					shiftedRegister: ConcreteIPReg
-					shiftType: 0
-					shiftValue: 0
-					withRegister: rn
-					destinationRegister: rd).
-			machineCodeSize := 8 "A move and an AND"
-		].
-	^ 0	"to keep Slang happy"
+	<inline: true>
+	| srcReg immediate destReg |
+	1halt.
 ]
 
 { #category : #'as yet unclassified' }
 CogRiscV64Compiler >> concretizeOrRR [
 
-	self machineCodeAt: 0 put: (self
-			 inclusiveOrSize: 1
-			 firstRegister: (operands at: 0)
-			 secondRegister: (operands at: 1)
-			 destinationRegister: (operands at: 1)).
-			
-	^ machineCodeSize := 4
+	<inline: true>
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2679,15 +2402,24 @@ CogRiscV64Compiler >> concretizeXorCwR [
 ]
 
 { #category : #'as yet unclassified' }
-CogRiscV64Compiler >> concretizeXorRR [
-
-	1halt.
+CogRiscV64Compiler >> concretizeXorRR [ 
+	
+	<inline: true>
+	| srcReg1 srcReg2 destReg |
+	self flag: #TODO.
+	srcReg1 := operands at: 0.
+	srcReg2 := destReg := operands at: 1.
+	self machineCodeAt: 0 put: (self bitwiseXorBetweenRegister: srcReg1 andRegister: srcReg2 intoRegister: destReg).
+	^ machineCodeSize := 4
+	
 ]
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeXorRdRd [
 	
-	1halt.
+	<inline: true>
+	self flag: #TODO.
+	^ self concretizeXorRR
 ]
 
 { #category : #encoding }
@@ -3598,8 +3330,8 @@ CogRiscV64Compiler >> jumpTo: sourceRegisterValueAddress withOffset: offset andS
 	self flag: #DONE.	
 	riscvOpcode := 2r1100111.
 	"Check size and sign"
-	self assertValue: offset isContainedIn: 12.
 	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	self assertValue: signExtendedOffset isContainedIn: 12.
 	^ (((((signExtendedOffset bitAnd: 16rfff) << 20 
 		bitOr: (sourceRegisterValueAddress bitAnd: 16r1f) << 15)
 		bitOr: 2r000)
@@ -3630,8 +3362,8 @@ CogRiscV64Compiler >> jumpToOffset: offset andStorePreviousPCPlus4in: destinatio
 	self flag: #DONE.
 	riscvOpcode := 2r1101111.
 	"Check size and sign"	
-	self assertValue: offset isContainedIn: 13.
 	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 13.
+	self assertValue: signExtendedOffset isContainedIn: 13.
 	^  ((((((signExtendedOffset  bitAnd: 16r100000) << 30) 
 		bitOr: (signExtendedOffset bitAnd: 16r7fe) << 21)
 		bitOr: (signExtendedOffset bitAnd: 16r800) << 20)
@@ -3759,8 +3491,8 @@ CogRiscV64Compiler >> loadDoubleWordFromAddressInRegister: baseRegister withOffs
 	self flag: #DONE.
 	riscvOpcode :=  2r0000011.
 	"Check size and sign"
-	self assertValue: offset isContainedIn: 12.
 	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	self assertValue: signExtendedOffset isContainedIn: 12.
 	"Actual bit instruction"
 	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
@@ -3862,8 +3594,8 @@ CogRiscV64Compiler >> loadUpperImmediate: anImmediate inRegister: destReg [
 	self flag: #DONE.	
 	riscvOpcode := 2r0110111.
 	"Check size and sign"
-	self assertValue: anImmediate isContainedIn: 20.
 	signExtendedImmediate := self computeSignExtendedValueOf: anImmediate ofSize: 20.
+	self assertValue: signExtendedImmediate isContainedIn: 20.
 	^ (((signExtendedImmediate bitAnd: 16rfffff) << 12) 
 	  bitOr: (destReg bitAnd: 16r1f) << 7) 
 	  bitOr: riscvOpcode
@@ -4389,25 +4121,6 @@ CogRiscV64Compiler >> shiftSetsConditionCodesFor: aConditionalJumpOpcode [
 		otherwise: [self halt: 'unhandled opcode in setsConditionCodesFor:'. false]
 ]
 
-{ #category : #testing }
-CogRiscV64Compiler >> shiftable16bitImmediate: constant ifTrue: trueAlternativeBlock ifFalse: falseAlternativeBlock [
-	<inline: true>
-	"For data processing operands, there is the immediate shifter_operand variant, 
-	 where an 16 bit value is left shifted by i.
-	 This is only suitable for quick constants(Cq), which won't change."
-	
-	(constant bitAnd: 16rFFFF) = constant ifTrue:
-		[^trueAlternativeBlock value: 0 value: constant].
-	0 to: 2 do: [:i | | shiftedValue shiftMagnitude |
-		shiftMagnitude := (1 << i) * 16.
-		shiftedValue := constant >> shiftMagnitude.
-		(shiftedValue << shiftMagnitude = constant and: [ (shiftedValue bitAnd: 16rFFFF) = shiftedValue ])
-			ifTrue: [ ^ trueAlternativeBlock
-					value: shiftMagnitude
-					value: shiftedValue ] ].
-	^falseAlternativeBlock value
-]
-
 { #category : #accessing }
 CogRiscV64Compiler >> stackPageInterruptHeadroomBytes [
 	"Return a minimum amount of headroom for each stack page (in bytes).  In a
@@ -4420,27 +4133,22 @@ CogRiscV64Compiler >> stackPageInterruptHeadroomBytes [
 CogRiscV64Compiler >> stackPointerAlignment [
 	
 	<doNotGenerate>
-	"As for the ARMv8 Arm® Architecture Reference Manual
-	
-	D1.8.2 SP alignment checking
-	A misaligned stack pointer is where bits[3:0] of the stack pointer are not 0b0000, when the stack pointer is used as the base address of the calculation, regardless of any offset applied by the instruction.
-	
-	Meaning that the stack should be aligned to 16 bytes"
-
+	"As for the RISC-V Architecture Reference Manual:
+	In the standard RISC-V calling convention, the stack grows downward and the stack pointer is always kept 16-byte aligned"
+	self flag: #DONE.
 	^ 16
 ]
 
 { #category : #encoding }
 CogRiscV64Compiler >> stop [
 
-	"C6.2.38 BRK
-	
-	Breakpoint instruction. A BRK instruction generates a Breakpoint Instruction exception.
-	
-	BRK #<imm>"
-	
-	"This is a BRK 0..."
-	^ 2r11010100001 << 21
+	"ebreak: Environment breakpoint, makes a request of the debugger by raising a BREAKPOINT exception" 
+	self flag: #TODO.
+	^ ((((2r0000000000001 << 20)
+	  bitOr: 2r00000 << 15)
+	  bitOr: 2r000 << 12)
+	  bitOr: 2r00000 << 7)
+	  bitOr: 2r1110011
 ]
 
 { #category : #'generate machine code - support' }
@@ -4463,8 +4171,8 @@ CogRiscV64Compiler >> storeDoubleWordFromRegister: sourceRegister toAddressInReg
 	self flag: #DONE.	
 	riscvOpcode := 2r0100011.
 	"Check for sign and size"
-	self assertValue: offset isContainedIn: 12.
 	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	self assertValue: signExtendedOffset isContainedIn: 12.
 	^ ((((((
 	  offset >> 5 bitAnd: 16r3f) << 25) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 20 )
@@ -4572,80 +4280,6 @@ CogRiscV64Compiler >> trailingZerosOf: aNumber [
 	].
 
 	^ zeroBits
-]
-
-{ #category : #'as yet unclassified' }
-CogRiscV64Compiler >> unsignedBitfieldMoveSize: is64Bits immr: immr imms: imms sourceRegister: sourceRegister destinationRegister: destinationRegister [
-	
-	"C6.2.333 UBFM
-	
-	Unsigned Bitfield Move is usually accessed via one of its aliases, which are always preferred for disassembly.
-	If <imms> is greater than or equal to <immr>, this copies a bitfield of (<imms>-<immr>+1) bits starting from bit position <immr> in the source register to the least significant bits of the destination register.
-	
-	If <imms> is less than <immr>, this copies a bitfield of (<imms>+1) bits from the least significant bits of the source register to bit position (regsize-<immr>) of the destination register, where regsize is the destination register size of 32 or 64 bits.
-	
-	In both cases the destination bits below and above the bitfield are set to zero
-	
-	UBFM <Xd>, <Xn>, #<immr>, #<imms>
-	"
-	
-	^ is64Bits << 31
-		bitOr: (2r10100110 << 23
-		bitOr: ((is64Bits bitAnd: 1) << 22
-		bitOr: ((immr bitAnd: 16r3f) << 16
-		bitOr: ((imms bitAnd: 16r3f) << 10
-		bitOr: ((sourceRegister bitAnd: 16r1f) << 5
-		bitOr: (destinationRegister bitAnd: 16r1f))))))
-]
-
-{ #category : #simulation }
-CogRiscV64Compiler >> wantsNearAddressFor: anObject [
-	"A hack hook to allow ARM to override the simulated address for the short-cut trampolines"
-	<doNotGenerate>
-	^anObject isSymbol and: [anObject beginsWith: 'ceShortCut']
-]
-
-{ #category : #assembler }
-CogRiscV64Compiler >> xorBetweenRegister: srcReg andImmediate: immediate intoRegister: destReg [
-
-	"xori: Computes the bitwise exclusive-OR of the sign-extended immediate
-	 and register x[rs1] and writes the result to x[rd]
-	
-	 31               20 19   15 14   12 11     7 6         0
-	|  	immediate[11:0]  |  rs1  |  100  |   rd   |  0010011  |
-	"
-
-	| riscvOpcode signExtendedImmediate |
-	self flag: #DONE.	
-	riscvOpcode := 2r0010011.	
-	"Check for sign and size"
-	self assertValue: immediate isContainedIn: 12.
-	signExtendedImmediate :=	self computeSignExtendedValueOf: immediate ofSize: 12.
-	^ (((((signExtendedImmediate bitAnd: 16rfff) << 20)
-	  bitOr: (srcReg bitAnd: 16r1f) << 15)
-	  bitOr: (2r100 << 12))
-	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode
-]
-
-{ #category : #assembler }
-CogRiscV64Compiler >> xorBetweenRegister: srcReg1 andRegister: srcReg2 intoRegister: destReg [
-
-	"xor: Computes the bitwise exclusive-OR of registers x[rs1] and x[rs2] 
-	 and writes the result to x[rd]
-	
-	 31       25 24   20 19   15 14   12 11     7 6         0
-	|  	0000000  |  rs2  |  rs1  |  100  |   rd   |  0110011  |
-	"
-
-	| riscvOpcode |
-	self flag: #DONE.	
-	riscvOpcode := 2r0110011.	
-	^ (((((srcReg2 bitAnd: 16r1f) << 20)
-	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
-	  bitOr: (2r100 << 12))
-	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode
 ]
 
 { #category : #'inline cacheing' }
