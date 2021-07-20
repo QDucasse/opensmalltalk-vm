@@ -1389,7 +1389,6 @@ CogRiscV64Compiler >> concretizeConditionalJump: conditionCode [
 	| offset |
 	offset := self computeJumpTargetOffsetPlus: 8.
  	self assert: (self isInImmediateJumpRange: offset).
-	1 halt.
 	self machineCodeAt: 0 put: (self branchTo: offset ifCondition: conditionCode).
 	^ machineCodeSize := 4
 ]
@@ -1497,6 +1496,42 @@ CogRiscV64Compiler >> concretizeJump [
 	offset := self computeJumpTargetOffsetPlus: 8.
  	self assert: (self isInImmediateJumpRange: offset).
 	self machineCodeAt: 0 put: (self jumpToOffset: offset).
+	^ machineCodeSize := 4
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> concretizeJumpAbove [
+
+	<inline: true>
+	| offset |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 8.
+ 	self assert: (self isInImmediateJumpRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: ConcreteFlagReg isGreaterThanRegisterValueUnsigned: ConcreteIPReg).
+	^ machineCodeSize := 4
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> concretizeJumpAboveOrEqual [
+
+	<inline: true>
+	| offset |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 8.
+ 	self assert: (self isInImmediateJumpRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: ConcreteFlagReg isGreaterThanOrEqualRegisterValueUnsigned: ConcreteIPReg).
+	^ machineCodeSize := 4
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> concretizeJumpBelow [
+
+	<inline: true>
+	| offset |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 8.
+ 	self assert: (self isInImmediateJumpRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: ConcreteFlagReg isLessThanRegisterValueUnsigned: ConcreteIPReg).
 	^ machineCodeSize := 4
 ]
 
@@ -1832,7 +1867,8 @@ CogRiscV64Compiler >> concretizeMoveCwR [
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
-	1halt.	
+	self flag: #TODO.
+	self concretizeMoveCqR.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2519,9 +2555,9 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[JumpGreaterOrEqual]		-> [^self concretizeJumpGreaterOrEqual ].
 		[JumpGreater]				-> [^self concretizeJumpGreater ].
 		[JumpLessOrEqual]			-> [^self concretizeJumpLessOrEqual ].
-		[JumpBelow]				-> [^self concretizeConditionalJump: CC]. "unsigned lower"
-		[JumpAboveOrEqual]		-> [^self concretizeConditionalJump: CS]. "unsigned greater or equal"
-		[JumpAbove]				-> [^self concretizeConditionalJump: HI].
+		[JumpBelow]				-> [^self concretizeJumpBelow ]. "unsigned lower"
+		[JumpAboveOrEqual]		-> [^self concretizeJumpAboveOrEqual ]. "unsigned greater or equal"
+		[JumpAbove]				-> [^self concretizeJumpAbove ].
 		[JumpBelowOrEqual]		-> [^self concretizeConditionalJump: LS].
 		[JumpFPEqual]				-> [^self concretizeFPConditionalJump: EQ].
 		[JumpFPNotEqual]			-> [^self concretizeFPConditionalJump: NE].
@@ -4339,7 +4375,7 @@ CogRiscV64Compiler >> storeByteFromRegister: sourceRegister toAddressInRegister:
 	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
 	self assertValue: signExtendedOffset isContainedIn: 12.
 	^ ((((((
-	  offset >> 5 bitAnd: 16r3f) << 25) 
+	  offset >> 5 bitAnd: 16r7f) << 25) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 20 )
 	  bitOr: (destinationAddressRegister bitAnd: 16r1f) << 15) 
 	  bitOr: 2r000 << 12)
@@ -4352,7 +4388,7 @@ CogRiscV64Compiler >> storeDoubleWordFromRegister: sourceRegister toAddressInReg
 
 	"sd: Stores the eight bytes in register x[rs2] to memory at address x[rs1] + sign-extend(offset).
 	
-	 31             25  24    20  19    15  14   12  11             7  6         0
+	 31            25 24     20 19     15 14    12 11              7 6          0
 	|  	offset[11:5]  |   rs2   |   rs1   |  011   |   offset[4:0]   |   0100011  |
 	"
 
@@ -4363,8 +4399,8 @@ CogRiscV64Compiler >> storeDoubleWordFromRegister: sourceRegister toAddressInReg
 	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
 	self assertValue: signExtendedOffset isContainedIn: 12.
 	^ ((((((
-	  offset >> 5 bitAnd: 16r3f) << 25) 
-	  bitOr: (sourceRegister bitAnd: 16r1f) << 20 )
+	  signExtendedOffset >> 5 bitAnd: 16r7f) << 25) 
+	  bitOr: (sourceRegister bitAnd: 16r1f) << 20)
 	  bitOr: (destinationAddressRegister bitAnd: 16r1f) << 15) 
 	  bitOr: 2r011 << 12)
 	  bitOr: (signExtendedOffset bitAnd: 16r1f) << 7) 
@@ -4387,7 +4423,7 @@ CogRiscV64Compiler >> storeHalfWordFromRegister: sourceRegister toAddressInRegis
 	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
 	self assertValue: signExtendedOffset isContainedIn: 12.
 	^ ((((((
-	  offset >> 5 bitAnd: 16r3f) << 25) 
+	  offset >> 5 bitAnd: 16r7f) << 25) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 20 )
 	  bitOr: (destinationAddressRegister bitAnd: 16r1f) << 15) 
 	  bitOr: 2r001 << 12)
@@ -4417,7 +4453,7 @@ CogRiscV64Compiler >> storeWordFromRegister: sourceRegister toAddressInRegister:
 	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
 	self assertValue: signExtendedOffset isContainedIn: 12.
 	^ ((((((
-	  offset >> 5 bitAnd: 16r3f) << 25) 
+	  offset >> 5 bitAnd: 16r7f) << 25) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 20 )
 	  bitOr: (destinationAddressRegister bitAnd: 16r1f) << 15) 
 	  bitOr: 2r010 << 12)

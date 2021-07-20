@@ -36,6 +36,8 @@ VMSimpleStackBasedCogitBytecodeTest >> doExtendedStoreStoresVariableType: type i
 	"The first byte of the push receiver instance variable bytecode family is used to identify which variable (0-based again)"
 	cogit byte1: type << 6 + index - 1.
 	self compile: [ cogit extendedStoreBytecode ].	
+	self openMachineDebugger.
+	self halt.
 	self runGeneratedCode.
 ]
 
@@ -475,8 +477,6 @@ VMSimpleStackBasedCogitBytecodeTest >> testPopIntoTempPopsValueAt: tempVariableU
 	"I push two values, so I can test that the false is pop out"
 	self pushAddress: memory trueObject.
 	self pushAddress: memory falseObject.
-	self halt.
-	self openMachineDebugger.
 	self runGeneratedCode.
 
 	self assert: self popAddress equals: memory trueObject
@@ -501,7 +501,6 @@ VMSimpleStackBasedCogitBytecodeTest >> testPopIntoTempUpdatesVariableAt: tempVar
 	self compile: [ cogit genStoreAndPopTemporaryVariableBytecode ].	
 
 	self pushAddress: memory falseObject.
-
 	self runGeneratedCode.
 
 	self assert: (self readTemporaryValueAt: tempVariableUnderTest) equals: memory falseObject

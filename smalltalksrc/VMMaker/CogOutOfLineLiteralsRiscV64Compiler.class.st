@@ -341,7 +341,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[SubCqR]		-> [ | constant |
 			constant := operands at: 0.
 			^ (constant bitAnd: 16rfff) ~= constant ].
-		[TstCqR]		-> [ ^ false].
+		[TstCqR]		-> [^false]. "#TODO"
 		[XorCqR]		-> [^self rotateable8bitBitwiseImmediate: (operands at: 0) ifTrue: [:r :i :n| false] ifFalse: [true]].
 		[AddCwR]		-> [^true].
 		[AndCwR]		-> [^true].
@@ -352,10 +352,8 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[LoadEffectiveAddressMwrR]
 						-> [^self rotateable8bitImmediate: (operands at: 0) ifTrue: [:r :i| false] ifFalse: [true]].
 		"Data Movement"						
-		[MoveCqR]		-> [^ self shiftable16bitImmediate: (operands at: 0) abs
-								ifTrue: [ :s :v | false ] ifFalse: [ true ]].
-		[MoveC32R]  -> [ ^ self shiftable16bitImmediate: (operands at: 0) abs
-			ifTrue: [ :s :v | false ] ifFalse: [ true ] ].
+		[MoveCqR]		-> [^ false]. "#TODO"
+		[MoveC32R]  -> [^ false]. "#TODO"
 
 		[MoveCwR]		-> [^(self inCurrentCompilation: (operands at: 0)) not].
 		[MoveAwR]		-> [^(self isAddressRelativeToVarBase: (operands at: 0)) ifTrue: [false] ifFalse: [true]].
@@ -364,17 +362,9 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[MoveRAb]		-> [^(self isAddressRelativeToVarBase: (operands at: 1)) ifTrue: [false] ifFalse: [true]].
 	
 
-		[MoveRM32r]	-> [self is9BitValue: (operands at: 1)
-										ifTrue: [ :value | ^  false ]
-										ifFalse: [ self shiftable16bitImmediate: (operands at: 1) 
-														ifTrue: [ :value :shift | ^ false ] 
-														ifFalse: [ ^ true ] ]].
+		[MoveRM32r]	-> [^ false]. "#TODO"
 
-		[MoveRMwr]	-> [self is9BitValue: (operands at: 1)
-										ifTrue: [ :value | ^  false ]
-										ifFalse: [ self shiftable16bitImmediate: (operands at: 1) 
-														ifTrue: [ :value :shift | ^ false ] 
-														ifFalse: [ ^ true ] ]].
+		[MoveRMwr]	-> [^ false]. "#TODO"
 
 		[MoveRsM32r]	-> [^self is12BitValue: (operands at: 1) ifTrue: [:s :v| false] ifFalse: [true]]. 												
 		[MoveRdM64r]	-> [^self is12BitValue: (operands at: 1) ifTrue: [:s :v| false] ifFalse: [true]]. 
@@ -386,13 +376,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[MoveM32rRs]	-> [^self is12BitValue: (operands at: 0) ifTrue: [:s :v| false] ifFalse: [true]].
 		[MoveM64rRd]	-> [^self is12BitValue: (operands at: 0) ifTrue: [:s :v| false] ifFalse: [true]].
 			
-		[MoveM32rR] -> [ offset := (operands at: 0).
-			(offset >= 0 and: [ (offset bitAnd: 16rFFF) = offset ]) 
-				ifTrue: [ ^ false ]
-				ifFalse: [ 	self
-									is9BitValue: offset
-										ifTrue: [ :v | ^ false ] 
-										ifFalse: [^ true ] ] ].
+		[MoveM32rR] -> [^ false]. "#TODO"
 
 		[MoveMwrR]	-> [
 			offset := (operands at: 0).
