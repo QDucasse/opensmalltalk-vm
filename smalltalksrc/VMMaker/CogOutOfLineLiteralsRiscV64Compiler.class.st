@@ -318,30 +318,17 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[CallFull]		-> [^true].
 		[JumpFull]		-> [^true].
 		"Arithmetic"
-		[AddCqR]		-> [ | constant |
-			constant := operands at: 0.
-			^ (constant abs bitAnd: 16rfff) ~= constant abs].
+		[AddCqR]	   -> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "#TODO"
 		[AndCqR]		-> [^ false ].
-		[AndCqRR]		-> [^ self
-				encodeLogicalImmediate: (operands at: 0)
-				registerSize: 64
-				ifPossible: [ :value | false ]
-				ifNotPossible: [ true ]].
+		[AndCqRR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "#TODO"
 		[CmpCqR]		-> [ 
 				((operands at: 0) abs bitAnd: 16rFFF) = (operands at: 0) abs ifTrue: [ ^ false ].
 				((operands at: 0) abs << 12 >> 12 bitAnd: 16rFFF) = (operands at: 0) abs ifTrue: [ ^ false ].
 				^ true].
 		[CmpC32R]		-> [^self rotateable8bitSignedImmediate: (operands at: 0) ifTrue: [:r :i :n| false] ifFalse: [true]].
-		[OrCqR]			-> [^self
-				encodeLogicalImmediate: (operands at: 0)
-				registerSize: 64
-				ifPossible: [ :v | false ]
-				ifNotPossible: [ true ]].
-				
-		[SubCqR]		-> [ | constant |
-			constant := operands at: 0.
-			^ (constant bitAnd: 16rfff) ~= constant ].
-		[TstCqR]		-> [^false]. "#TODO"
+		[OrCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "#TODO"
+		[SubCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "#TODO"
+		[TstCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "#TODO"
 		[XorCqR]		-> [^self rotateable8bitBitwiseImmediate: (operands at: 0) ifTrue: [:r :i :n| false] ifFalse: [true]].
 		[AddCwR]		-> [^true].
 		[AndCwR]		-> [^true].

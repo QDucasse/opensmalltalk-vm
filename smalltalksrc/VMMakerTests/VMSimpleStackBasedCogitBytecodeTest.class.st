@@ -36,8 +36,8 @@ VMSimpleStackBasedCogitBytecodeTest >> doExtendedStoreStoresVariableType: type i
 	"The first byte of the push receiver instance variable bytecode family is used to identify which variable (0-based again)"
 	cogit byte1: type << 6 + index - 1.
 	self compile: [ cogit extendedStoreBytecode ].	
+	1halt.
 	self openMachineDebugger.
-	self halt.
 	self runGeneratedCode.
 ]
 
@@ -254,6 +254,8 @@ VMSimpleStackBasedCogitBytecodeTest >> testJumpForwardJumpsOverAnInstruction [
 		fixup := cogit fixupAt: 10.
 		cogit patchFixupTargetIfNeeded: fixup nextOpcodeIndex: nextOpcodeIndex. ] bytecodes: 3.	
 
+	self halt.
+	self openMachineDebugger.
 	self runUntilReturn.
 	
 	self assert: machineSimulator receiverRegisterValue equals: memory trueObject
@@ -1494,6 +1496,8 @@ VMSimpleStackBasedCogitBytecodeTest >> testSendNotEqualsEqualsWithNonIdenticalOb
 	"Push receiver, arg then send"
 	self pushAddress: memory nilObject.
 	self pushAddress: memory falseObject.
+	self halt.
+	self openMachineDebugger.
 	self runFrom: sendAddress until: self getLastAddress.
 	
 	self
