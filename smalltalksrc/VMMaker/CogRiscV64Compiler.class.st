@@ -1866,8 +1866,17 @@ CogRiscV64Compiler >> concretizeMoveM64rRd [
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMoveMbrR [
 
-	<doNotGenerate>
-	self subclassResponsibility 
+	<inline: true>
+	| baseReg offset destReg |
+	self flag: #DONE.
+	offset := operands at: 0.
+	baseReg := operands at: 1.
+	destReg := operands at: 2.
+	self machineCodeAt: 0 put: (self
+			 loadByteFromAddressInRegister: baseReg
+			 withOffset: offset
+			 toRegister: destReg).
+	^ machineCodeSize := 4.	
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -1877,7 +1886,7 @@ CogRiscV64Compiler >> concretizeMoveMwrR [
 	"Load a word (64 bits) from memory where the address is at a constant offset from an address in a register
 	 Expands to: ld rd, rs1(offset)"
 	<inline: true>
-	| baseReg offset destReg instrOffset |
+	| baseReg offset destReg |
 	self flag: #DONE.
 	offset := operands at: 0.
 	baseReg := operands at: 1.
@@ -3454,6 +3463,32 @@ CogRiscV64Compiler >> load12BitsImmediate: anImmediate inRegister: aRegisterID [
 		  inRegister: aRegisterID
 ]
 
+{ #category : #assembler }
+CogRiscV64Compiler >> loadByteFromAddressInRegister: baseRegister withOffset: offset toRegister: destinationRegister [ 
+
+	"lb: Loads one byte from memory at address x[rs1] + sign-extend(offset) and writes them to x[rd], sign-extending the result.
+	
+	 31            20 19    15 14    12 11     7 6         0
+	|  	offset[11:0]  |  rs1   |  000   |   rd   |   0000011  |
+	"
+
+	| riscvOpcode signExtendedOffset |
+	self flag: #DONE.
+	riscvOpcode :=  2r0000011.
+	"Check size and sign"
+	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	self assertValue: signExtendedOffset isContainedIn: 12.
+	"Actual bit instruction"
+	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
+	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
+	  bitOr: 2r000 << 	12)
+	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode) 
+
+
+	
+]
+
 { #category : #'generate machine code - support' }
 CogRiscV64Compiler >> loadCwInto: destReg [
 	"Load the operand into the destination register, answering
@@ -3483,8 +3518,8 @@ CogRiscV64Compiler >> loadDoubleWordFromAddressInRegister: baseRegister withOffs
 
 	"ld: Loads eight bytes from memory at address x[rs1] + sign-extend(offset) and writes them to x[rd].
 	
-	 31       20  19    15  14   12  11    7  6         0
-	|  	offset  |   rs1   |  001   |   rd   |   0000011  |
+	 31           20 19     15 14    12 11     7 6          0
+	|  	offset[11:0  |   rs1   |  011   |   rd   |   0000011  |
 	"
 
 	| riscvOpcode signExtendedOffset |
@@ -3497,6 +3532,32 @@ CogRiscV64Compiler >> loadDoubleWordFromAddressInRegister: baseRegister withOffs
 	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
 	  bitOr: 2r011 << 	12)
+	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode) 
+
+
+	
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> loadHalfWordFromAddressInRegister: baseRegister withOffset: offset toRegister: destinationRegister [ 
+
+	"lh: Loads two bytes from memory at address x[rs1] + sign-extend(offset) and writes them to x[rd], sign-extending the result.
+	
+	 31           20 19     15 14    12 11     7 6          0
+	|  	offset[11:0  |   rs1   |  001   |   rd   |   0000011  |
+	"
+
+	| riscvOpcode signExtendedOffset |
+	self flag: #DONE.
+	riscvOpcode :=  2r0000011.
+	"Check size and sign"
+	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	self assertValue: signExtendedOffset isContainedIn: 12.
+	"Actual bit instruction"
+	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
+	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
+	  bitOr: 2r001 << 	12)
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
 	  bitOr: riscvOpcode) 
 
@@ -3581,6 +3642,84 @@ CogRiscV64Compiler >> loadPICLiteralByteSize [
 ]
 
 { #category : #assembler }
+CogRiscV64Compiler >> loadUnsignedByteFromAddressInRegister: baseRegister withOffset: offset toRegister: destinationRegister [ 
+
+	"lbu: Loads one byte from memory at address x[rs1] + sign-extend(offset) and writes them to x[rd], zero-extending the result.
+	
+	 31            20 19    15 14    12 11     7 6         0
+	|  	offset[11:0]  |  rs1   |  100   |   rd   |   0000011  |
+	"
+
+	| riscvOpcode signExtendedOffset |
+	self flag: #DONE.
+	riscvOpcode :=  2r0000011.
+	"Check size and sign"
+	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	self assertValue: signExtendedOffset isContainedIn: 12.
+	"Actual bit instruction"
+	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
+	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
+	  bitOr: 2r100 << 	12)
+	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode) 
+
+
+	
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> loadUnsignedHalfWordFromAddressInRegister: baseRegister withOffset: offset toRegister: destinationRegister [ 
+
+	"lhu: Loads two bytes from memory at address x[rs1] + sign-extend(offset) and writes them to x[rd], zero-extending the result.
+	
+	 31            20 19     15 14    12 11     7 6          0
+	|  	offset[11:0]  |   rs1   |  101   |   rd   |   0000011  |
+	"
+
+	| riscvOpcode signExtendedOffset |
+	self flag: #DONE.
+	riscvOpcode :=  2r0000011.
+	"Check size and sign"
+	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	self assertValue: signExtendedOffset isContainedIn: 12.
+	"Actual bit instruction"
+	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
+	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
+	  bitOr: 2r101 << 	12)
+	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode) 
+
+
+	
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> loadUnsignedWordFromAddressInRegister: baseRegister withOffset: offset toRegister: destinationRegister [ 
+
+	"lwu: Loads four bytes from memory at address x[rs1] + sign-extend(offset) and writes them to x[rd], zero-extending the result
+	
+	 31            20 19     15 14    12 11     7 6          0
+	|  	offset[11:0]  |   rs1   |  010   |   rd   |   0000011  |
+	"
+
+	| riscvOpcode signExtendedOffset |
+	self flag: #DONE.
+	riscvOpcode :=  2r0000011.
+	"Check size and sign"
+	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	self assertValue: signExtendedOffset isContainedIn: 12.
+	"Actual bit instruction"
+	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
+	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
+	  bitOr: 2r010 << 	12)
+	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode) 
+
+
+	
+]
+
+{ #category : #assembler }
 CogRiscV64Compiler >> loadUpperImmediate: anImmediate inRegister: destReg [
 
 	"lui: Writes the sign-extended 20-bit immediate, let-shifted by 12 bits,
@@ -3599,6 +3738,32 @@ CogRiscV64Compiler >> loadUpperImmediate: anImmediate inRegister: destReg [
 	^ (((signExtendedImmediate bitAnd: 16rfffff) << 12) 
 	  bitOr: (destReg bitAnd: 16r1f) << 7) 
 	  bitOr: riscvOpcode
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> loadWordFromAddressInRegister: baseRegister withOffset: offset toRegister: destinationRegister [ 
+
+	"lw: Loads four bytes from memory at address x[rs1] + sign-extend(offset) and writes them to x[rd], sign-extending the result.
+	
+	 31            20 19     15 14    12 11     7 6          0
+	|  	offset[11:0]  |   rs1   |  010   |   rd   |   0000011  |
+	"
+
+	| riscvOpcode signExtendedOffset |
+	self flag: #DONE.
+	riscvOpcode :=  2r0000011.
+	"Check size and sign"
+	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	self assertValue: signExtendedOffset isContainedIn: 12.
+	"Actual bit instruction"
+	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
+	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
+	  bitOr: 2r010 << 	12)
+	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode) 
+
+
+	
 ]
 
 { #category : #accessing }
@@ -4159,6 +4324,30 @@ CogRiscV64Compiler >> stopsFrom: startAddr to: endAddr [
 ]
 
 { #category : #assembler }
+CogRiscV64Compiler >> storeByteFromRegister: sourceRegister toAddressInRegister: destinationAddressRegister withOffset: offset [
+
+	"sb: Stores the least-significant byte in register x[rs2] to memory at address x[rs1] + sign-extend(offset).
+	
+	 31            25 24     20 19     15 14    12 11            7 6          0
+	|  	offset[11:5]  |   rs2   |   rs1   |  000   |  offset[4:0]  |   0100011  |
+	"
+
+	| riscvOpcode signExtendedOffset |
+	self flag: #DONE.	
+	riscvOpcode := 2r0100011.
+	"Check for sign and size"
+	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	self assertValue: signExtendedOffset isContainedIn: 12.
+	^ ((((((
+	  offset >> 5 bitAnd: 16r3f) << 25) 
+	  bitOr: (sourceRegister bitAnd: 16r1f) << 20 )
+	  bitOr: (destinationAddressRegister bitAnd: 16r1f) << 15) 
+	  bitOr: 2r000 << 12)
+	  bitOr: (signExtendedOffset bitAnd: 16r1f) << 7) 
+	  bitOr: riscvOpcode
+]
+
+{ #category : #assembler }
 CogRiscV64Compiler >> storeDoubleWordFromRegister: sourceRegister toAddressInRegister: destinationAddressRegister withOffset: offset [
 
 	"sd: Stores the eight bytes in register x[rs2] to memory at address x[rs1] + sign-extend(offset).
@@ -4182,10 +4371,58 @@ CogRiscV64Compiler >> storeDoubleWordFromRegister: sourceRegister toAddressInReg
 	  bitOr: riscvOpcode
 ]
 
+{ #category : #assembler }
+CogRiscV64Compiler >> storeHalfWordFromRegister: sourceRegister toAddressInRegister: destinationAddressRegister withOffset: offset [
+
+	"sw: Stores the two lteast-significant bytes in register x[rs2] to memory at address x[rs1] + sign-extend(offset).
+	
+	 31            25 24     20 19     15 14    12 11            7 6          0
+	|  	offset[11:5]  |   rs2   |   rs1   |  001   |  offset[4:0]  |   0100011  |
+	"
+
+	| riscvOpcode signExtendedOffset |
+	self flag: #DONE.	
+	riscvOpcode := 2r0100011.
+	"Check for sign and size"
+	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	self assertValue: signExtendedOffset isContainedIn: 12.
+	^ ((((((
+	  offset >> 5 bitAnd: 16r3f) << 25) 
+	  bitOr: (sourceRegister bitAnd: 16r1f) << 20 )
+	  bitOr: (destinationAddressRegister bitAnd: 16r1f) << 15) 
+	  bitOr: 2r001 << 12)
+	  bitOr: (signExtendedOffset bitAnd: 16r1f) << 7) 
+	  bitOr: riscvOpcode
+]
+
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> storeLiteral: literal beforeFollowingAddress: followingAddress [
 	"Rewrite the long constant loaded by the instruction sequence just before this address:"
 	^self subclassResponsibility
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> storeWordFromRegister: sourceRegister toAddressInRegister: destinationAddressRegister withOffset: offset [
+
+	"sw: Stores the four lteast-significant bytes in register x[rs2] to memory at address x[rs1] + sign-extend(offset).
+	
+	 31            25 24     20 19     15 14    12 11            7 6          0
+	|  	offset[11:5]  |   rs2   |   rs1   |  010   |  offset[4:0]  |   0100011  |
+	"
+
+	| riscvOpcode signExtendedOffset |
+	self flag: #DONE.	
+	riscvOpcode := 2r0100011.
+	"Check for sign and size"
+	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	self assertValue: signExtendedOffset isContainedIn: 12.
+	^ ((((((
+	  offset >> 5 bitAnd: 16r3f) << 25) 
+	  bitOr: (sourceRegister bitAnd: 16r1f) << 20 )
+	  bitOr: (destinationAddressRegister bitAnd: 16r1f) << 15) 
+	  bitOr: 2r010 << 12)
+	  bitOr: (signExtendedOffset bitAnd: 16r1f) << 7) 
+	  bitOr: riscvOpcode
 ]
 
 { #category : #assembler }

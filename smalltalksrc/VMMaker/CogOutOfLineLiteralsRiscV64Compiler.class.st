@@ -42,14 +42,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> concretizeMoveC32R [
 	1halt.
 ]
 
-{ #category : #'generate machine code - concretize' }
-CogOutOfLineLiteralsRiscV64Compiler >> concretizeMoveMbrR [
-	"Will get inlined into concretizeAt: switch."
-
-	<inline: true>
-	1halt.
-]
-
 { #category : #'as yet unclassified' }
 CogOutOfLineLiteralsRiscV64Compiler >> concretizeMovePatcheableC32R [
 	
