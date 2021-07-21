@@ -589,13 +589,13 @@ CogRiscV64Compiler >> branchTo: offset ifCondition: condition betweenRegister: s
 	 "Check size and sign"	
 	self assertValue: offset isContainedIn: 13.
 	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 13.
-	^ ((((((((signExtendedOffset bitAnd: 16r1000) << 30)
-	  bitOr: (signExtendedOffset bitAnd: 16r7e0)  << 25)
+	^ (((((((((signExtendedOffset >> 12) bitAnd: 16r1) << 31)
+	  bitOr: ((signExtendedOffset >> 5) bitAnd: 16r3f)  << 25)
 	  bitOr: (srcReg2 bitAnd: 16r1f)  << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f)  << 15)
 	  bitOr: (condition bitAnd: 16r7) << 12)
-	  bitOr: (signExtendedOffset bitAnd: 16r1e)   << 8)
-	  bitOr: (signExtendedOffset bitAnd: 16r800)  << 7)
+	  bitOr: ((signExtendedOffset >> 1) bitAnd: 16rf)   << 8)
+	  bitOr: ((signExtendedOffset >> 11) bitAnd: 16r1)  << 7)
 	  bitOr: riscvopcode 
 ]
 
@@ -982,17 +982,8 @@ CogRiscV64Compiler >> computeMaximumSize [
 													ifTrue: [4]
 													ifFalse: [self literalLoadInstructionBytes + 4]].
 
-		[MoveRM32r]			-> [self is9BitValue: (operands at: 1)
-										ifTrue: [ :value | ^  4 ]
-										ifFalse: [ self shiftable16bitImmediate: (operands at: 1) 
-														ifTrue: [ :value :shift | ^  8 ] 
-														ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]].
-
-		[MoveRMwr]			-> [self is9BitValue: (operands at: 1)
-										ifTrue: [ :value | ^  4 ]
-										ifFalse: [ self shiftable16bitImmediate: (operands at: 1) 
-														ifTrue: [ :value :shift | ^  8 ] 
-														ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]].
+		[MoveRM32r]			-> [^ 4].
+		[MoveRMwr]			-> [^ 4].
 		[MoveRsM32r]			-> [^self is12BitValue: (operands at: 1)
 										ifTrue: [:u :i | 4]
 										ifFalse: [self notYetImplemented. self literalLoadInstructionBytes + 4]]. 
