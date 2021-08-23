@@ -94,6 +94,9 @@ VMSimpleStackBasedCogitBytecodeTest >> doTestReturnReturnsObjectInReturnRegister
 		ifFalse: [self createFramelessCallFrom: callerAddress].		
 
 	self compile: compilationBlock.
+	
+	"1halt.
+	self openMachineDebugger."
 	self runUntilReturn.
 
 	self assert: machineSimulator returnRegisterValue equals: anAddress
@@ -107,6 +110,8 @@ VMSimpleStackBasedCogitBytecodeTest >> doTestReturnReturnsToCallerWithFrame: isF
 		ifFalse: [self createFramelessCallFrom: callerAddress].		
 	
 	self compile: compilationBlock.	
+	"self halt.
+	self openMachineDebugger."
 	self runUntilReturn.
 ]
 
@@ -254,8 +259,8 @@ VMSimpleStackBasedCogitBytecodeTest >> testJumpForwardJumpsOverAnInstruction [
 		fixup := cogit fixupAt: 10.
 		cogit patchFixupTargetIfNeeded: fixup nextOpcodeIndex: nextOpcodeIndex. ] bytecodes: 3.	
 
-	self halt.
-	self openMachineDebugger.
+	"self halt.
+	self openMachineDebugger."
 	self runUntilReturn.
 	
 	self assert: machineSimulator receiverRegisterValue equals: memory trueObject
@@ -683,6 +688,8 @@ VMSimpleStackBasedCogitBytecodeTest >> testPushConstantNilAndThenReturn [
 		cogit genPushConstantNilBytecode.
 		cogit genReturnTopFromMethod ] bytecodes: 2.
 
+	self openMachineDebugger.
+	self halt.
 	self runUntilReturn.
 	
 	self assert: machineSimulator receiverRegisterValue equals: memory nilObject
@@ -1292,6 +1299,8 @@ VMSimpleStackBasedCogitBytecodeTest >> testSendEqualsEqualsWithIdenticalObjectsP
 	"Push receiver, arg then send"
 	self pushAddress: memory nilObject.
 	self pushAddress: memory nilObject.
+	1halt.
+	self openMachineDebugger.
 	self runFrom: sendAddress until: self getLastAddress.		
 	self
 		assert: self popAddress
