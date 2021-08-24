@@ -35,6 +35,7 @@ VMSimpleStackBasedCogitBytecodeTest >> doExtendedStoreStoresVariableType: type i
 	
 	"The first byte of the push receiver instance variable bytecode family is used to identify which variable (0-based again)"
 	cogit byte1: type << 6 + index - 1.
+	1halt.
 	self compile: [ cogit extendedStoreBytecode ].	
 	1halt.
 	self openMachineDebugger.

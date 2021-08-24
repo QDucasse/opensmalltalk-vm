@@ -2249,14 +2249,14 @@ CogRiscV64Compiler >> concretizePopR [
 	
 	"Load the content of the stack pointer in the given register then decrease the stack pointer.
 	   ld destReg, 0(sp)
-	   addi sp, sp, -8
+	   addi sp, sp, 8
 	"
 
 	<inline: true>
 	| destReg offset |
 	self flag: #TODO.
 	destReg := operands at: 0.
-	offset := self computeSignExtendedValueOf: -8 ofSize: 12.
+	offset := self computeSignExtendedValueOf: 8 ofSize: 12.
 	self machineCodeAt: 0 put: (self loadDoubleWordFromAddressInRegister: SP withOffset: 0 toRegister: destReg).	
 	self machineCodeAt: 4	put: (self addImmediate: offset toRegister: SP inRegister: SP).
 	^ machineCodeSize := 8	
@@ -2298,19 +2298,20 @@ CogRiscV64Compiler >> concretizePushCq [
 
 	"Push (store) a double word at the position of the stack pointer if the constant is not a literal
 		li  ConcreteIPReg, cq 
-		addi sp, sp, 8
+		addi sp, sp, -8
 		sd  ConcreteIPReg, 0(sp)
 	
 	 If it is a literal:
 	  auipc ConcreteIPReg, 0
 	  ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		addi sp, sp, 8
+		addi sp, sp, -8
 		sd  ConcreteIPReg, 0(sp)
 		"
 	<inline: true>
-	| cq instrOffset |
+	| cq instrOffset offset |
 	self flag: #DONE.
 	cq := operands at: 0.
+	offset := self computeSignExtendedValueOf: -8 ofSize: 12.	
 	dependent
 		ifNil: [ 
 			"No literal -> Direct load into a scratch register, number of instructions depends on immediate size"
@@ -2322,7 +2323,7 @@ CogRiscV64Compiler >> concretizePushCq [
 			].
 	self
 		machineCodeAt: instrOffset
-		put: (self addImmediate: 8 toRegister: SP inRegister: SP).
+		put: (self addImmediate: offset toRegister: SP inRegister: SP).
 	self machineCodeAt: instrOffset + 4 put: (self
 			 storeDoubleWordFromRegister: ConcreteIPReg
 			 toAddressInRegister: SP
@@ -4433,7 +4434,7 @@ CogRiscV64Compiler >> stackPointerAlignment [
 CogRiscV64Compiler >> stop [
 
 	"ebreak: Environment breakpoint, makes a request of the debugger by raising a BREAKPOINT exception" 
-	self flag: #TODO.
+	self flag: #DONE.
 	^ ((((2r0000000000001 << 20)
 	  bitOr: 2r00000 << 15)
 	  bitOr: 2r000 << 12)
