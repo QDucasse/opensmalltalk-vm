@@ -178,7 +178,8 @@ ProcessorSimulator >> getLastAddress: abstractInstructions [
 
 { #category : #testing }
 ProcessorSimulator >> hasLinkRegister [
-	^ false
+	
+	self subclassResponsibility 
 ]
 
 { #category : #initialization }

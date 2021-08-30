@@ -425,6 +425,16 @@ CogRiscV64Compiler >> assertValue: aValue isContainedIn: aSize [
 	self assert: (aValue bitAnd: mask) = aValue 
 ]
 
+{ #category : #abi }
+CogRiscV64Compiler >> assertValue: aValue isContainedIn: aSize ifTrue: trueBlock ifFalse: falseBlock [
+
+	| mask |
+	mask := (1 << aSize) - 1.
+	(aValue bitAnd: mask) = aValue 
+		ifTrue: [ trueBlock value ]
+		ifFalse: [ falseBlock value ]
+]
+
 { #category : #'register allocation' }
 CogRiscV64Compiler >> availableRegisterOrNoneFor: liveRegsMask [
 	"Answer an unused abstract register in the liveRegMask.
@@ -807,59 +817,63 @@ CogRiscV64Compiler >> computeMaximumSize [
 	 limits which are exceeded when each case jumps around the otherwise."
 
 	| offset |
-
 	<var: #offset type: #'sqInt'>
-
+	self flag: #TODO.
 	opcode
 		caseOf: {
 		"Noops & Pseudo Ops"
-		[Label]					-> [^0].
-		[Literal]					-> [^8].
-		[AlignmentNops]		-> [^(operands at: 0) - 4].
-		[Fill32]					-> [^4].
-		[Nop]					-> [^4].
+		[Label]					-> [^0]. 
+		[Literal]					-> [^8]. 
+		[AlignmentNops]		-> [^(operands at: 0) - 4]. 
+		[Fill32]					-> [^4]. "DONE"
+		[Nop]					-> [^4]. "DONE"
 		"Control"
-		[Call]					-> [^8].
-		[CallFull]				-> [^self literalLoadInstructionBytes + 4].
-		[JumpR]					-> [^4].
-		[Jump]					-> [^4].
-		[JumpFull]				-> [^self literalLoadInstructionBytes + 4].
-		[JumpLong]				-> [^4].
-		[JumpZero]				-> [^4].
-		[JumpNonZero]			-> [^4].
-		[JumpNegative]			-> [^4].
-		[JumpNonNegative]		-> [^4].
-		[JumpOverflow]			-> [^4].
-		[JumpNoOverflow]		-> [^4].
-		[JumpCarry]		      	-> [^4].
-		[JumpNoCarry]			-> [^4].
-		[JumpLess]				-> [^4].
-		[JumpGreaterOrEqual]	-> [^4].
-		[JumpGreater]			-> [^4].
-		[JumpLessOrEqual]		-> [^4].
-		[JumpBelow]			-> [^4].
-		[JumpAboveOrEqual]	-> [^4].
-		[JumpAbove]			-> [^4].
-		[JumpBelowOrEqual]	-> [^4].
-		[JumpLongZero]		-> [^self jumpLongConditionalByteSize].
-		[JumpLongNonZero]	-> [^self jumpLongConditionalByteSize].
-		[JumpFPEqual]			-> [^4].
-		[JumpFPNotEqual]		-> [^4].
-		[JumpFPLess]			-> [^4].
-		[JumpFPGreaterOrEqual]-> [^4].
-		[JumpFPGreater]		-> [^4].
-		[JumpFPLessOrEqual]	-> [^4].
-		[JumpFPOrdered]		-> [^4].
-		[JumpFPUnordered]		-> [^4].
-		[RetN]					-> [^(operands at: 0) = 0 ifTrue: [4] ifFalse: [8]].
-		[Stop]					-> [^4].
+		[Call]					-> [^8]. "TODO"
+		[CallFull]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
+		[JumpR]					-> [^4]. "DONE"
+		[Jump]					-> [^4]. "DONE"
+		[JumpFull]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
+		[JumpLong]				-> [^4]. "TODO"
+		[JumpZero]				-> [^4]. "DONE"
+		[JumpNonZero]			-> [^4]. "DONE"
+		[JumpNegative]			-> [^4]. "TODO"
+		[JumpNonNegative]		-> [^4]. "TODO"
+		[JumpOverflow]			-> [^4]. "TODO"
+		[JumpNoOverflow]		-> [^4]. "TODO"
+		[JumpCarry]		      	-> [^4]. "TODO"
+		[JumpNoCarry]			-> [^4]. "TODO"
+		[JumpLess]				-> [^4]. "DONE"
+		[JumpGreaterOrEqual]	-> [^4]. "DONE"
+		[JumpGreater]			-> [^4]. "DONE"
+		[JumpLessOrEqual]		-> [^4]. "DONE"
+		[JumpBelow]			-> [^4]. "DONE"
+		[JumpAboveOrEqual]	-> [^4]. "DONE"
+		[JumpAbove]			-> [^4]. "DONE"
+		[JumpBelowOrEqual]	-> [^4]. "DONE"
+		[JumpLongZero]		-> [^self jumpLongConditionalByteSize]. "TODO"
+		[JumpLongNonZero]	-> [^self jumpLongConditionalByteSize]. "TODO"
+		[JumpFPEqual]			-> [^4]. "TODO"
+		[JumpFPNotEqual]		-> [^4]. "TODO"
+		[JumpFPLess]			-> [^4]. "TODO"
+		[JumpFPGreaterOrEqual]-> [^4]. "TODO"
+		[JumpFPGreater]		-> [^4]. "TODO"
+		[JumpFPLessOrEqual]	-> [^4]. "TODO"
+		[JumpFPOrdered]		-> [^4]. "TODO"
+		[JumpFPUnordered]		-> [^4]. "TODO"
+		[RetN]					-> [^(operands at: 0) = 0 ifTrue: [4] ifFalse: [8]]. "DONE"
+		[Stop]					-> [^4]. "DONE"
 
 		"Arithmetic"
 		[AddCqR]				-> [
 						dependent 
-							ifNil:[ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4]
+							ifNil:[ | cq |
+								cq := operands at: 0.
+								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								 ifTrue: [ ^ 4 ] "Immediate that can be encoded in addi"
+								 ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ].
+                      ]
 						   ifNotNil: [^ self literalLoadInstructionBytes + 4 ]
-						]. "#TODO"
+						]. "#DONE"
 		[AndCqR]				-> [
 						dependent 
 							ifNil:[ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4]
@@ -905,14 +919,14 @@ CogRiscV64Compiler >> computeMaximumSize [
 							ifNil:[ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4]
 						   ifNotNil: [^ self literalLoadInstructionBytes + 4 ]
 						]. "#TODO"
-		[AddCwR]				-> [^self literalLoadInstructionBytes + 4].
-		[AndCwR]				-> [^self literalLoadInstructionBytes + 4].
-		[CmpCwR]				-> [^self literalLoadInstructionBytes + 4].
-		[OrCwR]				-> [^self literalLoadInstructionBytes + 4].
-		[SubCwR]				-> [^self literalLoadInstructionBytes + 4].
-		[XorCwR]				-> [^self literalLoadInstructionBytes + 4].
-		[AddRR]					-> [^4].
-		[AndRR]					-> [^4].
+		[AddCwR]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
+		[AndCwR]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
+		[CmpCwR]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
+		[OrCwR]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
+		[SubCwR]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
+		[XorCwR]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
+		[AddRR]					-> [^4]. "TODO"
+		[AndRR]					-> [^4]. "TODO"
 		[CmpRR]				-> [^(((operands at:0) = SP) or: [(operands at: 1) = SP]) ifTrue: [8] ifFalse: [4]].
 		[OrRR]					-> [^4].
 		[XorRR]					-> [^4].
@@ -1099,12 +1113,12 @@ CogRiscV64Compiler >> concretizeAddCqR [
 	<var: #cq type: #uint_64>
 	| cq destReg sourceReg instrOffset |
 	self flag: #TODO.
+	1halt.
 	cq := operands at: 0.
-	self assert: ((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq.
 	sourceReg := destReg := operands at: 1.
 	dependent
 		ifNil: [ 
-			cq < 16rfff
+			 self assertValue: cq abs isContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
 					self machineCodeAt: 0 put: (self
 							 addImmediate: cq
@@ -1470,8 +1484,9 @@ CogRiscV64Compiler >> concretizeFPConditionalJump: conditionCode [
 
 { #category : #'generate machine code' }
 CogRiscV64Compiler >> concretizeFill32 [
-	"fill with operand 0 according to the processor's endianness"
+	"fill with operand 0 according to the processor's endianness, here little-endian"
 
+	self flag: #DONE.
 	self machineCodeAt: 0 put: (operands at: 0).
 	^ machineCodeSize := 4
 ]
@@ -1489,7 +1504,7 @@ CogRiscV64Compiler >> concretizeJump [
 	<inline: true>
 	| offset |
 	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 8.
+	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	self machineCodeAt: 0 put: (self jumpToOffset: offset).
 	^ machineCodeSize := 4
@@ -1501,7 +1516,7 @@ CogRiscV64Compiler >> concretizeJumpAbove [
 	<inline: true>
 	| offset |
 	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 8.
+	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: ConcreteFlagReg isGreaterThanRegisterValueUnsigned: ConcreteIPReg).
 	^ machineCodeSize := 4
@@ -1513,7 +1528,7 @@ CogRiscV64Compiler >> concretizeJumpAboveOrEqual [
 	<inline: true>
 	| offset |
 	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 8.
+	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: ConcreteFlagReg isGreaterThanOrEqualRegisterValueUnsigned: ConcreteIPReg).
 	^ machineCodeSize := 4
@@ -1525,7 +1540,7 @@ CogRiscV64Compiler >> concretizeJumpBelow [
 	<inline: true>
 	| offset |
 	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 8.
+	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: ConcreteFlagReg isLessThanRegisterValueUnsigned: ConcreteIPReg).
 	^ machineCodeSize := 4
@@ -1555,7 +1570,7 @@ CogRiscV64Compiler >> concretizeJumpGreater [
 	<inline: true>
 	| offset |
 	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 8.
+	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: ConcreteFlagReg isGreaterThanRegisterValue: ConcreteIPReg).
 	^ machineCodeSize := 4
@@ -1567,7 +1582,7 @@ CogRiscV64Compiler >> concretizeJumpGreaterOrEqual [
 	<inline: true>
 	| offset |
 	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 8.
+	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: ConcreteFlagReg isGreaterThanOrEqualRegisterValue: ConcreteIPReg).
 	^ machineCodeSize := 4
@@ -1579,7 +1594,7 @@ CogRiscV64Compiler >> concretizeJumpLess [
 	<inline: true>
 	| offset |
 	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 8.
+	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: ConcreteFlagReg isLessThanRegisterValue: ConcreteIPReg).
 	^ machineCodeSize := 4
@@ -1591,7 +1606,7 @@ CogRiscV64Compiler >> concretizeJumpLessOrEqual [
 	<inline: true>
 	| offset |
 	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 8.
+	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: ConcreteFlagReg isLessThanOrEqualRegisterValue: ConcreteIPReg).
 	^ machineCodeSize := 4
@@ -1600,44 +1615,19 @@ CogRiscV64Compiler >> concretizeJumpLessOrEqual [
 { #category : #'generate machine code' }
 CogRiscV64Compiler >> concretizeJumpLong [
 
-	| offset |
-	offset := (operands at: 0) signedIntFromLong
-		- address signedIntFromLong.	"normal pc offset"
-	self assert: (self isInImmediateJumpRange: offset).	"+- 24Mb is plenty of range in code space"
-	self machineCodeAt: 0 put: (self b: offset). 
-	^ machineCodeSize := 4
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeJumpLongNonZero [
 
-	self notYetImplemented.
-	^ 0
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeJumpLongZero [
 	
-	"There are no conditional long jumps in AARCH64.
-	Compile this to a sequence as follows:
-	
-		b.ne nonZero
-		b target
-	
-		nonZero:
-	
-	...
-	"
-	
-	| offset |
-	"Calculate the offset between the B and the target. The B is the second instruction thus the -4"
-	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4.
-	self assert: (self isInImmediateJumpRange: offset).
-
-	self machineCodeAt: 0 put: (self branchCondition: NE offset: 8 "should jump after the b").
-	self machineCodeAt: 4 put: (self b: offset).
-	
-	^ machineCodeSize := 8
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -1646,7 +1636,7 @@ CogRiscV64Compiler >> concretizeJumpNonZero [
 	<inline: true>
 	| offset |
 	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 8.
+	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNotEqualToZero: ConcreteFlagReg).
 	^ machineCodeSize := 4
@@ -1669,7 +1659,7 @@ CogRiscV64Compiler >> concretizeJumpZero [
 	<inline: true>
 	| offset |
 	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 8.
+	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsEqualToZero: ConcreteFlagReg).
 	^ machineCodeSize := 4
@@ -2389,8 +2379,10 @@ CogRiscV64Compiler >> concretizeSqrtRd [
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeStop [
 	
+	"Makes a request to the debugger by generating an ebreak instruction"
+	
 	<inline: true>
-	self flag: #TODO.
+	self flag: #DONE.
 	self machineCodeAt: 0 put: self stop.
 	^ machineCodeSize := 4
 ]

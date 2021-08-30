@@ -81,8 +81,6 @@ VMSimpleStackBasedCogitBytecodeTest >> doTestReturnCleansStackWithFrame: isFrame
 		ifTrue: [self createFramefulCallFrom: callerAddress]
 		ifFalse: [self createFramelessCallFrom: callerAddress].		
 	self compile: generationBlock.
-	self openMachineDebugger.
-	1halt.
 	self runUntilReturn.
 
 	self assert: oldFP equals: self framePointerRegisterValue.
@@ -97,11 +95,7 @@ VMSimpleStackBasedCogitBytecodeTest >> doTestReturnReturnsObjectInReturnRegister
 		ifFalse: [self createFramelessCallFrom: callerAddress].		
 
 	self compile: compilationBlock.
-	
-	1halt.
-	self openMachineDebugger.
 	self runUntilReturn.
-
 	self assert: machineSimulator returnRegisterValue equals: anAddress
 ]
 
@@ -113,8 +107,6 @@ VMSimpleStackBasedCogitBytecodeTest >> doTestReturnReturnsToCallerWithFrame: isF
 		ifFalse: [self createFramelessCallFrom: callerAddress].		
 	
 	self compile: compilationBlock.	
-	self openMachineDebugger.
-	self halt.
 	self runUntilReturn.
 ]
 
@@ -261,8 +253,6 @@ VMSimpleStackBasedCogitBytecodeTest >> testJumpForwardJumpsOverAnInstruction [
 		"As the bytecode is the target of a jump it has a fixup. We need to process it"
 		fixup := cogit fixupAt: 10.
 		cogit patchFixupTargetIfNeeded: fixup nextOpcodeIndex: nextOpcodeIndex. ] bytecodes: 3.	
-	self openMachineDebugger.
-   self halt.
 	self runUntilReturn.
 	
 	self assert: machineSimulator receiverRegisterValue equals: memory trueObject
@@ -271,7 +261,6 @@ VMSimpleStackBasedCogitBytecodeTest >> testJumpForwardJumpsOverAnInstruction [
 { #category : #'tests - single bytecode - pop into temp' }
 VMSimpleStackBasedCogitBytecodeTest >> testPopInto3rdTempPopsValue [
 
-	self openMachineDebugger.
 	self testPopIntoTempPopsValueAt: 3
 ]
 
@@ -1297,13 +1286,15 @@ VMSimpleStackBasedCogitBytecodeTest >> testReturnTrueFramelessReturnsToCaller [
 { #category : #'tests - special sends' }
 VMSimpleStackBasedCogitBytecodeTest >> testSendEqualsEqualsWithIdenticalObjectsPushesTrue [
 
+	1halt.
 	sendAddress := self compile: [ cogit genSpecialSelectorEqualsEquals ].
 	
 	"Push receiver, arg then send"
 	self pushAddress: memory nilObject.
 	self pushAddress: memory nilObject.
-	"self openMachineDebugger.
-	1halt."
+
+	self openMachineDebugger.
+	1halt. 
 	self runFrom: sendAddress until: self getLastAddress.		
 	self
 		assert: self popAddress
@@ -1508,8 +1499,6 @@ VMSimpleStackBasedCogitBytecodeTest >> testSendNotEqualsEqualsWithNonIdenticalOb
 	"Push receiver, arg then send"
 	self pushAddress: memory nilObject.
 	self pushAddress: memory falseObject.
-	"self openMachineDebugger.
-	1halt."
 	self runFrom: sendAddress until: self getLastAddress.
 	
 	self
