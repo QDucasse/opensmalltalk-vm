@@ -193,10 +193,10 @@ CogRiscV64Compiler class >> initialize [
 	F6 := 6.
 	F7 := 7.
 	"Function arguments registers"
-	CArg0Reg := 0.
-	CArg1Reg := 1.
-	CArg2Reg := 2.
-	CArg3Reg := 3.
+	CArg0Reg := X12.
+	CArg1Reg := X13.
+	CArg2Reg := X14.
+	CArg3Reg := X15.
 	
 	"Base register that will serve as anchor to trampoline between stacks"
 	ConcreteVarBaseReg := X26.
@@ -239,13 +239,13 @@ CogRiscV64Compiler class >> initializeAbstractRegisters [
 	X2     | SP    | Stack Pointer 
 	X8     | S0/FP | Saved Register / Frame Pointer 
 	X9     | S1    | Saved Register
-	X18-27 | S2-11 | Saved Regsiters 
+	X18-27 | S2-11 | Saved Registers 
 	
 	X1 is LR.
 	X8 is SP."
 	
 	self flag: #TODO.
-	CallerSavedRegisterMask := self registerMaskFor: 3 and: 4.
+	CallerSavedRegisterMask := self registerMaskFor: 10 and: 11.
 
 	TempReg := X22.
 	ClassReg := X23.
@@ -260,7 +260,7 @@ CogRiscV64Compiler class >> initializeAbstractRegisters [
 	Extra2Reg := X20.
 	VarBaseReg := X26. "Base address for calls from machine code. Must be callee saved"
 	self assert: ConcreteVarBaseReg = X26.
-	LinkReg := X1. "X1"
+	LinkReg := X1. "X1 is ra"
 
 	NumRegisters := 16.
 
@@ -1334,84 +1334,20 @@ CogRiscV64Compiler >> concretizeCallFull [
 CogRiscV64Compiler >> concretizeCmpC32R [
 
 	<inline: true>
-	^ self concretizeCmpCqR
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeCmpCqR [
 	
-	<var: #quickImmediate type: #sqInt>
 	<inline: true>
-	| quickImmediate registerToUse fits12Bits fitsShifted12Bits |
-	quickImmediate := operands at: 0.
-	registerToUse := operands at: 1.
-
-	quickImmediate >= 0 ifTrue: [  
-		fits12Bits := (quickImmediate bitAnd: 16rfff) = quickImmediate.
-		fits12Bits ifTrue: [
-			self
-				machineCodeAt: 0
-				put:
-					(self cmpSize: 1 immediate12BitValue: quickImmediate shiftFlag: 0 register: registerToUse).
-			^ machineCodeSize := 4 ].
-		
-		fitsShifted12Bits := (quickImmediate << 12 >> 12 bitAnd: 16rFFF) = quickImmediate.
-		fitsShifted12Bits ifTrue: [ 
-			self
-				machineCodeAt: 0
-				put:
-					(self cmpSize: 1 immediate12BitValue: quickImmediate >> 12 shiftFlag: 1 register: registerToUse).
-			^ machineCodeSize := 4
-		]]
-	ifFalse: [
-		quickImmediate := quickImmediate abs.
-		fits12Bits := (quickImmediate bitAnd: 16rfff) = quickImmediate.
-		fits12Bits ifTrue: [
-			self
-				machineCodeAt: 0
-				put:
-					(self cmnSize: 1 immediate12BitValue: quickImmediate shiftFlag: 0 register: registerToUse).
-			^ machineCodeSize := 4 ].
-		
-		fitsShifted12Bits := (quickImmediate << 12 >> 12 bitAnd: 16rFFF) = quickImmediate.
-		fitsShifted12Bits ifTrue: [ 
-			self
-				machineCodeAt: 0
-				put:
-					(self cmnSize: 1 immediate12BitValue: quickImmediate >> 12 shiftFlag: 1 register: registerToUse).
-			^ machineCodeSize := 4 ]].
-	 
-	"If the value does not fit in 12 bits, not even shifted, then use two instructions"
-	self moveCw: quickImmediate intoR: ConcreteIPReg.
-	self
-		machineCodeAt: machineCodeSize
-		put:
-			(self
-				cmpSize: 1
-				shiftedRegister: ConcreteIPReg
-				shiftType: 0
-				shiftValue: 0
-				secondRegister: registerToUse).
-	^ machineCodeSize := machineCodeSize + 4
+	1halt.
 ]
 
 { #category : #'as yet unclassified' }
 CogRiscV64Compiler >> concretizeCmpCwR [
 	
-	self assert: dependent notNil.
-	self moveCw: (operands at: 0) intoR: ConcreteIPReg.
-	(operands at: 1) = SP ifTrue: [ self notYetImplemented ].	
-
-	self
-		machineCodeAt: machineCodeSize
-		put:
-			(self
-				cmpSize: 1
-				shiftedRegister: (operands at: 1)
-				shiftType: 0
-				shiftValue: 0
-				secondRegister: ConcreteIPReg).
-	^ machineCodeSize := 8
+    1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -1424,27 +1360,17 @@ CogRiscV64Compiler >> concretizeCmpRR [
 	srcReg1 := operands at: 0.
 	srcReg2 := operands at: 1.
 	self machineCodeAt: 0 put: (self
-			 substractValueFromRegister: srcReg1
-			 toRegister: srcReg2
+			 substractRegister: srcReg2
+			 fromRegister: srcReg1
 			 intoRegister: ConcreteFlagReg).
 	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeCmpRdRd [
-	"Will get inlined into concretizeAt: switch."
-
-	"Compare FP regB with FP regA and leave the FP status reg ready to be transferred back to ARM with next instruction"
-
-	<inline: true>
-	| regB regA |
-	regA := operands at: 0.
-	regB := operands at: 1.
-	machineCode at: 0 put: (self
-		fcmpFType: 2r01 "64bit variant"
-		leftRegister: regB
-		rightRegister: regA).
-	^ machineCodeSize := 4
+	
+	<inline:true>
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2302,10 +2228,10 @@ CogRiscV64Compiler >> concretizePushCq [
 		sd  ConcreteIPReg, 0(sp)
 	
 	 If it is a literal:
-	  auipc ConcreteIPReg, 0
-	  ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		addi sp, sp, -8
-		sd  ConcreteIPReg, 0(sp)
+	   auipc ConcreteIPReg, 0
+	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
+	   addi sp, sp, -8
+	   sd  ConcreteIPReg, 0(sp)
 		"
 	<inline: true>
 	| cq instrOffset offset |
@@ -2344,14 +2270,15 @@ CogRiscV64Compiler >> concretizePushCw [
 CogRiscV64Compiler >> concretizePushR [
 
 	"Store the content of a register at the position of the stack pointer	  
-		addi sp, sp, 8
+		addi sp, sp, -8
 		sd   srcReg, 0(sp)"
 		
 	<inline: true>
-	| srcReg |
+	| srcReg offset |
 	self flag: #DONE.	
 	srcReg := operands at: 0.
-	self machineCodeAt: 0 put: (self addImmediate: 8 toRegister: SP inRegister: SP).
+	offset := self computeSignExtendedValueOf: -8 ofSize: 12.
+	self machineCodeAt: 0 put: (self addImmediate: offset toRegister: SP inRegister: SP).
 	self machineCodeAt: 4 put: (self
 			 storeDoubleWordFromRegister: srcReg
 			 toAddressInRegister: SP
@@ -2363,27 +2290,18 @@ CogRiscV64Compiler >> concretizePushR [
 CogRiscV64Compiler >> concretizeRetN [
 
 	"Jumps to the address stored in the Link Register + a given offset.
-	If the offset is 0:
-	(ret)	jalr, x0, 0(LR)
-	Else, the offset is added to the LR before the jump:
-	       addi, LR, offset(LR)
-	(ret)  jalr, x0, 0(LR)
+	(ret)  jalr, x0, 0(x1)
 	"
 	<inline: true>
-	| offset instrOffset |
+	| offset |
 	self flag: #DONE.
-	instrOffset := 0.
 	offset := operands at: 0.
-	"If the offset is different than 0, an addimmediate instruction is used on the stack pointer"
-	offset = 0 ifFalse: [ 
-		self assert: (offset bitAnd: 16rfff) = offset.
-		self
-			machineCodeAt: instrOffset
-			put: (self addImmediate: offset toRegister: SP inRegister: SP).
-		instrOffset := 4 ].
-
-	self machineCodeAt: instrOffset put: self ret.
-	^ machineCodeSize := instrOffset + 4
+	offset = 0
+	   ifTrue: [ self machineCodeAt: 0 put: self ret.
+		          ^ machineCodeSize := 4 ].
+	self machineCodeAt: 0 put: (self addImmediate: offset toRegister: SP inRegister: SP).
+	self machineCodeAt: 4 put: self ret.
+	^ machineCodeSize := 8
 ]
 
 { #category : #concretize }
@@ -2505,8 +2423,8 @@ CogRiscV64Compiler >> concretizeSubCqR [
 			instrOffset := self machineCodeWriteInstructions:
 				               (self loadLiteralInRegister: ConcreteIPReg) ].
 	self machineCodeAt: instrOffset put: (self
-					 substractValueFromRegister: sourceReg
-					 toRegister: ConcreteIPReg
+					 substractRegister: ConcreteIPReg
+					 fromRegister: sourceReg
 					 intoRegister: destReg).
 	^ machineCodeSize := instrOffset + 4
 ]
@@ -2521,7 +2439,7 @@ CogRiscV64Compiler >> concretizeSubRR [
 	self flag: #TODO.
 	sourceReg1 := operands at: 0.
 	sourceReg2 := destReg := operands at: 1.
-	self machineCodeAt: 0 put: (self substractValueFromRegister: sourceReg1 toRegister: sourceReg2 intoRegister: destReg).
+	self machineCodeAt: 0 put: (self substractRegister: sourceReg2 fromRegister: sourceReg1 intoRegister: destReg).
 	^ machineCodeSize := 4
 ]
 
@@ -2672,7 +2590,6 @@ CogRiscV64Compiler >> dispatchConcretize [
 	conditionOrNil ifNotNil:
 		[self error: 'ARMv8 / aarch64 does not support conditions encoded in the instruction'.
 		 ^self].
-		 
 	opcode caseOf: {
 		"Noops & Pseudo Ops"
 		[Label]					-> [^self concretizeLabel].
@@ -4552,7 +4469,7 @@ CogRiscV64Compiler >> storeWordFromRegister: sourceRegister toAddressInRegister:
 ]
 
 { #category : #assembler }
-CogRiscV64Compiler >> substractValueFromRegister: srcReg2 toRegister: srcReg1 intoRegister: destReg [
+CogRiscV64Compiler >> substractRegister: srcReg2 fromRegister: srcReg1 intoRegister: destReg [
 
 	"sub: Substracts register x[rs2] from register x[rs1] and writes the result to x[rd].
 	 Arithmetic overflow is ignored.
@@ -4572,7 +4489,7 @@ CogRiscV64Compiler >> substractValueFromRegister: srcReg2 toRegister: srcReg1 in
 ]
 
 { #category : #assembler }
-CogRiscV64Compiler >> substractWordValueFromRegister: srcReg2 toRegister: srcReg1 intoRegister: destReg [
+CogRiscV64Compiler >> substractWordRegister: srcReg2 fromRegister: srcReg1 intoRegister: destReg [
 
 	"subw: Substracts register x[rs2] from register x[rs1], truncates the result to 32 bits 
 	 and writes the sign-extended result to x[rd].
