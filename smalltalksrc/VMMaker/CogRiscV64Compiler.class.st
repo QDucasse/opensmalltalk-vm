@@ -701,6 +701,30 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValueIsEqualToZero: srcReg [
 ]
 
 { #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> branchTo: offset ifRegisterValueIsNegative: srcReg [
+	
+	"bltz: Pseudo instruction that branches to the offset if the value in the register is < 0
+	Expands to blt x[rs1], x0, offset
+ 	"
+	self flag: #DONE.
+	^ self branchTo: offset ifRegisterValue: srcReg isLessThanRegisterValue: X0
+	
+	
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> branchTo: offset ifRegisterValueIsNonNegative: srcReg [
+	
+	"bgtz: Pseudo instruction that branches to the offset if the value in the register is > 0
+	Expands to blt x0, x[rs1], offset
+ 	"
+	self flag: #DONE.
+	^ self branchTo: offset ifRegisterValue: X0 isLessThanRegisterValue: srcReg
+	
+	
+]
+
+{ #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> branchTo: offset ifRegisterValueIsNotEqualToZero: srcReg [
 	
 	"bnez: Pseudo instruction that branches to the offset if the value in the register is not 0
@@ -723,6 +747,34 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValueUnsigned: srcReg1 isGreate
 	"
 	self flag: #DONE.
 	^ self branchTo: offset ifCondition: GEU betweenRegister: srcReg1 andRegister: srcReg2
+	
+	
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> branchTo: offset ifRegisterValueUnsigned: srcReg1 isGreaterThanRegisterValueUnsigned: srcReg2 [
+
+	"bgtu: If register x[rs1] is greater than x[rs2], treating the values as unsigned numbers,
+	 set the PC to the current PC plus the sign-extended offset
+	Expands to: bltu x[rs2], x[rs1], offset
+	"
+	
+	self flag: #DONE.
+	^ self branchTo: offset ifCondition: LTU betweenRegister: srcReg2 andRegister: srcReg1
+	
+	
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> branchTo: offset ifRegisterValueUnsigned: srcReg1 isLessThanOrEqualRegisterValueUnsigned: srcReg2 [
+
+	"bleu If register x[rs1] is less than or equal x[rs2], treating the values as unsigned numbers,
+	 set the PC to the current PC plus the sign-extended offset
+	Expands to: bgeu x[rs2], x[rs1], offset
+	"
+	
+	self flag: #DONE.
+	^ self branchTo: offset ifCondition: GEU betweenRegister: srcReg2 andRegister: srcReg1
 	
 	
 ]
@@ -869,10 +921,9 @@ CogRiscV64Compiler >> computeMaximumSize [
 							ifNil:[ | cq |
 								cq := operands at: 0.
 								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
-								 ifTrue: [ ^ 4 ] "Immediate that can be encoded in addi"
-								 ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ].
-                      ]
-						   ifNotNil: [^ self literalLoadInstructionBytes + 4 ]
+								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in addi"
+								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
+                      ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
 						]. "#DONE"
 		[AndCqR]				-> [
 						dependent 
@@ -1547,6 +1598,18 @@ CogRiscV64Compiler >> concretizeJumpBelow [
 ]
 
 { #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> concretizeJumpBelowOrEqual [
+
+	<inline: true>
+	| offset |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+ 	self assert: (self isInImmediateJumpRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: ConcreteFlagReg isLessThanOrEqualRegisterValueUnsigned: ConcreteIPReg).
+	^ machineCodeSize := 4
+]
+
+{ #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeJumpFull [
 "Will get inlined into concretizeAt: switch."
 
@@ -1628,6 +1691,30 @@ CogRiscV64Compiler >> concretizeJumpLongNonZero [
 CogRiscV64Compiler >> concretizeJumpLongZero [
 	
 	1halt.
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> concretizeJumpNegative [
+
+	<inline: true>
+	| offset |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+ 	self assert: (self isInImmediateJumpRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNegative: ConcreteIPReg).
+	^ machineCodeSize := 4
+]
+
+{ #category : #'generate machine code - concretize' }
+CogRiscV64Compiler >> concretizeJumpNonNegative [
+
+	<inline: true>
+	| offset |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+ 	self assert: (self isInImmediateJumpRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNonNegative: ConcreteIPReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2582,6 +2669,7 @@ CogRiscV64Compiler >> dispatchConcretize [
 	conditionOrNil ifNotNil:
 		[self error: 'ARMv8 / aarch64 does not support conditions encoded in the instruction'.
 		 ^self].
+	self flag: #TODO.
 	opcode caseOf: {
 		"Noops & Pseudo Ops"
 		[Label]					-> [^self concretizeLabel].
@@ -2600,8 +2688,8 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[Jump]				     		-> [^self concretizeJump].
 		[JumpZero]					-> [^self concretizeJumpZero ].
 		[JumpNonZero]				-> [^self concretizeJumpNonZero ].
-		[JumpNegative]				-> [^self concretizeConditionalJump: MI].
-		[JumpNonNegative]			-> [^self concretizeConditionalJump: PL].
+		[JumpNegative]				-> [^self concretizeJumpNegative ].
+		[JumpNonNegative]			-> [^self concretizeJumpNonNegative ].
 		[JumpOverflow]				-> [^self concretizeConditionalJump: VS].
 		[JumpNoOverflow]			-> [^self concretizeConditionalJump: VC].
 		[JumpCarry]				-> [^self concretizeConditionalJump: CS].
@@ -2613,7 +2701,7 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[JumpBelow]				-> [^self concretizeJumpBelow ]. "unsigned lower"
 		[JumpAboveOrEqual]		-> [^self concretizeJumpAboveOrEqual ]. "unsigned greater or equal"
 		[JumpAbove]				-> [^self concretizeJumpAbove ].
-		[JumpBelowOrEqual]		-> [^self concretizeConditionalJump: LS].
+		[JumpBelowOrEqual]		-> [^self concretizeJumpBelowOrEqual ].
 		[JumpFPEqual]				-> [^self concretizeFPConditionalJump: EQ].
 		[JumpFPNotEqual]			-> [^self concretizeFPConditionalJump: NE].
 		[JumpFPLess]				-> [^self concretizeFPConditionalJump: LT].
