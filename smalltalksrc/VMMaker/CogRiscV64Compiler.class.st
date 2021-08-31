@@ -962,14 +962,22 @@ CogRiscV64Compiler >> computeMaximumSize [
 						]. "#TODO"
 		[TstCqR]				-> [
 						dependent 
-							ifNil:[ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4]
-						   ifNotNil: [^ self literalLoadInstructionBytes + 4 ]
-						]. "#TODO"
+							ifNil:[ | cq |
+								cq := operands at: 0.
+								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in andi"
+								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
+                      ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
+						]. "DONE"
 		[XorCqR]				-> [
 						dependent 
-							ifNil:[ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4]
-						   ifNotNil: [^ self literalLoadInstructionBytes + 4 ]
-						]. "#TODO"
+							ifNil:[ | cq |
+								cq := operands at: 0.
+								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in xori"
+								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
+                      ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
+						]. "TODO"
 		[AddCwR]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
 		[AndCwR]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
 		[CmpCwR]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
@@ -1163,20 +1171,19 @@ CogRiscV64Compiler >> concretizeAddCqR [
 	<inline: true>
 	<var: #cq type: #uint_64>
 	| cq destReg sourceReg instrOffset |
-	self flag: #TODO.
-	1halt.
+	self flag: #DONE.
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
 	dependent
 		ifNil: [ 
-			 self assertValue: cq abs isContainedIn: 12
+			 self signExtendValue: cq andAssertIsContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
 					self machineCodeAt: 0 put: (self
 							 addImmediate: cq
 							 toRegister: sourceReg
 							 inRegister: destReg).
 					instrOffset := 4 ]
-				ifFalse: [ "Move to a register before performing AND on the registers"	
+				ifFalse: [ "Move to a register before performing ADD on the registers"	
 					"Load the immediate to a register"
 					instrOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg).
 					self machineCodeAt: instrOffset put: (self
@@ -1259,7 +1266,7 @@ CogRiscV64Compiler >> concretizeAndCqR [
 	sourceReg := destReg := operands at: 1.
 	dependent
 		ifNil: [ 
-			cq < 16rfff
+			self signExtendValue: cq andAssertIsContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
 					self machineCodeAt: 0 put: (self
 							 bitwiseAndBetweenRegister: sourceReg
@@ -2209,10 +2216,10 @@ CogRiscV64Compiler >> concretizeOrCqR [
 	sourceReg := destReg := operands at: 1.
 	dependent
 		ifNil: [ 
-			cq < 16rfff
+			self signExtendValue: cq andAssertIsContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
 					self machineCodeAt: 0 put: (self
-							 bitwiseAndBetweenRegister: sourceReg
+							 bitwiseOrBetweenRegister: sourceReg
 							 andImmediate: cq
 							 toRegister: destReg).
 					instrOffset := 4 ]
@@ -2220,7 +2227,7 @@ CogRiscV64Compiler >> concretizeOrCqR [
 					"Load the immediate to a register"
 					instrOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg).
 					self machineCodeAt: instrOffset put: (self
-							 bitwiseAndBetweenRegister: sourceReg
+							 bitwiseOrBetweenRegister: sourceReg
 							 andRegister: ConcreteIPReg
 							 toRegister: destReg).
 					instrOffset := instrOffset + 4 ] 
@@ -2228,7 +2235,7 @@ CogRiscV64Compiler >> concretizeOrCqR [
 		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
 			instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
 			self machineCodeAt: instrOffset put: (self
-					 bitwiseAndBetweenRegister: sourceReg
+					 bitwiseOrBetweenRegister: sourceReg
 					 andRegister: ConcreteIPReg
 					 toRegister: destReg).
 			instrOffset := instrOffset + 4 ].
@@ -2495,12 +2502,10 @@ CogRiscV64Compiler >> concretizeSubCqR [
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
 	dependent
-		ifNil: [ 
-			instrOffset := self machineCodeWriteInstructions:
-				               (self loadImmediate: cq inRegister: ConcreteIPReg) ]
-		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
-			instrOffset := self machineCodeWriteInstructions:
-				               (self loadLiteralInRegister: ConcreteIPReg) ].
+		ifNil: [  "Immediate load in a register"
+			instrOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ]
+		ifNotNil: [ "Literal -> compute the distance then load the actual value in a register"
+			instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
 	self machineCodeAt: instrOffset put: (self
 					 substractRegister: ConcreteIPReg
 					 fromRegister: sourceReg
@@ -2539,8 +2544,7 @@ CogRiscV64Compiler >> concretizeTstCqR [
 	
 	If the operand is not a literal:
 		andi ConcreteFlagReg, reg, cq
-		li ConcreteIPReg, cq
-	
+
 	 Otherwise load the value in a register:
 		li ConcreteIPReg, cq 
 		and ConcreteFlagReg, ConcreteIPReg, reg
@@ -2554,32 +2558,35 @@ CogRiscV64Compiler >> concretizeTstCqR [
 		"
 
 	<inline: true>
-	| register cq instrOffset literalAddress distance |
+	| srcReg cq instrOffset |
 	self flag: #TODO.
 	cq := operands at: 0.
-	register := operands at: 1.
+	srcReg := operands at: 1.
 
 	dependent
 		ifNil: [ "No literal -> and immediate then load the immediate to register (for further checks)"
-			self machineCodeAt: 0 put: (self
-					 bitwiseAndBetweenRegister: register
-					 andImmediate: cq
-					 toRegister: ConcreteFlagReg).
-			self machineCodeAt: 4 put: (self load12BitsImmediate: cq inRegister: ConcreteIPReg).
-			instrOffset := 8 ]
+			self signExtendValue: cq abs andAssertIsContainedIn: 12 
+				ifTrue: [ "Direct encoding as an immediate"
+					self machineCodeAt: 0 put: (self
+						bitwiseAndBetweenRegister: srcReg
+						andImmediate: cq
+					 	toRegister: ConcreteFlagReg).
+					instrOffset := 4 ]
+				ifFalse: [ "Move to a register before performing the AND on the two registers"
+					instrOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg).
+					self machineCodeAt: instrOffset put: (self
+			     		bitwiseAndBetweenRegister: srcReg 
+					   andRegister: ConcreteIPReg  
+					   toRegister: ConcreteFlagReg).
+					instrOffset := instrOffset + 4 ]
+		]
 		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
-			literalAddress := (cogit  cCoerceSimple: dependent to: #'AbstractInstruction *') address.
-			distance := literalAddress - address.
-			self machineCodeAt: 0 put: (self addUpperImmediateToPC: 0 toRegister: ConcreteIPReg).
-			self machineCodeAt: 4 put: (self
-					 loadDoubleWordFromAddressInRegister: ConcreteIPReg
-					 withOffset: distance
-					 toRegister: ConcreteIPReg).
-			self machineCodeAt: 8 put: (self
-					 bitwiseAndBetweenRegister: register
+			instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
+			self machineCodeAt: instrOffset put: (self
+					 bitwiseAndBetweenRegister: srcReg
 					 andRegister: ConcreteIPReg
 					 toRegister: ConcreteFlagReg).
-			instrOffset := 12].
+			instrOffset := instrOffset + 4 ].
 	^ machineCodeSize := instrOffset
 ]
 
@@ -3698,40 +3705,46 @@ CogRiscV64Compiler >> loadImmediate: anImmediate inRegister: destReg [
 	 else if < 16rffff ffff ffff ff   -> lui addiw slli addi slli addi
 	 else if < 16rffff ffff ffff ffff -> lui addiw slli addi slli addi slli addi"
 
-	self flag: #TODO. "Check for sign???"
-	anImmediate < 16rfff ifTrue: [ ^ { self load12BitsImmediate: anImmediate inRegister: destReg }].
-	anImmediate < 16rffffffff ifTrue: [ 
+	self flag: #TODO.
+	" < 16rfff"
+	self signExtendValue: anImmediate andAssertIsContainedIn: 12 
+		ifTrue: [ ^ { self load12BitsImmediate: anImmediate inRegister: destReg }].
+	" < 16rffff ffff"
+	self signExtendValue: anImmediate andAssertIsContainedIn: 32 ifTrue: [ 
 		^ {  
 		self loadUpperImmediate: ((anImmediate >> 12) bitAnd: 16rfffff) inRegister: destReg. 
 	  	self addWordImmediate: (anImmediate bitAnd: 16rfff) toRegister: destReg inRegister: destReg
 		}
 	].
-	anImmediate < 16rfffffffffff ifTrue: [ 
+	" < 16rffff ffff fff"
+	self signExtendValue: anImmediate andAssertIsContainedIn: 44 ifTrue: [ 
 		^ {  
 	 	self loadUpperImmediate: ((anImmediate >> 24) bitAnd: 16rfffff) inRegister: destReg.
-		self addWordImmediate: (anImmediate bitAnd: 16rfff000) toRegister: destReg inRegister: destReg.
+		self addWordImmediate: (anImmediate bitAnd: 16rfff000) >> 12 toRegister: destReg inRegister: destReg.
 		self shiftLeftValueInRegister: destReg byShiftAmount: 12 intoRegister: destReg.
 		self addImmediate: (anImmediate bitAnd: 16rfff) toRegister: destReg inRegister: destReg
 		}
 	].
-	anImmediate < 16rffffffffffffff ifTrue: [ 
+	" < 16rffff ffff ffff ff"
+	self signExtendValue: anImmediate andAssertIsContainedIn: 56 ifTrue:  [ 
 		^ { 
 	 	self loadUpperImmediate: ((anImmediate >> 36) bitAnd: 16rfffff) inRegister: destReg.
-		self addWordImmediate: (anImmediate bitAnd: 16rfff000000) toRegister: destReg inRegister: destReg.
+		self addWordImmediate: (anImmediate bitAnd: 16rfff000000) >> 24 toRegister: destReg inRegister: destReg.
 		self shiftLeftValueInRegister: destReg byShiftAmount: 12 intoRegister: destReg.
-		self addImmediate: (anImmediate bitAnd: 16rfff000) toRegister: destReg inRegister: destReg.	
+		self addImmediate: (anImmediate bitAnd: 16rfff000) >> 12 toRegister: destReg inRegister: destReg.	
 		self shiftLeftValueInRegister: destReg byShiftAmount: 12 intoRegister: destReg.
 		self addImmediate: (anImmediate bitAnd: 16rfff) toRegister: destReg inRegister: destReg
 		}
    ].
 
+	"16rffff ffff ffff ffff"
 	^ { 
 	self loadUpperImmediate: ((anImmediate >> 48) bitAnd: 16rfffff) inRegister: destReg.
-	self addWordImmediate: (anImmediate bitAnd: 16rfff000000000) toRegister: destReg inRegister: destReg.
+	self addWordImmediate: (anImmediate bitAnd: 16rfff000000000) >> 36 toRegister: destReg inRegister: destReg.
 	self shiftLeftValueInRegister: destReg byShiftAmount: 12 intoRegister: destReg.
-	self addImmediate: (anImmediate bitAnd: 16rfff000000) toRegister: destReg inRegister: destReg.	
+	self addImmediate: (anImmediate bitAnd: 16rfff000000) >> 24 toRegister: destReg inRegister: destReg.	
 	self shiftLeftValueInRegister: destReg byShiftAmount: 12 intoRegister: destReg.
-	self addImmediate: (anImmediate bitAnd: 16rfff000) toRegister: destReg inRegister: destReg.	
+	self addImmediate: (anImmediate bitAnd: 16rfff000) >> 12 toRegister: destReg inRegister: destReg.	
 	self shiftLeftValueInRegister: destReg byShiftAmount: 12 intoRegister: destReg.
 	self addImmediate: (anImmediate bitAnd: 16rfff) toRegister: destReg inRegister: destReg
 	}
@@ -4407,6 +4420,29 @@ CogRiscV64Compiler >> shiftSetsConditionCodesFor: aConditionalJumpOpcode [
 			[JumpLess]	->	[true].
 		}
 		otherwise: [self halt: 'unhandled opcode in setsConditionCodesFor:'. false]
+]
+
+{ #category : #abi }
+CogRiscV64Compiler >> signExtendValue: aValue andAssertIsContainedIn: aSize ifTrue: trueBlock [ 
+
+	"Extend the given value with its sign to a given size and asserts it fits in the given size"
+
+	self flag: #TODO.
+	self signExtendValue: aValue andAssertIsContainedIn: aSize ifTrue: trueBlock ifFalse: [  ]
+]
+
+{ #category : #abi }
+CogRiscV64Compiler >> signExtendValue: aValue andAssertIsContainedIn: aSize ifTrue: trueBlock ifFalse: falseBlock [
+
+	"Extend the given value with its sign to a given size and asserts it fits in the given size"
+	
+	| mask signExtendedValue |
+	self flag: #TODO.
+	mask := (1 << aSize) - 1.
+	signExtendedValue := self computeSignExtendedValueOf: aValue ofSize: aSize.
+	(signExtendedValue bitAnd: mask) = signExtendedValue 
+		ifTrue: [ trueBlock value ]
+		ifFalse: [ falseBlock value ]
 ]
 
 { #category : #accessing }

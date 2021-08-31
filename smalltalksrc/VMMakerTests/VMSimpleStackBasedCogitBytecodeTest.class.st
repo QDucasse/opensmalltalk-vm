@@ -1286,7 +1286,6 @@ VMSimpleStackBasedCogitBytecodeTest >> testReturnTrueFramelessReturnsToCaller [
 { #category : #'tests - special sends' }
 VMSimpleStackBasedCogitBytecodeTest >> testSendEqualsEqualsWithIdenticalObjectsPushesTrue [
 
-	1halt.
 	sendAddress := self compile: [ cogit genSpecialSelectorEqualsEquals ].
 	
 	"Push receiver, arg then send"
