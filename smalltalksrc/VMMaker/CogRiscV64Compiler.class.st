@@ -2014,7 +2014,6 @@ CogRiscV64Compiler >> concretizeMoveAwR [
 	<inline: true>
 	| srcAddr destReg instrOffset |
 	self flag: #TODO.
-	1halt.
 	srcAddr := operands at: 0.
 	destReg := operands at: 1.		
 	(self isAddressRelativeToVarBase: srcAddr) ifTrue: [ 
@@ -2310,6 +2309,7 @@ CogRiscV64Compiler >> concretizeMoveRR [
 { #category : #concretize }
 CogRiscV64Compiler >> concretizeMoveRRd [
 
+	"fmv d x"
 	<inline: true>
 	1halt.
 ]
@@ -2399,10 +2399,16 @@ CogRiscV64Compiler >> concretizeMoveXwrRR [
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMulRdRd [
-	"FP multiply regLHS by regRHS and stick result in regLHS"
+
+	"Perform a floating-point double precision sub operation between the value of register and the value of another register"
 
 	<inline: true>
-	1halt.
+	| destReg sourceReg1 sourceReg2 |
+	self flag: #TODO.
+	sourceReg1 := operands at: 0.
+	sourceReg2 := destReg := operands at: 1.
+	self machineCodeAt: 0 put: (self fMultiplyRegister: sourceReg2 fromRegister: sourceReg1 intoRegister: destReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2410,7 +2416,11 @@ CogRiscV64Compiler >> concretizeNegateR [
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
-	1halt.
+	| srcReg destReg |
+	self flag: #TODO.
+	srcReg := destReg := operands at: 0.
+	self machineCodeAt: 0 put: (self negateValueInRegister: srcReg intoRegister: destReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2660,12 +2670,16 @@ CogRiscV64Compiler >> concretizeSMULH [
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeSqrtRd [
-	"Will get inlined into concretizeAt: switch."
 
 	"Square root of FP regLHS into regLHS"
+	"Perform a floating-point double precision sub operation between the value of register and the value of another register.	"
 
 	<inline: true>
-	1halt.
+	| srcReg destReg |
+	self flag: #TODO.
+	srcReg := destReg := operands at: 0.
+	self machineCodeAt: 0 put: (self fSquareRootOfRegister: srcReg inRegister: destReg).
+	^ machineCodeSize := 4	
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2745,10 +2759,16 @@ CogRiscV64Compiler >> concretizeSubRR [
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeSubRdRd [
-	"FP substract registerA from registerB and stick result in registerB"
+
+	"Perform a floating-point double precision sub operation between the value of register and the value of another register.	"
 
 	<inline: true>
-	1halt.
+	| destReg sourceReg1 sourceReg2 |
+	self flag: #TODO.
+	sourceReg1 := operands at: 0.
+	sourceReg2 := destReg := operands at: 1.
+	self machineCodeAt: 0 put: (self fSubtractRegister: sourceReg2 fromRegister: sourceReg1 intoRegister: destReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -3153,6 +3173,71 @@ CogRiscV64Compiler >> extractOffsetFromConditionalBranch: instruction [
 	^ (twoComplement allMask: 1 << 18)
 		ifTrue: [ self notYetImplemented  ]
 		ifFalse: [ twoComplement << 2 ]
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> fMultiplyRegister: srcReg1 fromRegister: srcReg2 intoRegister: destReg [
+
+	"fmul.d: Multiplies the double-precision floating point number in registers f[rs1] and f[rs2]
+	 and writes the rounded sdouble-precision difference to f[rd].
+ 	 rm is set to 111 (dynamic rounding mode by default)
+	
+	 31       25 24   20 19   15 14  12 11   7 6        0
+	|  	0001001  |  rs2  |  rs1  |  rm  |  rd  |  1010011  |
+	"
+
+	| riscvOpcode |
+	self flag: #TODO.	
+	riscvOpcode := 2r1010011.	
+	^ (((((2r0001001 << 25)
+	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
+	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
+	  bitOr: (2r111 << 12))
+	  bitOr: (destReg bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode 
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> fSquareRootOfRegister: srcReg inRegister: destReg [
+
+	"fsqrt.d: Computes the square root of the double-precision floating-point number in register f[rs1]
+	 and writes the rounded double-precision result to f[rd].
+ 	 rm is set to 111 (dynamic rounding mode by default)
+	
+	 31       25 24     20 19   15 14  12 11   7 6        0
+	|  	0101100  |  00000  |  rs1  |  rm  |  rd  |  1010011  |
+	"
+
+	| riscvOpcode |
+	self flag: #TODO.	
+	riscvOpcode := 2r0110011.	
+	^ ((((2r0000100 << 25)
+	  bitOr: (srcReg bitAnd: 16r1f) << 15)
+	  bitOr: (2r111 << 12))
+	  bitOr: (destReg bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> fSubtractRegister: srcReg2 fromRegister: srcReg1 intoRegister: destReg [
+
+	"fsub.d: Substracts the double-precision floating point number in register f[rs2] from register f[rs1] 
+	 and writes the rounded sdouble-precision difference to f[rd].
+ 	 rm is set to 111 (dynamic rounding mode by default)
+	
+	 31       25 24   20 19   15 14  12 11   7 6        0
+	|  	0000100  |  rs2  |  rs1  |  rm  |  rd  |  1010011  |
+	"
+
+	| riscvOpcode |
+	self flag: #TODO.	
+	riscvOpcode := 2r0110011.	
+	^ (((((2r0000100 << 25)
+	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
+	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
+	  bitOr: (2r111 << 12))
+	  bitOr: (destReg bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode 
 ]
 
 { #category : #abi }
@@ -4251,6 +4336,18 @@ CogRiscV64Compiler >> nameForRegister: reg [ "<Integer>"
 				ifNone: [default]]
 		ifFalse:
 			[default]
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> negateValueInRegister: srcReg intoRegister: destReg [ 
+
+	"neg: Negate value in register x[rs1] and stores it in x[rd].
+	 Expands to sub rd, x0, rs"
+	
+	self flag: #TODO.
+	^ self subtractRegister: srcReg fromRegister: X0 intoRegister: destReg
+
+	
 ]
 
 { #category : #assembler }
