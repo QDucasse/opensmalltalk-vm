@@ -1544,22 +1544,19 @@ CogRiscV64Compiler >> concretizeCall [
 	self assert: (operands at: 0) ~= 0.
 	self assert: (operands at: 0) \\ 4 = 0.
 	"Compute the offset from the PC"
-  offset := (operands at: 0) signedIntFromLong - address signedIntFromLong.
-	signedOffset  := offset < 0
-		                   ifTrue: [ "Compute the two's complement" 
-		                   16rfffff - offset abs + 1 ]
-		                   ifFalse: [ offset ].
+   offset := (operands at: 0) signedIntFromLong - address signedIntFromLong.
+	signedOffset  := self computeSignExtendedValueOf: offset ofSize: 20.
 	offsetHigh := signedOffset >> 12.
 	offsetLow := signedOffset bitAnd: 16rFFF.
 
   offset abs >= (1 << 19) ifTrue: [ 
 		"In the case the offset is larger than 20bits, more operations need to be done to handle it
 		and add (or substract) it to the PC"
-	  self halt.
+	  self concretizeCallFull.
 	].
 
-	self machineCodeAt: 0 put: (self addUpperImmediateToPC: 0 toRegister: ConcreteIPReg).
-	self machineCodeAt: 4 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: LR).
+	self machineCodeAt: 0 put: (self addUpperImmediateToPC: offsetHigh toRegister: LR).
+	self machineCodeAt: 4 put: (self jumpTo: LR withOffset: offsetLow andStorePreviousPCPlus4in: LR).
 	^ machineCodeSize := 8
 
 ]
@@ -1576,11 +1573,10 @@ CogRiscV64Compiler >> concretizeCallFull [
 	<inline: true>
 	<var: #jumpTarget type: #'AbstractInstruction *'>
 	| jumpTarget instrOffset |
+	self flag: #TODO.
 	jumpTarget := self longJumpTargetAddress.
-	instrOffset := self moveCw: jumpTarget intoR: ConcreteIPReg.
-	"blx ConcreteIPReg"
-	self machineCodeAt: instrOffset put: (self blr: ConcreteIPReg).
-	self assert: instrOffset = self literalLoadInstructionBytes.
+	instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
+	self machineCodeAt: instrOffset put: (self jumpToRegisterValue: ConcreteIPReg).
 	^ machineCodeSize := instrOffset + 4
 ]
 
@@ -2729,30 +2725,52 @@ CogRiscV64Compiler >> concretizeMoveRX32rR [
 	"Write the word in R(src) into memory at address (base+4*index)"
 
 	<inline: true>
-	| index base src |
+	| index baseReg srcReg |
 	self flag: #TODO.
-	1halt.
-	src := operands at: 0.
+	srcReg := operands at: 0.
 	index := operands at: 1.	"index is number of *words* = 4* bytes"
-	base := operands at: 2.	
+	baseReg := operands at: 2.	
+	self machineCodeAt: 0 put: (self 
+		storeWordFromRegister: srcReg 
+		toAddressInRegister: baseReg 
+		withOffset: index).
+	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMoveRXbrR [
-	"Will get inlined into concretizeAt: switch."
 
-	"Write the word in R(src) into memory at address (base+1*index)"
+	"Write the byte in R(src) into memory at address (base+4*index)"
 
 	<inline: true>
-	1halt.
+	| index baseReg srcReg |
+	self flag: #TODO.
+	srcReg := operands at: 0.
+	index := operands at: 1.	"index is number of *words* = 4* bytes"
+	baseReg := operands at: 2.	
+	self machineCodeAt: 0 put: (self 
+		storeByteFromRegister: srcReg 
+		toAddressInRegister: baseReg 
+		withOffset: index).
+	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMoveRXwrR [
-	"Will get inlined into concretizeAt: switch."
+
+	"Write the word in R(src) into memory at address (base+4*index)"
 
 	<inline: true>
-	1halt.
+	| index baseReg srcReg |
+	self flag: #TODO.
+	srcReg := operands at: 0.
+	index := operands at: 1.	"index is number of *words* = 4* bytes"
+	baseReg := operands at: 2.	
+	self machineCodeAt: 0 put: (self 
+		storeDoubleWordFromRegister: srcReg 
+		toAddressInRegister: baseReg 
+		withOffset: index).
+	^ machineCodeSize := 4	
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -2810,28 +2828,56 @@ CogRiscV64Compiler >> concretizeMoveRsM32r [
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMoveX32rRR [
 
-	"Will get inlined into concretizeAt: switch."
-
-	"This Instruction as all the memory access should Zero-Extend the value"
+	"Read a word in in memory at address (base+4*index) into R(dest)"
 
 	<inline: true>
-	1halt.
+	| index baseReg destReg |
+	self flag: #TODO.
+	index := operands at: 0. "index is number of *words* = 4* bytes"
+	baseReg := operands at: 1.
+	destReg := operands at: 2.
+	self machineCodeAt: 0 put: (self 
+		loadWordFromAddressInRegister: baseReg 
+		withOffset: index 
+		toRegister: destReg).
+	^ machineCodeSize := 4
+	
 ]
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMoveXbrRR [
-	"Will get inlined into concretizeAt: switch."
+
+	"Read a byte in in memory at address (base+4*index) into R(dest)"
 
 	<inline: true>
-	1halt.
+	| index baseReg destReg |
+	self flag: #TODO.
+	index := operands at: 0. "index is number of *words* = 4* bytes"
+	baseReg := operands at: 1.
+	destReg := operands at: 2.
+	self machineCodeAt: 0 put: (self 
+		loadByteFromAddressInRegister: baseReg 
+		withOffset: index 
+		toRegister: destReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMoveXwrRR [
-	"Will get inlined into concretizeAt: switch."
+	
+	"Read a double word in in memory at address (base+4*index) into R(dest)"
 
 	<inline: true>
-	1halt.
+	| index baseReg destReg |
+	self flag: #TODO.
+	index := operands at: 0. "index is number of *words* = 4* bytes"
+	baseReg := operands at: 1.
+	destReg := operands at: 2.
+	self machineCodeAt: 0 put: (self 
+		loadDoubleWordFromAddressInRegister: baseReg 
+		withOffset: index 
+		toRegister: destReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -3081,15 +3127,103 @@ CogRiscV64Compiler >> concretizeRetN [
 { #category : #concretize }
 CogRiscV64Compiler >> concretizeRotateLeftCqR [
 
+	"Perform a rotate left between the value of register and the value of the operand.
+	
+	 If the operand is not a literal:
+		roli reg, reg, cq
+
+	 Otherwise load the value in a register:
+		li ConcreteIPReg, cq 
+		rol reg, reg, ConcreteIPReg 
+
+	 If it is a literal:
+	   auipc ConcreteIPReg, 0
+	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
+		rol reg, reg, ConcreteIPReg 
+		"
+
 	<inline: true>
-	1halt.
+	| cq destReg srcReg instrOffset |
+	self flag: #TODO.
+	cq := operands at: 0.
+	srcReg := destReg := operands at: 1.
+	dependent
+		ifNil: [ 
+			self signExtendValue: cq andAssertIsContainedIn: 12
+				ifTrue: [ "Direct encoding as an immediate"
+					self machineCodeAt: 0 put: (self
+							 rotateLeftValueInRegister: srcReg 
+							 byShiftAmount: cq 
+							 inRegister: destReg).
+					instrOffset := 4 ]
+				ifFalse: [ "Move to a register before performing AND on the registers"	
+					"Load the immediate to a register"
+					instrOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg).
+					self machineCodeAt: instrOffset put: (self
+							 rotateLeftValueInRegister: srcReg 
+							 byShiftAmountInRegister: ConcreteIPReg 
+							 inRegister: destReg).
+					instrOffset := instrOffset + 4 ] 
+				]
+		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
+			instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
+			self machineCodeAt: instrOffset put: (self
+					 		 rotateLeftValueInRegister: srcReg 
+							 byShiftAmountInRegister: ConcreteIPReg 
+							 inRegister: destReg).
+			instrOffset := instrOffset + 4 ].
+	^ machineCodeSize := instrOffset
 ]
 
 { #category : #concretize }
 CogRiscV64Compiler >> concretizeRotateRightCqR [
 
+	"Perform a rotate right between the value of register and the value of the operand.
+	
+	 If the operand is not a literal:
+		rori reg, reg, cq
+
+	 Otherwise load the value in a register:
+		li ConcreteIPReg, cq 
+		ror reg, reg, ConcreteIPReg 
+
+	 If it is a literal:
+	   auipc ConcreteIPReg, 0
+	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
+		ror reg, reg, ConcreteIPReg 
+		"
+
 	<inline: true>
-	1halt.
+	| cq destReg srcReg instrOffset |
+	self flag: #TODO.
+	cq := operands at: 0.
+	srcReg := destReg := operands at: 1.
+	dependent
+		ifNil: [ 
+			self signExtendValue: cq andAssertIsContainedIn: 12
+				ifTrue: [ "Direct encoding as an immediate"
+					self machineCodeAt: 0 put: (self
+							 rotateRightValueInRegister: srcReg 
+							 byShiftAmount: cq 
+							 inRegister: destReg).
+					instrOffset := 4 ]
+				ifFalse: [ "Move to a register before performing AND on the registers"	
+					"Load the immediate to a register"
+					instrOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg).
+					self machineCodeAt: instrOffset put: (self
+							 rotateRightValueInRegister: srcReg 
+							 byShiftAmountInRegister: ConcreteIPReg 
+							 inRegister: destReg).
+					instrOffset := instrOffset + 4 ] 
+				]
+		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
+			instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
+			self machineCodeAt: instrOffset put: (self
+					 		 rotateRightValueInRegister: srcReg 
+							 byShiftAmountInRegister: ConcreteIPReg 
+							 inRegister: destReg).
+			instrOffset := instrOffset + 4 ].
+	^ machineCodeSize := instrOffset
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -5426,6 +5560,96 @@ CogRiscV64Compiler >> rightShiftSize: is64Bits sourceRegister: sourceRegister sh
 		bitOr: ((2r11111 << 10)
 		bitOr: ((sourceRegister bitAnd: 2r11111) << 5
 		bitOr: (destinationRegister bitAnd: 2r11111)))))))
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> rotateLeftValueInRegister: srcReg byShiftAmount: shamt inRegister: destReg [
+
+	"roli: not defined in RISCV64G but can expand to: 
+	slli rd, rs1, shamt           | x[rs1] >> shamt             (1)
+	srli temp, rs1, (-shamt & 63) | x[rs1] << (xlen - shamt)    (2)
+	or rd, rd, temp               | (1) or (2)
+	
+	Note only the lowest 6 bits of the shamt are taken in consideration.
+	Note ConcreteIPReg2 is used because the concretization uses ConcreteIPReg to load the immediate/literal if needed.
+	"
+	| negatedShamt |
+	"https://stackoverflow.com/questions/55394123/how-do-i-write-rotation-operation-for-the-risc-vassembly-language-do-we-have-a"
+	self assert: shamt > 0.
+	negatedShamt := shamt twoComplementOfBitSize: 11. "11 because the sign extension is needed and will take the 1 bit left"
+	self flag: #TODO.
+	^ { 
+		self shiftLeftValueInRegister: srcReg byShiftAmount: shamt intoRegister: destReg .
+		self shiftRightValueInRegister: srcReg byShiftAmount: (negatedShamt bitAnd: 16r7FFFFFFFFFFFFFFF) intoRegister: ConcreteIPReg2 . "mask with 63 bits to take in account the truncation of the split amount"
+		self bitwiseOrBetweenRegister: destReg andRegister: ConcreteIPReg2 toRegister: destReg
+	}
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> rotateLeftValueInRegister: srcReg byShiftAmountInRegister: shamtReg inRegister: destReg [
+
+	"rol: not defined in RISCV64G but can expand to: 
+	sll rd, rs1, rshamt          | x[rs1] >> shamt             (1)
+	sub temp, zero, rshamt       | 
+	srl temp, rs1, temp          | x[rs1] << (xlen - shamt)    (2)
+	or rd, rd, temp              | (1) or (2)
+	
+	Note only the lowest 6 bits of the shamt are taken in consideration.
+	Note ConcreteIPReg2 is used because the concretization uses ConcreteIPReg to load the immediate/literal if needed.
+	"
+	
+	self flag: #TODO.
+	^ { 
+		self shiftLeftValueInRegister: srcReg byShiftAmountInRegister: shamtReg intoRegister: destReg    .
+		self subtractRegister: shamtReg fromRegister: X0 intoRegister: ConcreteIPReg2                    .
+		self shiftRightValueInRegister: srcReg byShiftAmount: ConcreteIPReg intoRegister: ConcreteIPReg2 .
+		self bitwiseOrBetweenRegister: destReg andRegister: ConcreteIPReg2 toRegister: destReg
+	}
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> rotateRightValueInRegister: srcReg byShiftAmount: shamt inRegister: destReg [
+
+	"rori: not defined in RISCV64G but can expand to: 
+	srli rd, rs1, shamt           | x[rs1] >> shamt             (1)
+	slli temp, rs1, (-shamt & 63) | x[rs1] << (xlen - shamt)    (2)
+	or rd, rd, temp               | (1) or (2)
+	
+	Note only the lowest 6 bits of the shamt are taken in consideration.
+	Note ConcreteIPReg2 is used because the concretization uses ConcreteIPReg to load the immediate/literal if needed.
+	"
+	| negatedShamt |
+	"https://stackoverflow.com/questions/55394123/how-do-i-write-rotation-operation-for-the-risc-vassembly-language-do-we-have-a"
+	self assert: shamt > 0.
+	negatedShamt := shamt twoComplementOfBitSize: 11. "11 because the sign extension is needed and will take the 1 bit left"
+	self flag: #TODO.
+	^ { 
+		self shiftRightValueInRegister: srcReg byShiftAmount: shamt intoRegister: destReg .
+		self shiftLeftValueInRegister: srcReg byShiftAmount: (negatedShamt bitAnd: 16r7FFFFFFFFFFFFFFF) intoRegister: ConcreteIPReg2 . "mask with 63 bits to take in account the truncation of the split amount"
+		self bitwiseOrBetweenRegister: destReg andRegister: ConcreteIPReg2 toRegister: destReg
+	}
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> rotateRightValueInRegister: srcReg byShiftAmountInRegister: shamtReg inRegister: destReg [
+
+	"ror: not defined in RISCV64G but can expand to: 
+	srl rd, rs1, rshamt          | x[rs1] >> shamt             (1)
+	sub temp, zero, rshamt       | 
+	sll temp, rs1, temp          | x[rs1] << (xlen - shamt)    (2)
+	or rd, rd, temp              | (1) or (2)
+	
+	Note only the lowest 6 bits of the shamt are taken in consideration.
+	Note ConcreteIPReg2 is used because the concretization uses ConcreteIPReg to load the immediate/literal if needed.
+	"
+	
+	self flag: #TODO.
+	^ { 
+		self shiftRightValueInRegister: srcReg byShiftAmountInRegister: shamtReg intoRegister: destReg  .
+		self subtractRegister: shamtReg fromRegister: X0 intoRegister: ConcreteIPReg2                   .
+		self shiftLeftValueInRegister: srcReg byShiftAmount: ConcreteIPReg intoRegister: ConcreteIPReg2 .
+		self bitwiseOrBetweenRegister: destReg andRegister: ConcreteIPReg2 toRegister: destReg
+	}
 ]
 
 { #category : #testing }
