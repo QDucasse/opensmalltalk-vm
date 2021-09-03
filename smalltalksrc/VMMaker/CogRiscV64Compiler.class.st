@@ -1545,7 +1545,11 @@ CogRiscV64Compiler >> concretizeCall [
 	self assert: (operands at: 0) \\ 4 = 0.
 	"Compute the offset from the PC"
    offset := (operands at: 0) signedIntFromLong - address signedIntFromLong.
-	signedOffset  := self computeSignExtendedValueOf: offset ofSize: 20.
+	"signedOffset  := self computeSignExtendedValueOf: offset ofSize: 20."
+	signedOffset  := offset < 0
+		  ifTrue: [ "Compute the two's complement" 
+		            16rfffff - offset abs + 1 ]
+		  ifFalse: [ offset ].
 	offsetHigh := signedOffset >> 12.
 	offsetLow := signedOffset bitAnd: 16rFFF.
 
@@ -1554,9 +1558,12 @@ CogRiscV64Compiler >> concretizeCall [
 		and add (or substract) it to the PC"
 	  self concretizeCallFull.
 	].
-
-	self machineCodeAt: 0 put: (self addUpperImmediateToPC: offsetHigh toRegister: LR).
-	self machineCodeAt: 4 put: (self jumpTo: LR withOffset: offsetLow andStorePreviousPCPlus4in: LR).
+	" This feels wrong, I believe it should be: 
+	auipc rd, offsetHi 
+	jalr rd, offsetLow(rd)
+	with rd being LR by default"
+	self machineCodeAt: 0 put: (self addUpperImmediateToPC: 0 toRegister: ConcreteIPReg).
+	self machineCodeAt: 4 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: LR).
 	^ machineCodeSize := 8
 
 ]
@@ -2004,7 +2011,7 @@ CogRiscV64Compiler >> concretizeJumpFull [
 	<var: #jumpTarget type: #'AbstractInstruction *'>
 	| jumpTarget instrOffset |
 	jumpTarget := self longJumpTargetAddress.
-	instrOffset := self moveCw: jumpTarget intoR: ConcreteIPReg.
+	instrOffset := self machineCodeWriteInstructions: (self loadImmediate: jumpTarget inRegister: ConcreteIPReg).
 	self flag: #TODO.
 	1halt.
 ]
@@ -2374,7 +2381,7 @@ CogRiscV64Compiler >> concretizeMoveAbR [
 		^ machineCodeSize ].
 	
 	"load the address into ConcreteIPReg"
-	instrOffset := self machineCodeWriteInstructions: (self moveCw: srcAddr intoR: ConcreteIPReg).
+	instrOffset := self machineCodeWriteInstructions: (self loadImmediate: srcAddr inRegister: ConcreteIPReg).
 	self machineCodeAt: instrOffset put: (self 
 			loadByteFromAddressInRegister: ConcreteIPReg 
 			withOffset: 0 
@@ -2415,7 +2422,7 @@ CogRiscV64Compiler >> concretizeMoveAwR [
 		^ machineCodeSize ].
 	
 	"load the address into ConcreteIPReg"
-	instrOffset := self machineCodeWriteInstructions: (self moveCw: srcAddr intoR: ConcreteIPReg).
+	instrOffset := self machineCodeWriteInstructions: (self loadImmediate: srcAddr inRegister: ConcreteIPReg).
 	self machineCodeAt: instrOffset put: (self 
 			loadDoubleWordFromAddressInRegister: ConcreteIPReg 
 			withOffset: 0 
@@ -3009,7 +3016,8 @@ CogRiscV64Compiler >> concretizePopR [
 	| destReg |
 	self flag: #TODO.
 	destReg := operands at: 0.
-	^ self machineCodeWriteInstructions: (self popToRegister: destReg)
+	^ machineCodeSize := self machineCodeWriteInstructions: (self popToRegister: destReg).
+	
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -3017,30 +3025,7 @@ CogRiscV64Compiler >> concretizePrefetchAw [
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
-	| addressOperand instrOffset |
-	addressOperand := operands at: 0.
-	(self isAddressRelativeToVarBase: addressOperand)
-		ifTrue: [ | offset |
-			offset := addressOperand - cogit varBaseAddress.
-			self
-				machineCodeAt: 0
-				put:
-					(self
-						prefetchMemory: 0 "prefetchFlags: load in L1 KEEP" 
-						sourceRegister: ConcreteVarBaseReg
-						offset: addressOperand - cogit varBaseAddress).
-			^ machineCodeSize := 4 ].
-	
-	instrOffset := self moveCw: addressOperand intoR: ConcreteIPReg.
-	"We fetch using the ConcreteIPReg"
-
-	self
-		machineCodeAt: instrOffset
-		put: (self
-						prefetchMemory: 0 "prefetchFlags: load in L1 KEEP" 
-						sourceRegister: ConcreteIPReg
-						offset: 0).
-	^ machineCodeSize := instrOffset + 4
+	1halt.
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -3058,7 +3043,7 @@ CogRiscV64Compiler >> concretizePushCq [
 	   sd  ConcreteIPReg, 0(sp)
 		"
 	<inline: true>
-	| cq instrOffset |
+	| cq instrOffset pushOffset |
 	self flag: #DONE.
 	cq := operands at: 0.
 	dependent
@@ -3072,9 +3057,9 @@ CogRiscV64Compiler >> concretizePushCq [
 			].
 	
 	"Push the loaded value to the stack"
-	instrOffset := instrOffset + self machineCodeWriteInstructions: (self pushFromRegister: ConcreteIPReg).
+	pushOffset := self machineCodeWriteInstructions: (self pushFromRegister: ConcreteIPReg) startingAtIndex: instrOffset.
 	
-	^ machineCodeSize := instrOffset 
+	^ machineCodeSize := instrOffset + pushOffset 
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -3083,12 +3068,13 @@ CogRiscV64Compiler >> concretizePushCw [
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
-	| word instrOffset |
+	| word instrOffset pushOffset |
 	self flag: #TODO.
 	word := operands at: 0.
 	self assert: dependent isNotNil.
 	instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
-	^ machineCodeSize := instrOffset + self machineCodeWriteInstructions: (self pushFromRegister: ConcreteIPReg).
+	pushOffset := self machineCodeWriteInstructions: (self pushFromRegister: ConcreteIPReg) startingAtIndex: instrOffset.
+	^ machineCodeSize := instrOffset + pushOffset
 	 
 ]
 
@@ -3103,7 +3089,7 @@ CogRiscV64Compiler >> concretizePushR [
 	| srcReg |
 	self flag: #DONE.	
 	srcReg := operands at: 0.
-	^ self machineCodeWriteInstructions: (self pushFromRegister: srcReg)
+	^ machineCodeSize := self machineCodeWriteInstructions: (self pushFromRegister: srcReg)
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -3464,11 +3450,11 @@ CogRiscV64Compiler >> concretizeXorCwR [
 	sourceReg := destReg := operands at: 1.
    "Literal -> compute the distance, load the actual value then xor between the 2 registers"
 	instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
-	^ machineCodeSize := self machineCodeAt: instrOffset put: (self
+	self machineCodeAt: instrOffset put: (self
 					bitwiseXorBetweenRegister: sourceReg  
 					andRegister: ConcreteIPReg 
 					intoRegister: destReg).
-
+	^ machineCodeSize := instrOffset + 4
 ]
 
 { #category : #'as yet unclassified' }
@@ -3549,7 +3535,7 @@ CogRiscV64Compiler >> dispatchConcretize [
 	 bytecode set."
 	<returnTypeC: #void>
 	conditionOrNil ifNotNil:
-		[self error: 'ARMv8 / aarch64 does not support conditions encoded in the instruction'.
+		[self error: 'RV64G does not support conditions encoded in the instruction'.
 		 ^self].
 	self flag: #TODO.
 	opcode caseOf: {
@@ -5199,17 +5185,18 @@ CogRiscV64Compiler >> machineCodeWriteInstructions: anInstructionCollection [
 
 	"Write the machine code instructions and returns the correct offset"
 	self flag: #TODO.	
-	anInstructionCollection doWithIndex: [ :each :i | self machineCodeAt: (i-1) * 4 put: each ].
-	^ anInstructionCollection size * 4
+	^ self machineCodeWriteInstructions: anInstructionCollection startingAtIndex: 0
 
 ]
 
-{ #category : #'generate machine code - support' }
-CogRiscV64Compiler >> moveCw: constant intoR: destReg [
-	"Emit a load of aWord into destReg.  Answer the number of bytes of machine code generated."
-	
-	self flag: #DONE.
-	^ self machineCodeWriteInstructions: (self loadLiteralInRegister: destReg).
+{ #category : #assembler }
+CogRiscV64Compiler >> machineCodeWriteInstructions: anInstructionCollection startingAtIndex: index [
+
+	"Write the machine code instructions and returns the correct offset"
+	self flag: #TODO.	
+	anInstructionCollection doWithIndex: [ :each :i | self machineCodeAt: (i-1) * 4 + index put: each ].
+	^ anInstructionCollection size * 4
+
 ]
 
 { #category : #'ARM convenience instructions' }
@@ -5338,7 +5325,7 @@ CogRiscV64Compiler >> prepareStackToCallCFunctionInSmalltalkStack: anObject [
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> pushFromRegister: destReg [
 
-	| word instrOffset offset |
+	| offset |
 	self flag: #TODO.
 	offset := self computeSignExtendedValueOf: -8 ofSize: 12.		
 	^ { 
