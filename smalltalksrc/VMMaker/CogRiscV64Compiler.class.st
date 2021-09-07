@@ -365,8 +365,8 @@ CogRiscV64Compiler >> addUpperImmediateToPC: anImmediate toRegister: destination
 	| riscvOpcode signExtendedImmediate |
 	self flag: #DONE.
 	"Check size and sign"	
-	signExtendedImmediate := self computeSignExtendedValueOf: anImmediate ofSize: 20.
-	self assertValue: signExtendedImmediate isContainedIn: 20.
+	signExtendedImmediate := self computeSignExtendedValueOf: anImmediate ofSize: 32.
+	self assertValue: signExtendedImmediate isContainedIn: 32.
 	riscvOpcode := 2r0010111.
 	^ (((signExtendedImmediate bitAnd: 16rfffff) << 12) 
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
@@ -1185,7 +1185,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 { #category : #abi }
 CogRiscV64Compiler >> computeSignExtendedValueOf: aValue ofSize: aSize [
 
-	"Returns the sign-extended value within a given number of bits. If the number is negative, returns two's complement, otherwise return the value"
+	"Returns the two's complement value within a given number of bits. If the number is negative, returns two's complement, otherwise return the value"
 	self flag: #DONE.
 	aValue < 0
 		ifTrue: [ ^ aValue twoComplementOfBitSize: aSize ]  "Compute two's complement" 
@@ -1539,30 +1539,23 @@ CogRiscV64Compiler >> concretizeCall [
 	"Call is used only for calls within code-space, See CallFull for general anywhere in address space calling"
 	
 	<inline: true>
-	| offset offsetHigh offsetLow signedOffset |
+	| offset offsetHigh offsetLow |
 	self flag: #TODO.
 	self assert: (operands at: 0) ~= 0.
 	self assert: (operands at: 0) \\ 4 = 0.
 	"Compute the offset from the PC"
    offset := (operands at: 0) signedIntFromLong - address signedIntFromLong.
-	"signedOffset  := self computeSignExtendedValueOf: offset ofSize: 20."
-	signedOffset  := offset < 0
-		  ifTrue: [ "Compute the two's complement" 
-		            16rfffff - offset abs + 1 ]
-		  ifFalse: [ offset ].
-	offsetHigh := signedOffset >> 12.
-	offsetLow := signedOffset bitAnd: 16rFFF.
-
-  offset abs >= (1 << 19) ifTrue: [ 
+   offset abs >= (1 << 19) ifTrue: [ 
 		"In the case the offset is larger than 20bits, more operations need to be done to handle it
 		and add (or substract) it to the PC"
 	  self concretizeCallFull.
 	].
-	" This feels wrong, I believe it should be: 
-	auipc rd, offsetHi 
-	jalr rd, offsetLow(rd)
-	with rd being LR by default"
-	self machineCodeAt: 0 put: (self addUpperImmediateToPC: 0 toRegister: ConcreteIPReg).
+	"This mangling avoid having to bias the 11th bit in case of a negative value"
+	"https://forums.sifive.com/t/bit-11-of-jalr-sign-extened-for-call-auipc-jalr/1950"
+	offsetLow := ((offset << 20) bitAnd: 16rFFFFFFFF) >> 20. 
+	offsetHigh := (offset - offsetLow signedIntFromChar) >> 12.
+	
+	self machineCodeAt: 0 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
 	self machineCodeAt: 4 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: LR).
 	^ machineCodeSize := 8
 

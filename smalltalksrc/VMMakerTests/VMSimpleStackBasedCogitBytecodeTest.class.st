@@ -1344,6 +1344,8 @@ VMSimpleStackBasedCogitBytecodeTest >> testSendLiteralOneWithZeroArgsMovesSelect
 	
 	"Push receiver, arg, then send"
 	self pushAddress: memory falseObject.
+	self openMachineDebugger.
+	1halt.
 	self runFrom: sendAddress until: sendTrampolineAddress.
 	
 	self
