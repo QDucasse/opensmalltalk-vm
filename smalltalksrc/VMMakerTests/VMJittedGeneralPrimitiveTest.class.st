@@ -45,7 +45,7 @@ VMJittedGeneralPrimitiveTest >> testCheckImmediateWhenImmediateSmallInteger [
 		cogit MoveCq: 1  R: ReceiverResultReg.
 		cogit RetN: 0.
 	].
-
+	1halt.
 	machineSimulator arg0RegisterValue: (memory integerObjectOf: 17).
 	self runUntilReturn.
 	
@@ -459,7 +459,7 @@ VMJittedGeneralPrimitiveTest >> testMoveFloatToFloatPointRegister [
 
 	self deny: (memory isSmallFloatValue: Float fmax).
 	machineSimulator receiverRegisterValue: (memory floatObjectOf: Float fmax).
-
+	
 	self runGeneratedCode.
 	
 	self assert: machineSimulator doublePrecisionFloatingPointRegister0Value equals: Float fmax.
