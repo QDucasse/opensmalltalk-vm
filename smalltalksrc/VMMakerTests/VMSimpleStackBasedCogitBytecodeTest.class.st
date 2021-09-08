@@ -1292,8 +1292,8 @@ VMSimpleStackBasedCogitBytecodeTest >> testSendEqualsEqualsWithIdenticalObjectsP
 	self pushAddress: memory nilObject.
 	self pushAddress: memory nilObject.
 
-	"self openMachineDebugger.
-	1halt." 
+	self openMachineDebugger.
+	1halt.
 	self runFrom: sendAddress until: self getLastAddress.		
 	self
 		assert: self popAddress
@@ -1344,8 +1344,6 @@ VMSimpleStackBasedCogitBytecodeTest >> testSendLiteralOneWithZeroArgsMovesSelect
 	
 	"Push receiver, arg, then send"
 	self pushAddress: memory falseObject.
-	self openMachineDebugger.
-	1halt.
 	self runFrom: sendAddress until: sendTrampolineAddress.
 	
 	self
@@ -1619,8 +1617,6 @@ VMSimpleStackBasedCogitBytecodeTest >> testSendTwoArgSpecialMessageDoesNotMovesI
 	self pushAddress: memory falseObject.
 	self pushAddress: memory trueObject.
 	self pushAddress: (memory integerObjectOf: 7).
-	self openMachineDebugger.
-	1halt.
 	self runFrom: sendAddress until: sendTrampolineAddress.
 	
 	self

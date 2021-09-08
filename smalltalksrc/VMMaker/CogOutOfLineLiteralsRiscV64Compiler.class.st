@@ -35,13 +35,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> concretizeLiteral [
 	machineCodeSize := 8
 ]
 
-{ #category : #'generate machine code - concretize' }
-CogOutOfLineLiteralsRiscV64Compiler >> concretizeMoveC32R [
-
-	<inline: true>
-	1halt.
-]
-
 { #category : #'as yet unclassified' }
 CogOutOfLineLiteralsRiscV64Compiler >> concretizeMovePatcheableC32R [
 	
@@ -57,14 +50,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> concretizeMovePatcheableC32R [
 					 withOffset: distance
 					 toRegister: (operands at: 1)).
 	^ machineCodeSize := 8
-]
-
-{ #category : #'generate machine code - concretize' }
-CogOutOfLineLiteralsRiscV64Compiler >> concretizeMoveRM32r [
-	"Will get inlined into concretizeAt: switch."
-
-	<inline: true>
-	1halt.
 ]
 
 { #category : #accessing }

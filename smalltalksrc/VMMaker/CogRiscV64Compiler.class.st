@@ -922,16 +922,18 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[Fill32]					-> [^4]. "DONE"
 		[Nop]					-> [^4]. "DONE"
 		"Control"
-		[Call]					-> [^8]. "TODO"
+		[Call]					-> [((operands at: 0) signedIntFromLong - address signedIntFromLong) abs >= (1 << 19) 
+										ifTrue: [ ^ self literalLoadInstructionBytes + 4  ]
+										ifFalse: [ ^ 8 ]]. "TODO"
 		[CallFull]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
 		[JumpR]					-> [^4]. "DONE"
 		[Jump]					-> [^4]. "DONE"
-		[JumpFull]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
-		[JumpLong]				-> [^4]. "TODO"
+		[JumpFull]				-> [^self notYetImplemented ]. "TODO"
+		[JumpLong]				-> [^self notYetImplemented ]. "TODO"
 		[JumpZero]				-> [^4]. "DONE"
 		[JumpNonZero]			-> [^4]. "DONE"
-		[JumpNegative]			-> [^4]. "TODO"
-		[JumpNonNegative]		-> [^4]. "TODO"
+		[JumpNegative]			-> [^4]. "DONE"
+		[JumpNonNegative]		-> [^4]. "DONE"
 		[JumpOverflow]			-> [^4]. "TODO"
 		[JumpNoOverflow]		-> [^4]. "TODO"
 		[JumpCarry]		      	-> [^4]. "TODO"
@@ -946,14 +948,14 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[JumpBelowOrEqual]	-> [^4]. "DONE"
 		[JumpLongZero]		-> [^self jumpLongConditionalByteSize]. "TODO"
 		[JumpLongNonZero]	-> [^self jumpLongConditionalByteSize]. "TODO"
-		[JumpFPEqual]			-> [^4]. "TODO"
-		[JumpFPNotEqual]		-> [^4]. "TODO"
-		[JumpFPLess]			-> [^4]. "TODO"
-		[JumpFPGreaterOrEqual]-> [^4]. "TODO"
-		[JumpFPGreater]		-> [^4]. "TODO"
-		[JumpFPLessOrEqual]	-> [^4]. "TODO"
-		[JumpFPOrdered]		-> [^4]. "TODO"
-		[JumpFPUnordered]		-> [^4]. "TODO"
+		[JumpFPEqual]			 	-> [^8]. "DONE"
+		[JumpFPNotEqual]		 	-> [^8]. "DONE"
+		[JumpFPLess]			   	 	-> [^8]. "DONE"
+		[JumpFPGreaterOrEqual] 	-> [^8]. "DONE"
+		[JumpFPGreater]		    	-> [^8]. "DONE"
+		[JumpFPLessOrEqual]	 	-> [^8]. "TODO"
+		[JumpFPOrdered]		   		-> [^ self notYetImplemented ]. "TODO"
+		[JumpFPUnordered]			-> [^ self notYetImplemented ]. "TODO"
 		[RetN]					-> [^(operands at: 0) = 0 ifTrue: [4] ifFalse: [8]]. "DONE"
 		[Stop]					-> [^4]. "DONE"
 
@@ -966,43 +968,8 @@ CogRiscV64Compiler >> computeMaximumSize [
 								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in addi"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
-						]. "#DONE"
+						]. "DONE"
 		[AndCqR]				-> [
-						dependent 
-							ifNil:[ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4]
-						   ifNotNil: [^ self literalLoadInstructionBytes + 4 ]
-						]. "#TODO"
-		[AndCqRR]				-> [^self rotateable8bitBitwiseImmediate: (operands at: 0)
-										ifTrue: [:r :i :n| 4]
-										ifFalse:
-											[self literalLoadInstructionBytes = 4
-												ifTrue: [8]
-												ifFalse:
-													[1 << (operands at: 0) highBit = ((operands at: 0) + 1)
-														ifTrue: [8]
-														ifFalse: [self literalLoadInstructionBytes + 4]]]].
-
-		[CmpCqR]				-> [| immediate |
-			immediate := (operands at: 0) abs.
-			^ ((immediate bitAnd: 16rfff) = immediate
-				or: [ (immediate << 12 >> 12 bitAnd: 16rFFF) = immediate ])
-					ifTrue: [ 4]
-					ifFalse: [self literalLoadInstructionBytes + 4]].
-		[CmpC32R]				-> [^self rotateable8bitSignedImmediate: (operands at: 0)
-											ifTrue: [:r :i :n| 4]
-											ifFalse: [self literalLoadInstructionBytes + 4]].
-		[OrCqR]				-> [
-						dependent 
-							ifNil:[ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4]
-						   ifNotNil: [^ self literalLoadInstructionBytes + 4 ]
-						]. "#TODO"
-			
-		[SubCqR]				-> [
-						dependent 
-							ifNil:[ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4]
-						   ifNotNil: [^ self literalLoadInstructionBytes + 4 ]
-						]. "#TODO"
-		[TstCqR]				-> [
 						dependent 
 							ifNil:[ | cq |
 								cq := operands at: 0.
@@ -1010,6 +977,46 @@ CogRiscV64Compiler >> computeMaximumSize [
 								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in andi"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
+						]. "DONE"
+		[AndCqRR]				-> [
+						dependent 
+							ifNil:[ | cq |
+								cq := operands at: 0.
+								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in andi"
+								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
+                      ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
+						]. "DONE"
+
+		[CmpCqR]				-> [
+						dependent 
+							ifNil:[ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4]
+						   ifNotNil: [^ self literalLoadInstructionBytes + 4 ]
+						]. "DONE"
+		[CmpC32R]				-> [
+						dependent 
+							ifNil:[ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4]
+						   ifNotNil: [^ self literalLoadInstructionBytes + 4 ]
+						]. "DONE"
+		[OrCqR]				-> [
+						dependent 
+							ifNil:[ | cq |
+								cq := operands at: 0.
+								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in ori"
+								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
+                      ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
+						]. "DONE"
+			
+		[SubCqR]				-> [ "There is no subi"
+						dependent 
+							ifNil:[ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4]
+						   ifNotNil: [^ self literalLoadInstructionBytes + 4 ]
+						]. "DONE"
+		[TstCqR]				-> [
+						dependent 
+							ifNil:[ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4]
+						   ifNotNil: [^ self literalLoadInstructionBytes + 4 ]
 						]. "DONE"
 		[XorCqR]				-> [
 						dependent 
@@ -1019,164 +1026,177 @@ CogRiscV64Compiler >> computeMaximumSize [
 								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in xori"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
-						]. "TODO"
-		[AddCwR]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
-		[AndCwR]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
-		[CmpCwR]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
-		[OrCwR]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
-		[SubCwR]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
-		[XorCwR]				-> [^self literalLoadInstructionBytes + 4]. "TODO"
-		[AddRR]					-> [^4]. "TODO"
-		[AndRR]					-> [^4]. "TODO"
-		[CmpRR]				-> [^(((operands at:0) = SP) or: [(operands at: 1) = SP]) ifTrue: [8] ifFalse: [4]].
-		[OrRR]					-> [^4].
-		[XorRR]					-> [^4].
-		[SubRR]					-> [ "When the operation includes the SP, we might need two instructions" ^(operands at: 0) = SP ifTrue: [ 8 ] ifFalse: [ 4 ]].
-		[NegateR]				-> [^4].
-		[LoadEffectiveAddressMwrR]
-									-> [^self rotateable8bitImmediate: (operands at: 0)
-											ifTrue: [:r :i| 4]
-											ifFalse: [self literalLoadInstructionBytes + 4]].
-
-		[LogicalShiftLeftCqR]		-> [^4].
-		[LogicalShiftRightCqR]		-> [^4].
-		[ArithmeticShiftRightCqR]	-> [^4].
-		[LogicalShiftLeftRR]			-> [^4].
-		[LogicalShiftRightRR]		-> [^4].
-		[ArithmeticShiftRightRR]		-> [^4].
-		[RotateLeftCqR]					-> [^4].
-		[RotateRightCqR]					-> [^4].
+						]. "DONE"
+		[AddCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
+		[AndCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
+		[CmpCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
+		[OrCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
+		[SubCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
+		[XorCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
+		[AddRR]			   	-> [^4]. "DONE"
+		[AndRR]				-> [^4]. "DONE"
+		[CmpRR]				-> [^4]. "DONE"
+		[OrRR]					-> [^4]. "DONE"
+		[XorRR]				-> [^4]. "DONE"
+		[SubRR]				-> [^4]. "DONE"
+		[NegateR]				-> [^4]. "DONE"
+		[LoadEffectiveAddressMwrR] -> [
+						dependent 
+							ifNil:[ | cq |
+								cq := operands at: 0.
+								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in addi"
+								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
+                      ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
+						]. "DONE"
+	
+		[LogicalShiftLeftCqR]		-> [
+						dependent 
+							ifNil:[ | cq |
+								cq := operands at: 0.
+								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in slli"
+								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
+                      ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
+						]. "DONE"
+		[LogicalShiftRightCqR]	-> [
+						dependent 
+							ifNil:[ | cq |
+								cq := operands at: 0.
+								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in srli"
+								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
+                      ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
+						]. "DONE"	
+		[ArithmeticShiftRightCqR]	-> [
+						dependent 
+							ifNil:[ | cq |
+								cq := operands at: 0.
+								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in srai"
+								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
+                      ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
+						]. "DONE"	
+		[LogicalShiftLeftRR]		 -> [^4]. "DONE"
+		[LogicalShiftRightRR]		 -> [^4]. "DONE"
+		[ArithmeticShiftRightRR]	 -> [^4]. "DONE"
+		[RotateLeftCqR]				 -> [
+						dependent 
+							ifNil:[ | cq |
+								cq := operands at: 0.
+								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								   ifTrue: [ ^ 12 ] "Immediate that can be encoded in roli (slli srli or)"
+								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 16 ]. "immediate loaded in a register + 4 instructions for rotate regs"
+                      ] ifNotNil: [^ self literalLoadInstructionBytes + 16 ] "literal load"
+						]. "DONE"	
+		[RotateRightCqR]			 -> [
+						dependent 
+							ifNil:[ | cq |
+								cq := operands at: 0.
+								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								   ifTrue: [ ^ 12 ] "Immediate that can be encoded in rori (srli slli or)"
+								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 16 ]. "immediate loaded in a register + 4 instructions for rotate regs"
+                      ] ifNotNil: [^ self literalLoadInstructionBytes + 16 ] "literal load"
+						]. "DONE"	
 	
 		"Floating point operations"
 	
-		[AddRdRd]					-> [^4].
-		[CmpRdRd]					-> [^4].
-		[SubRdRd]					-> [^4].
-		[MulRdRd]					-> [^4].
-		[DivRdRd]					-> [^4].
-		[SqrtRd]					-> [^4].
-		[XorRdRd]					-> [^4].
+		[AddRdRd]					-> [^4]. "DONE"
+		[CmpRdRd]					-> [^4]. "DONE"
+		[SubRdRd]					-> [^4]. "DONE"
+		[MulRdRd]					-> [^4]. "DONE"
+		[DivRdRd]					-> [^4]. "DONE"
+		[SqrtRd]					-> [^4]. "DONE"
+		[XorRdRd]					-> [^4]. "DONE"
 						
 		"ARM Specific Arithmetic"
-		[MUL]			-> [^4].
-		[SMULH] 		-> 	[^4].
-		[CMPMULOverflow]				-> [^4].
-		[SDIV]					-> [^4].
-		[MSUB]					-> [^4].
+		[MUL]			      -> [^4]. "TODO"
+		[SMULH] 	       	-> 	[^4]. "TODO"
+		[CMPMULOverflow] 	-> [^4]. "TODO"
+		[SDIV]					-> [^4]. "TODO"
+		[MSUB]					-> [^4]. "TODO"
 				
 		"Data Movement"						
-		[MoveCqR]				-> [^8].
-		[MoveC32R]			-> [^4].
-		[MoveCwR]				-> [^self literalLoadInstructionBytes = 4
-										ifTrue: [self literalLoadInstructionBytes]
-										ifFalse:
-											[(self inCurrentCompilation: (operands at: 0))
-												ifTrue: [4]
-												ifFalse: [self literalLoadInstructionBytes]]].
-		[MoveRR]				-> [^4].
-		[MoveRdRd]			-> [^4].
+		[MoveCqR]				-> [^						
+						dependent 
+							ifNil:[ ^ (self immediateLoadInstructionBytes: (operands at: 0)) ]
+						   ifNotNil: [^ self literalLoadInstructionBytes ]
+						]. "DONE"
+		[MoveC32R]			-> [^4]. "DONE"
+		[MoveCwR]				-> [^ self literalLoadInstructionBytes ]. "DONE"
+		[MoveRR]				-> [^4]. "DONE"
+		[MoveRdRd]			-> [^4]. "TODO"
 		[MoveAwR]				-> [
-			"if register is SP we need an extra move"
-			^(self isAddressRelativeToVarBase: (operands at: 0))
+				^ (self isAddressRelativeToVarBase: (operands at: 0))
 					ifTrue: [(operands at: 1) = SP
 						ifTrue: [ 8 ]
-						ifFalse: [ 4 ]  ]
-					ifFalse: [self literalLoadInstructionBytes + 8 ]].
-		[MoveRAw]				-> [^(self isAddressRelativeToVarBase: (operands at: 1))
-													ifTrue: [(operands at: 0) = SP
-														ifTrue: [ 8 ]
-														ifFalse: [ 4 ]]
-													ifFalse: [
-													 	(operands at: 0) = SP
-															ifTrue: [ 4 + self literalLoadInstructionBytes + 4 ]
-															ifFalse: [ self literalLoadInstructionBytes + 4 ]]].
-		[MoveAbR]				-> [^(self isAddressRelativeToVarBase: (operands at: 0))
-													ifTrue: [4]
-													ifFalse: [self literalLoadInstructionBytes + 4]].
-		[MoveRAb]				-> [^(self isAddressRelativeToVarBase: (operands at: 1))
-													ifTrue: [4]
-													ifFalse: [self literalLoadInstructionBytes + 4]].
-
-		[MoveRM32r]			-> [^ 4].
-		[MoveRMwr]			-> [^ 4].
-		[MoveRsM32r]			-> [^self is12BitValue: (operands at: 1)
-										ifTrue: [:u :i | 4]
-										ifFalse: [self notYetImplemented. self literalLoadInstructionBytes + 4]]. 
-		[MoveRdM64r]			-> [^self is12BitValue: (operands at: 1)
-										ifTrue: [:u :i | 4]
-										ifFalse: [self notYetImplemented. self literalLoadInstructionBytes + 4]]. 
-		[MoveMbrR]			-> [^self is9BitValue: (operands at: 0)
-										ifTrue: [:value | 8 "2 instrutions" ]
-										ifFalse: [ self literalLoadInstructionBytes + 4 ]].
-
-		[MoveRM8r]				-> [^self is12BitValue: (operands at: 1)
-										ifTrue: [:u :i | 4]
-										ifFalse: [self literalLoadInstructionBytes + 4]].
-		[MoveRMbr]				-> [^self is12BitValue: (operands at: 1)
-										ifTrue: [:u :i | 4]
-										ifFalse: [self literalLoadInstructionBytes + 4]].
-
-		[MoveRM16r]				-> [^self is12BitValue: (operands at: 1)
-										ifTrue: [:u :i| 4]
-										ifFalse: [self literalLoadInstructionBytes + 4]].
-		[MoveM16rR]			-> [^self rotateable8bitImmediate: (operands at: 0)
-											ifTrue: [:r :i| 4]
-											ifFalse: [self literalLoadInstructionBytes + 4]].
-		[MoveM32rRs]			-> [^self is12BitValue: (operands at: 0) 
-										ifTrue: [:s :v| 4] ifFalse: [self notYetImplemented. 0]].
-		[MoveM64rRd]			-> [^self is12BitValue: (operands at: 0) 
-										ifTrue: [:s :v| 4] ifFalse: [self notYetImplemented. 0]].
-		[MoveM32rR]			-> [ 			
-			offset := (operands at: 0).
-			(offset >= 0 and: [ (offset bitAnd: 16rFFF) = offset ]) 
-				ifTrue: [ ^ 4 ]
-				ifFalse: [ 	self
-									is9BitValue: offset
-										ifTrue: [ :v | ^ 4 ] 
-										ifFalse: [^ self literalLoadInstructionBytes + 4 ] ]].
-
-		[MoveMwrR]			-> [ 			
-			offset := (operands at: 0).
-			(offset >= 0 and: [ (offset bitAnd: 16rFFF) = offset ]) 
-				ifTrue: [ ^ 4 ]
-				ifFalse: [ 	self
-									is9BitValue: offset
-										ifTrue: [ :v | ^ 4 ] 
-										ifFalse: [^ self literalLoadInstructionBytes + 4 ] ]].
-		[MoveXbrRR]			-> [^4].
-		[MoveX32rRR]			-> [^4].
-		[MoveRX32rR]			-> [^4].
-		[MoveRXbrR]			-> [^4].
-		[MoveXwrRR]			-> [^4].
-		[MoveRXwrR]			-> [^4].
-		[PopR]					-> [^8].
-		[PushR]					-> [^8].
-		[PushCw]				-> [^self literalLoadInstructionBytes = 4
-										ifTrue: [self literalLoadInstructionBytes + 4]
-										ifFalse:
-											[(self inCurrentCompilation: (operands at: 0))
-												ifTrue: [8]
-												ifFalse:
-													[self rotateable8bitBitwiseImmediate: (operands at: 0)
-														ifTrue: [:r :i :n| 8]
-														ifFalse: [self literalLoadInstructionBytes + 4]]]].
-		[PushCq]				  -> [ | loadOffset |
-						loadOffset := dependent ifNil: [ self immediateLoadInstructionBytes: (operands at: 0) ] "Load immediate = 4/8/16/24 or 32"
-						                        ifNotNil: [ self literalLoadInstructionBytes ]. "Load literal = 8"
-						^ loadOffset + 8
-						]. 
-		[PrefetchAw] 			-> [^(self isAddressRelativeToVarBase: (operands at: 0))
-										ifTrue: [4]
-										ifFalse: [self literalLoadInstructionBytes + 4]].
+						ifFalse: [ 4 ] 
+					]
+					ifFalse: [	
+						dependent 
+							ifNil: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 8 ]
+							ifNotNil: [ ^ self literalLoadInstructionBytes  ].
+					]
+				]. "TODO"
+		[MoveRAw]				-> [
+						dependent 
+							ifNil: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]
+							ifNotNil: [ ^ self literalLoadInstructionBytes + 4].
+				]. "TODO"
+		[MoveAbR]				-> [
+				^ (self isAddressRelativeToVarBase: (operands at: 0))
+					ifTrue: [(operands at: 1) = SP
+						ifTrue: [ 8 ]
+						ifFalse: [ 4 ] 
+					]
+					ifFalse: [	
+						dependent 
+							ifNil: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 8 ]
+							ifNotNil: [ ^ self literalLoadInstructionBytes  ].
+					]
+				]. "TODO"	
+		[MoveRAb]			-> [
+						dependent 
+							ifNil: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]
+							ifNotNil: [ ^ self literalLoadInstructionBytes + 4].
+				]. "TODO"	
+		[MoveRM32r]			-> [^ 4]. "DONE"
+		[MoveRMwr]			-> [^ 4]. "DONE"
+		[MoveRsM32r]			-> [^ 4]. "DONE" "literal?" 
+		[MoveRdM64r]			-> [^ 4]. "DONE" "literal?"
+		[MoveMbrR]			-> [^ 4]. "DONE" "literal?"
+		[MoveRM8r]			-> [^ self notYetImplemented ].
+		[MoveRMbr]			-> [^	4]. "DONE" "literal?"
+		[MoveRM16r]			-> [^ 4]. "DONE" "literal?"
+		[MoveM16rR]			-> [^ 4]. "DONE" "literal?"
+		[MoveM32rRs]			-> [^ 4]. "DONE" "literal?"
+		[MoveM64rRd]			-> [^ 4]. "DONE" "literal?"
+		[MoveM32rR]			-> [^ 4]. "DONE" "literal?"
+		[MoveMwrR]			-> [^ 4]. "DONE" "literal?"
+		[MoveXbrRR]			-> [^4]. "DONE"
+		[MoveX32rRR]			-> [^4]. "DONE"
+		[MoveRX32rR]			-> [^4]. "DONE"
+		[MoveRXbrR]			-> [^4]. "DONE"
+		[MoveXwrRR]			-> [^4]. "DONE"
+		[MoveRXwrR]			-> [^4]. "DONE"
+		[PopR]					-> [^8]. "DONE"
+		[PushR]				-> [^8]. "DONE"
+		[PushCw]				-> [^ self literalLoadInstructionBytes + 8]. "DONE"
+		[PushCq]			   -> [
+						dependent 
+							ifNil:[ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 8 ]
+                     	ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
+						]. "DONE"	
+		[PrefetchAw] 		-> [^ self notYetImplemented ].
 		"Conversion"
-		[ConvertRdRs]			-> [^4].
-		[ConvertRsRd]			-> [^4].
-		[ConvertRRd]			-> [^4].
-		[MoveRdR]				-> [^4].
-		[MoveRRd]				-> [^4].
+		[ConvertRdRs]		-> [^4]. "DONE"
+		[ConvertRsRd]		-> [^4]. "DONE"
+		[ConvertRRd]			-> [^4]. "DONE"
+		[MoveRdR]				-> [^4]. "DONE"
+		[MoveRRd]				-> [^4]. "DONE"
 				
-		"This is a fixed size instruction using a literal. We need exactly 1 instructions to move a literal from a PC relative position, so this takes ALWAYS 1 instruction of 4 bytes"
-		[MovePatcheableC32R] -> [ ^ 8 ]
+		"This is a fixed size instruction using a literal. We need exactly 2 instructions to move a literal from a PC relative position, so this takes ALWAYS 2 instructions of 4 bytes"
+		[MovePatcheableC32R] -> [ ^ 8 ] "DONE"
 		}.
 	^0 "to keep C compiler quiet"
 
@@ -2172,7 +2192,7 @@ CogRiscV64Compiler >> concretizeLoadEffectiveAddressMwrR [
 	<inline: true>
 	<var: #cq type: #uint_64>
 	| offset destReg sourceReg instrOffset |
-	self flag: #DONE.
+	self flag: #TODO.
 	offset := operands at: 0.
 	sourceReg := operands at: 1.
 	destReg := operands at: 2.
@@ -2374,7 +2394,11 @@ CogRiscV64Compiler >> concretizeMoveAbR [
 		^ machineCodeSize ].
 	
 	"load the address into ConcreteIPReg"
-	instrOffset := self machineCodeWriteInstructions: (self loadImmediate: srcAddr inRegister: ConcreteIPReg).
+	"Missing SP case?"
+	dependent 
+		ifNil: [ instrOffset := self machineCodeWriteInstructions: (self loadImmediate: srcAddr inRegister: ConcreteIPReg) ]		
+		ifNotNil: [ instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
+		
 	self machineCodeAt: instrOffset put: (self 
 			loadByteFromAddressInRegister: ConcreteIPReg 
 			withOffset: 0 
@@ -2415,7 +2439,11 @@ CogRiscV64Compiler >> concretizeMoveAwR [
 		^ machineCodeSize ].
 	
 	"load the address into ConcreteIPReg"
-	instrOffset := self machineCodeWriteInstructions: (self loadImmediate: srcAddr inRegister: ConcreteIPReg).
+	"Missing SP case?"
+	dependent 
+		ifNil: [ instrOffset := self machineCodeWriteInstructions: (self loadImmediate: srcAddr inRegister: ConcreteIPReg) ]		
+		ifNotNil: [ instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
+		
 	self machineCodeAt: instrOffset put: (self 
 			loadDoubleWordFromAddressInRegister: ConcreteIPReg 
 			withOffset: 0 
@@ -2582,7 +2610,9 @@ CogRiscV64Compiler >> concretizeMoveRAb [
 	self flag: #TODO.
 	srcReg := operands at: 0.
 	destAddress := operands at: 1.
-	instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
+	dependent 
+		ifNil: [ instrOffset := self machineCodeWriteInstructions: (self loadImmediate: destAddress inRegister: ConcreteIPReg) ]
+		ifNotNil: [ instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
 	self machineCodeAt: instrOffset put: (self
 			 storeByteFromRegister: srcReg
 			 toAddressInRegister: ConcreteIPReg
@@ -2599,12 +2629,15 @@ CogRiscV64Compiler >> concretizeMoveRAw [
 	sd ConcreteIPReg, 0(rs1)
 	"
 
+	"Issues with SP?"
 	<inline: true>
 	| srcReg destAddress instrOffset |
 	self flag: #TODO.
 	srcReg := operands at: 0.
 	destAddress := operands at: 1.
-	instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
+	dependent 
+		ifNil: [ instrOffset := self machineCodeWriteInstructions: (self loadImmediate: destAddress inRegister: ConcreteIPReg) ]
+		ifNotNil: [ instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
 	self machineCodeAt: instrOffset put: (self
 			 storeDoubleWordFromRegister: srcReg
 			 toAddressInRegister: ConcreteIPReg
@@ -3134,7 +3167,7 @@ CogRiscV64Compiler >> concretizeRotateLeftCqR [
 							 rotateLeftValueInRegister: srcReg 
 							 byShiftAmount: cq 
 							 inRegister: destReg).
-					instrOffset := 4 ]
+					instrOffset := 12 ]
 				ifFalse: [ "Move to a register before performing AND on the registers"	
 					"Load the immediate to a register"
 					instrOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg).
@@ -3142,7 +3175,7 @@ CogRiscV64Compiler >> concretizeRotateLeftCqR [
 							 rotateLeftValueInRegister: srcReg 
 							 byShiftAmountInRegister: ConcreteIPReg 
 							 inRegister: destReg).
-					instrOffset := instrOffset + 4 ] 
+					instrOffset := instrOffset + 16 ] 
 				]
 		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
 			instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
@@ -3150,7 +3183,7 @@ CogRiscV64Compiler >> concretizeRotateLeftCqR [
 					 		 rotateLeftValueInRegister: srcReg 
 							 byShiftAmountInRegister: ConcreteIPReg 
 							 inRegister: destReg).
-			instrOffset := instrOffset + 4 ].
+			instrOffset := instrOffset + 16 ].
 	^ machineCodeSize := instrOffset
 ]
 
@@ -4457,12 +4490,12 @@ CogRiscV64Compiler >> immediateLoadInstructionBytes: anImmediate [
 	 else if < 16rffff ffff ffff ff   -> lui addiw slli addi slli addi           | 24
 	 else if < 16rffff ffff ffff ffff -> lui addiw slli addi slli addi slli addi | 32"
 	<inline:true>
-	self flag: #TODO. "Check sign"
-	anImmediate <= 16rfff ifTrue: [ ^ 4 ].
-	anImmediate <= 16rffffffff ifTrue: [ ^ 8 ].
-	anImmediate <= 16rfffffffffff ifTrue: [ ^ 16 ].	
-	anImmediate <= 16rffffffffffffff ifTrue: [ ^ 24 ].
-	anImmediate <= 16rffffffffffffffff ifTrue: [ ^ 32 ].	
+	self flag: #TODO.
+	self signExtendValue: anImmediate andAssertIsContainedIn: 12 ifTrue: [ ^ 4 ].
+	self signExtendValue: anImmediate andAssertIsContainedIn: 32 ifTrue: [ ^ 8 ].	
+	self signExtendValue: anImmediate andAssertIsContainedIn: 44 ifTrue: [ ^ 16 ].
+	self signExtendValue: anImmediate andAssertIsContainedIn: 56 ifTrue: [ ^ 24 ].	
+	^ 32
 ]
 
 { #category : #'generate machine code' }
@@ -4556,6 +4589,7 @@ CogRiscV64Compiler >> instructionIsPush: instr [
 { #category : #disassembly }
 CogRiscV64Compiler >> instructionSizeAt: pc [
 	"Answer the instruction size at pc.Simple on ARM ;-)"
+	self flag: #TODO.
 	^4
 ]
 
@@ -4933,19 +4967,21 @@ CogRiscV64Compiler >> loadImmediate: anImmediate inRegister: destReg [
 	 else if < 16rffff ffff ffff ff   -> lui addiw slli addi slli addi
 	 else if < 16rffff ffff ffff ffff -> lui addiw slli addi slli addi slli addi"
 
-	self flag: #TODO.
+	self flag: #DONE.
 	" < 16rfff"
 	self signExtendValue: anImmediate andAssertIsContainedIn: 12 
 		ifTrue: [ ^ { self load12BitsImmediate: anImmediate inRegister: destReg }].
 	" < 16rffff ffff"
-	self signExtendValue: anImmediate andAssertIsContainedIn: 32 ifTrue: [ 
+	self signExtendValue: anImmediate andAssertIsContainedIn: 32 
+		ifTrue: [ 
 		^ {  
 		self loadUpperImmediate: ((anImmediate >> 12) bitAnd: 16rfffff) inRegister: destReg. 
 	  	self addWordImmediate: (anImmediate bitAnd: 16rfff) toRegister: destReg inRegister: destReg
 		}
 	].
 	" < 16rffff ffff fff"
-	self signExtendValue: anImmediate andAssertIsContainedIn: 44 ifTrue: [ 
+	self signExtendValue: anImmediate andAssertIsContainedIn: 44 
+		ifTrue: [ 
 		^ {  
 	 	self loadUpperImmediate: ((anImmediate >> 24) bitAnd: 16rfffff) inRegister: destReg.
 		self addWordImmediate: (anImmediate bitAnd: 16rfff000) >> 12 toRegister: destReg inRegister: destReg.
@@ -4954,7 +4990,8 @@ CogRiscV64Compiler >> loadImmediate: anImmediate inRegister: destReg [
 		}
 	].
 	" < 16rffff ffff ffff ff"
-	self signExtendValue: anImmediate andAssertIsContainedIn: 56 ifTrue:  [ 
+	self signExtendValue: anImmediate andAssertIsContainedIn: 56 
+		ifTrue:  [ 
 		^ { 
 	 	self loadUpperImmediate: ((anImmediate >> 36) bitAnd: 16rfffff) inRegister: destReg.
 		self addWordImmediate: (anImmediate bitAnd: 16rfff000000) >> 24 toRegister: destReg inRegister: destReg.
@@ -5150,14 +5187,11 @@ CogRiscV64Compiler >> machineCodeAt: anOffset put: aWord [
 { #category : #'generate machine code' }
 CogRiscV64Compiler >> machineCodeBytes [
 	"Answer the maximum number of bytes of machine code generated for any abstract instruction.
-	 e.g. CmpCwR =>
-			mov R3, #<addressByte1>, 12
-			orr R3, R3, #<addressByte2>, 8
-			orr R3, R3, #<addressByte3>, 4
-			orr R3, R3, #<addressByte4>, 0
-			cmp R?, R3"
+	 e.g. **CwR =>
+			load full immediate (32) 
+			operation (sub/add/...)"
 	self flag: #TODO.
-	^20
+	^ 36
 ]
 
 { #category : #'generate machine code' }
@@ -5170,7 +5204,7 @@ CogRiscV64Compiler >> machineCodeWords [
 			orr R3, R3, #<addressByte4>, 0
 			cmp R?, R3"
 	self flag: #TODO.
-	^5
+	^ 9
 ]
 
 { #category : #assembler }
