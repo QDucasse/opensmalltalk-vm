@@ -45,7 +45,7 @@ VMJittedGeneralPrimitiveTest >> testCheckImmediateWhenImmediateSmallInteger [
 		cogit MoveCq: 1  R: ReceiverResultReg.
 		cogit RetN: 0.
 	].
-	1halt.
+
 	machineSimulator arg0RegisterValue: (memory integerObjectOf: 17).
 	self runUntilReturn.
 	
@@ -80,7 +80,7 @@ VMJittedGeneralPrimitiveTest >> testCompareSmallIntegerEqualsToBoxedFloat [
 		cogit receiverTags: memory smallIntegerTag.
 		jump := cogit objectRepresentation genPrimitiveEqual.
 	].
-
+	
 	self 
 		executePrimitiveWithReceiver: (self memory integerObjectOf: 42)
 		withArgument: (self memory boxedFloatObjectOf: 42.0).

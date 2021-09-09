@@ -508,7 +508,7 @@ CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg andImmediate: anImmed
 	self assertValue: signExtendedImmediate isContainedIn: 12.
 	^ (((((signExtendedImmediate bitAnd: 16rfff) << 20)
 	  bitOr: (sourceReg bitAnd: 16r1f) << 15)
-	  bitOr: 111 << 12)
+	  bitOr: 2r111 << 12)
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
 	  bitOr: riscvopcode
 	
@@ -527,7 +527,7 @@ CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg1 andRegister: sourceR
 	riscvopcode := 2r0110011.
 	^ (((((sourceReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (sourceReg1 bitAnd: 16r1f) << 15)
-	  bitOr: 111 << 12)
+	  bitOr: 2r111 << 12)
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
 	  bitOr: riscvopcode
 	
@@ -549,7 +549,7 @@ CogRiscV64Compiler >> bitwiseOrBetweenRegister: sourceReg andImmediate: anImmedi
 	self assertValue: signExtendedImmediate isContainedIn: 12.
 	^ (((((signExtendedImmediate bitAnd: 16rfff) << 20)
 	  bitOr: (sourceReg bitAnd: 16r1f) << 15)
-	  bitOr: 110 << 12)
+	  bitOr: 2r110 << 12)
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
 	  bitOr: riscvopcode
 	
@@ -568,7 +568,7 @@ CogRiscV64Compiler >> bitwiseOrBetweenRegister: sourceReg1 andRegister: sourceRe
 	riscvopcode := 2r0110011.
 	^ (((((sourceReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (sourceReg1 bitAnd: 16r1f) << 15)
-	  bitOr: 110 << 12)
+	  bitOr: 2r110 << 12)
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
 	  bitOr: riscvopcode
 	
@@ -1107,11 +1107,11 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[XorRdRd]					-> [^4]. "DONE"
 						
 		"ARM Specific Arithmetic"
-		[MUL]			      -> [^4]. "TODO"
-		[SMULH] 	       	-> 	[^4]. "TODO"
-		[CMPMULOverflow] 	-> [^4]. "TODO"
-		[SDIV]					-> [^4]. "TODO"
-		[MSUB]					-> [^4]. "TODO"
+		[MUL]			      -> [^ 4]. "TODO"
+		[SMULH] 	       	->	[^ 8]. "TODO"
+		[CMPMULOverflow] 	-> [^ 4]. "TODO"
+		[SDIV]					-> [^ 4]. "TODO"
+		[MSUB]					-> [^ 4]. "TODO"
 				
 		"Data Movement"						
 		[MoveCqR]				-> [^						
@@ -1979,17 +1979,15 @@ CogRiscV64Compiler >> concretizeJumpCarry [
 CogRiscV64Compiler >> concretizeJumpFPEqual [
 
 	<inline:true>
-	| srcReg1 srcReg2 offset |
+	| offset |
 	self flag: #TODO.
-	"What are the operands ???"
-	srcReg1 := operands at: 0.
-	srcReg2 := operands at: 1.
+	"Registers are surely wrong, how to test them?"
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	"If srcreg1 = srcreg2, 1 in flag reg, 0 otherwise"
 	self machineCodeAt: 0 put: (self 
-		fRegisterValue: srcReg1 
-		isEqualToRegisterValue: srcReg2 
+		fRegisterValue: ConcreteFlagReg 
+		isEqualToRegisterValue: ConcreteIPReg
 		into: ConcreteFlagReg ).
 	"Check reg is not equal to 0 (maybe check 1 is better?)"
 	self machineCodeAt: 4 put: (self 
@@ -2001,18 +1999,16 @@ CogRiscV64Compiler >> concretizeJumpFPEqual [
 { #category : #accessing }
 CogRiscV64Compiler >> concretizeJumpFPGreater [
 
-		<inline:true>
-	| srcReg1 srcReg2 offset |
+	<inline:true>
+	|  offset |
 	self flag: #TODO.
-	"What are the operands ???"
-	srcReg1 := operands at: 0.
-	srcReg2 := operands at: 1.
+	"Registers are surely wrong, how to test them?"
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	"If srcreg1 <= srcreg2, 1 in flag reg, 0 otherwise"
 	self machineCodeAt: 0 put: (self 
-		fRegisterValue: srcReg1 
-		isLessThanOrEqualToRegisterValue: srcReg2 
+		fRegisterValue: ConcreteFlagReg 
+		isLessThanOrEqualToRegisterValue: ConcreteIPReg 
 		into: ConcreteFlagReg ).
 	"Check reg = 0 (if !(r1 <= r2) => r1 > r2)"
 	self machineCodeAt: 4 put: (self 
@@ -2025,17 +2021,15 @@ CogRiscV64Compiler >> concretizeJumpFPGreater [
 CogRiscV64Compiler >> concretizeJumpFPGreaterOrEqual [
 
 		<inline:true>
-	| srcReg1 srcReg2 offset |
+	| offset |
 	self flag: #TODO.
-	"What are the operands ???"
-	srcReg1 := operands at: 0.
-	srcReg2 := operands at: 1.
+	"Registers are surely wrong, how to test them?"
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	"If srcreg1 < srcreg2, 1 in flag reg, 0 otherwise"
 	self machineCodeAt: 0 put: (self 
-		fRegisterValue: srcReg1 
-		isLessThanToRegisterValue: srcReg2 
+		fRegisterValue: ConcreteFlagReg 
+		isLessThanToRegisterValue: ConcreteIPReg 
 		into: ConcreteFlagReg ).
 	"Check reg = 0 (if !(r1 < r2) => r1 >= r2)"
 	self machineCodeAt: 4 put: (self 
@@ -2047,18 +2041,16 @@ CogRiscV64Compiler >> concretizeJumpFPGreaterOrEqual [
 { #category : #accessing }
 CogRiscV64Compiler >> concretizeJumpFPLess [
 
-		<inline:true>
+	<inline:true>
 	| srcReg1 srcReg2 offset |
 	self flag: #TODO.
-	"What are the operands ???"
-	srcReg1 := operands at: 0.
-	srcReg2 := operands at: 1.
+	"Registers are surely wrong, how to test them?"
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	"If srcreg1 < srcreg2, 1 in flag reg, 0 otherwise"
 	self machineCodeAt: 0 put: (self 
-		fRegisterValue: srcReg1 
-		isLessThanToRegisterValue: srcReg2 
+		fRegisterValue: ConcreteFlagReg 
+		isLessThanToRegisterValue: ConcreteIPReg
 		into: ConcreteFlagReg ).
 	"Check reg = 1"
 	self machineCodeAt: 4 put: (self 
@@ -2071,17 +2063,15 @@ CogRiscV64Compiler >> concretizeJumpFPLess [
 CogRiscV64Compiler >> concretizeJumpFPLessOrEqual [
 
 		<inline:true>
-	| srcReg1 srcReg2 offset |
+	| offset |
 	self flag: #TODO.
-	"What are the operands ???"
-	srcReg1 := operands at: 0.
-	srcReg2 := operands at: 1.
+	"Registers are surely wrong, how to test them?"
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	"If srcreg1 <= srcreg2, 1 in flag reg, 0 otherwise"
 	self machineCodeAt: 0 put: (self 
-		fRegisterValue: srcReg1 
-		isLessThanOrEqualToRegisterValue: srcReg2 
+		fRegisterValue: ConcreteFlagReg 
+		isLessThanOrEqualToRegisterValue: ConcreteIPReg 
 		into: ConcreteFlagReg ).
 	"Check reg = 1"
 	self machineCodeAt: 4 put: (self 
@@ -2094,17 +2084,15 @@ CogRiscV64Compiler >> concretizeJumpFPLessOrEqual [
 CogRiscV64Compiler >> concretizeJumpFPNotEqual [
 
 	<inline:true>
-	| srcReg1 srcReg2 offset |
+	| offset |
 	self flag: #TODO.
-	"What are the operands ???"
-	srcReg1 := operands at: 0.
-	srcReg2 := operands at: 1.
+	"Registers are surely wrong, how to test them?"	
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	"If srcreg1 = srcreg2, 1 in flag reg, 0 otherwise"
 	self machineCodeAt: 0 put: (self 
-		fRegisterValue: srcReg1 
-		isEqualToRegisterValue: srcReg2 
+		fRegisterValue: ConcreteFlagReg 
+		isEqualToRegisterValue: ConcreteIPReg 
 		into: ConcreteFlagReg ).
 	"Check reg = 0"
 	self machineCodeAt: 4 put: (self 
@@ -2459,13 +2447,45 @@ CogRiscV64Compiler >> concretizeLogicalShiftRightRR [
 { #category : #'generate machine code - concretize' }
 CogRiscV64Compiler >> concretizeMSUB [
 
-	1halt.
+	"Multiply subtract as a combination of two instructions. (maybe fmsub is better but only applicable to fp registers)"
+
+	<inline: true>
+	| subReg factor1Reg factor2Reg destReg |
+	self flag: #TODO.
+	subReg := operands at: 0.
+	factor1Reg := operands at: 1.
+	factor2Reg := operands at: 2.
+	destReg := operands at: 3.
+	
+	self machineCodeAt: 0 put: (self
+		multiplyRegisterValue: factor1Reg
+		byRegisterValue: factor2Reg
+		inRegister: ConcreteIPReg
+	).
+	self machineCodeAt: 4 put: (self 
+		subtractRegister: subReg 
+		fromRegister: ConcreteIPReg 
+		intoRegister: destReg
+	).
+	^ machineCodeSize := 8
 ]
 
 { #category : #'as yet unclassified' }
 CogRiscV64Compiler >> concretizeMUL [
 	
-	1halt.
+	<inline:true>
+	| srcReg1 srcReg2 destReg |
+	self flag: #TODO.
+	srcReg1 := operands at: 0.
+	srcReg2 := destReg := operands at: 1.
+	
+	self machineCodeAt: 0 put: (self 
+		multiplyWordRegisterValue: srcReg1
+		byRegisterValue: srcReg2
+		inRegister: destReg
+	).
+	
+	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -3710,13 +3730,34 @@ CogRiscV64Compiler >> concretizeRotateRightCqR [
 CogRiscV64Compiler >> concretizeSDIV [
 
 	<inline: true>
-	1halt.
+	| regNumerator regDenominator regDestination |
+	self flag: #TODO.
+	regNumerator := operands at: 0.
+	regDenominator := operands at: 1. 
+	regDestination := operands at: 2.
+	self machineCodeAt: 0 put: (self 
+		divideRegisterValue: regNumerator 
+		byRegisterValue: regDenominator  
+		intoRegister: regDestination).
+	^ machineCodeSize := 4
 ]
 
 { #category : #'as yet unclassified' }
 CogRiscV64Compiler >> concretizeSMULH [
 	
-	1halt.
+	<inline:true>
+	| srcReg1 srcReg2 destReg |
+	self flag: #TODO.
+	srcReg1 := operands at: 0.
+	srcReg2 := operands at: 1.
+	destReg := operands at: 2.
+	
+	self machineCodeAt: 0 put: (self 
+		multiplyHighRegisterValue: srcReg1 
+		byRegisterValue: srcReg2
+		inRegister: destReg
+	).
+	^ machineCodeSize := 4
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -4107,11 +4148,11 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[RotateRightCqR]				->	[^self concretizeRotateRightCqR].
 
 		"ARM Specific Arithmetic" 
-		[MUL]			-> [^self concretizeMUL].
-		[SMULH]			-> [^self concretizeSMULH].
-		[CMPMULOverflow]		-> [^self concretizeCMPMULOverflow].
-		[SDIV]				-> [^self concretizeSDIV].
-		[MSUB]				-> [^self concretizeMSUB].
+		[MUL]			     	-> [^self concretizeMUL].
+		[SMULH]			  	-> [^self concretizeSMULH].
+		[CMPMULOverflow]	-> [^self concretizeCMPMULOverflow].
+		[SDIV]					-> [^self concretizeSDIV].
+		[MSUB]					-> [^self concretizeMSUB].
 		"Data Movement"
 		[MoveCqR]			-> [^self concretizeMoveCqR].
 		[MoveCwR]			-> [^self concretizeMoveCwR].
@@ -4155,6 +4196,54 @@ CogRiscV64Compiler >> dispatchConcretize [
 		"Patcheable literal instruction"
 		[ MovePatcheableC32R ] -> [ ^ self concretizeMovePatcheableC32R ]
 		}
+]
+
+{ #category : #abi }
+CogRiscV64Compiler >> divideRegisterValue: srcReg1 byRegisterValue: srcReg2 intoRegister: destReg [
+
+	"div: Divides x[rs1] by x[rs2], rounding towards zero, treating the values as two's complement numbers 
+			and writes the quotient to x[rd]
+
+	 31      25 24   20 19    15 14   12 11     7 6         0
+	| 0000001  |  rs2  |  rs1   |  100  |   rd   |  0110011  |
+	"
+
+	| riscvOpcode1 riscvOpcode2 |
+	self flag: #DONE.
+	riscvOpcode1 :=  2r0000001.
+   riscvOpcode2 :=  2r0110011.
+	"Actual bit instruction"
+	^ (((((riscvOpcode1 << 25) 
+	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
+	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
+	  bitOr: (2r100 << 12))
+	  bitOr: (destReg bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode2 
+
+]
+
+{ #category : #abi }
+CogRiscV64Compiler >> divideRegisterValueUnsigned: srcReg1 byRegisterValueUnsigned: srcReg2 intoRegister: destReg [
+
+	"divu: Divides x[rs1] by x[rs2], rounding towards zero, treating the values as unsigned numbers 
+			and writes the quotient to x[rd]
+
+	 31      25 24   20 19    15 14   12 11     7 6         0
+	| 0000001  |  rs2  |  rs1   |  101  |   rd   |  0110011  |
+	"
+
+	| riscvOpcode1 riscvOpcode2 |
+	self flag: #DONE.
+	riscvOpcode1 :=  2r0000001.
+   riscvOpcode2 :=  2r0110011.
+	"Actual bit instruction"
+	^ (((((riscvOpcode1 << 25) 
+	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
+	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
+	  bitOr: (2r101 << 12))
+	  bitOr: (destReg bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode2 
+
 ]
 
 { #category : #patching }
@@ -4218,7 +4307,7 @@ CogRiscV64Compiler >> extractOffsetFromConditionalBranch: instruction [
 CogRiscV64Compiler >> fAddRegister: srcReg1 toRegister: srcReg2 intoRegister: destReg [
 
 	"fadd.d: floating point add between registers f[rs1] and f[rs2] and store the sum to f[rd]
-s
+
 	 31      25 24   20 19    15 14  12 11     7 6         0
 	| 0000001  |  rs2  |  rs1   |  rm  |   rd   |  1010011  |
 	rm = 111 by default
@@ -5213,9 +5302,8 @@ CogRiscV64Compiler >> jumpTo: sourceRegisterValueAddress withOffset: offset andS
 	"Check size and sign"
 	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
 	self assertValue: signExtendedOffset isContainedIn: 12.
-	^ (((((signExtendedOffset bitAnd: 16rfff) << 20 
+	^ (((((signExtendedOffset bitAnd: 16rfff) << 20)
 		bitOr: (sourceRegisterValueAddress bitAnd: 16r1f) << 15)
-		bitOr: 2r000)
 		bitOr: (destinationRegister bitAnd: 16r1f) << 7)
 		bitOr: riscvOpcode)
 ]
@@ -5688,6 +5776,81 @@ CogRiscV64Compiler >> moveRegister: srcReg toRegister: destReg [
 	"mv is pseudo instruction that expands to addi rd, rs1, 0"	
 	self flag: #DONE.
 	^ self addImmediate: 0 toRegister: srcReg inRegister: destReg
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> multiplyHighRegisterValue: srcReg1 byRegisterValue: srcReg2 inRegister: destReg [
+
+	"mulh: multiplies x[rs1] by x[rs2] treating the values as two's complement numbers, 
+			 and writes the upper half of the product to x[rd]
+	
+	 31       25 24     20 19     15 14   12 11     7 6           0
+	|  	0000001  |   rs2   |   rs1   |  010  |   rd   |   0110011   |
+	"
+
+	| riscvOpcode |
+	self flag: #TODO.
+	riscvOpcode :=  2r0110011.
+	"Actual bit instruction"
+	^ ((((((2r1 << 25) 
+	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
+	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
+	  bitOr: 2r001 << 	12)
+	  bitOr: (destReg bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode) 
+
+
+	
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> multiplyRegisterValue: srcReg1 byRegisterValue: srcReg2 inRegister: destReg [
+
+	"mul: multiplies x[rs1] by x[rs2] treating the values as two's complement numbers, 
+			 and writes the upper half of the product to x[rd]
+	
+	 31       25 24     20 19     15 14   12 11     7 6           0
+	|  	0000001  |   rs2   |   rs1   |  000  |   rd   |   0110011   |
+	"
+
+	| riscvOpcode |
+	self flag: #TODO.
+	riscvOpcode :=  2r0110011.
+	"Actual bit instruction"
+	^ ((((((2r1 << 25) 
+	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
+	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
+	  bitOr: 2r000 << 	12)
+	  bitOr: (destReg bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode) 
+
+
+	
+]
+
+{ #category : #assembler }
+CogRiscV64Compiler >> multiplyWordRegisterValue: srcReg1 byRegisterValue: srcReg2 inRegister: destReg [
+
+	"mulw: multiplies x[rs1] by x[rs2] truncates the product to 32 bits, 
+			 and writes the sign-extended value to x[rd]
+	
+	 31       25 24     20 19     15 14   12 11     7 6           0
+	|  	0000001  |   rs2   |   rs1   |  000  |   rd   |   0111011   |
+	"
+
+	| riscvOpcode |
+	self flag: #TODO.
+	riscvOpcode :=  2r0111011.
+	"Actual bit instruction"
+	^ ((((((2r1 << 25) 
+	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
+	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
+	  bitOr: 2r000 << 	12)
+	  bitOr: (destReg bitAnd: 16r1f) << 7)
+	  bitOr: riscvOpcode) 
+
+
+	
 ]
 
 { #category : #printing }
