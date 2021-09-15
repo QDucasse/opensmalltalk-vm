@@ -297,24 +297,21 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 	| offset |
 	
 	<var: #offset type: 'sqInt'>
-
+	self flag: #TODO.
 	opcode
 		caseOf: {
 		[CallFull]		-> [^true].
 		[JumpFull]		-> [^true].
 		"Arithmetic"
-		[AddCqR]	   -> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "#TODO"
-		[AndCqR]		-> [^ false ].
-		[AndCqRR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "#TODO"
-		[CmpCqR]		-> [ 
-				((operands at: 0) abs bitAnd: 16rFFF) = (operands at: 0) abs ifTrue: [ ^ false ].
-				((operands at: 0) abs << 12 >> 12 bitAnd: 16rFFF) = (operands at: 0) abs ifTrue: [ ^ false ].
-				^ true].
-		[CmpC32R]		-> [^self rotateable8bitSignedImmediate: (operands at: 0) ifTrue: [:r :i :n| false] ifFalse: [true]].
-		[OrCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "#TODO"
-		[SubCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "#TODO"
-		[TstCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "#TODO"
-		[XorCqR]		-> [^self rotateable8bitBitwiseImmediate: (operands at: 0) ifTrue: [:r :i :n| false] ifFalse: [true]].
+		[AddCqR]	   -> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		[AndCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		[AndCqRR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		[CmpCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		[CmpC32R]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		[OrCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		[SubCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		[TstCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		[XorCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 		[AddCwR]		-> [^true].
 		[AndCwR]		-> [^true].
 		[CmpCwR]		-> [^true].
@@ -322,10 +319,10 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[SubCwR]		-> [^true].
 		[XorCwR]		-> [^true].
 		[LoadEffectiveAddressMwrR]
-						-> [^self rotateable8bitImmediate: (operands at: 0) ifTrue: [:r :i| false] ifFalse: [true]].
+						-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 		"Data Movement"						
-		[MoveCqR]		-> [^ false]. "#TODO"
-		[MoveC32R]  -> [^ false]. "#TODO"
+		[MoveCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		[MoveC32R]  -> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 
 		[MoveCwR]		-> [^(self inCurrentCompilation: (operands at: 0)) not].
 		[MoveAwR]		-> [^(self isAddressRelativeToVarBase: (operands at: 0)) ifTrue: [false] ifFalse: [true]].
