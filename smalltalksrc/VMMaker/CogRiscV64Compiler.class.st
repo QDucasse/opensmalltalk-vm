@@ -476,6 +476,50 @@ CogRiscV64Compiler >> assertValue: aValue isContainedIn: aSize [
 
 ]
 
+{ #category : #'helpers - size sign' }
+CogRiscV64Compiler >> assertValue: aValue isContainedIn: aSize ifTrue: trueBlock [
+
+	"Checks that the given value is contained in a certain number of bits"
+	| mask twosComplement |
+	self flag: #TODO.
+	mask := (1 << aSize) - 1.
+	aValue >= 0
+		ifTrue: [ "Compare the value with the mask"
+			(aValue bitAnd: mask) = aValue 
+				ifTrue: [ trueBlock value ]
+				ifFalse: [ ]
+		] 
+		ifFalse: [ "Try to do the two's complement in the given size" 
+			twosComplement := mask - aValue abs + 1.
+			(twosComplement >= 0 and: twosComplement <= mask) "Checks that the twos complement fits"
+				ifTrue: [ trueBlock value ]
+				ifFalse: [ ]
+		]
+
+]
+
+{ #category : #'helpers - size sign' }
+CogRiscV64Compiler >> assertValue: aValue isContainedIn: aSize ifTrue: trueBlock ifFalse: falseBlock [
+
+	"Checks that the given value is contained in a certain number of bits"
+	| mask twosComplement |
+	self flag: #TODO.
+	mask := (1 << aSize) - 1.
+	aValue >= 0
+		ifTrue: [ "Compare the value with the mask"
+			(aValue bitAnd: mask) = aValue 
+				ifTrue: [ trueBlock value ]
+				ifFalse: [ falseBlock value ]
+		] 
+		ifFalse: [ "Try to do the two's complement in the given size" 
+			twosComplement := mask - aValue abs + 1.
+			(twosComplement >= 0 and: twosComplement <= mask) "Checks that the twos complement fits"
+				ifTrue: [ trueBlock value ]
+				ifFalse: [ falseBlock value ]
+		]
+
+]
+
 { #category : #'register allocation' }
 CogRiscV64Compiler >> availableRegisterOrNoneFor: liveRegsMask [
 	"Answer an unused abstract register in the liveRegMask.
@@ -614,15 +658,6 @@ CogRiscV64Compiler >> bitwiseXorBetweenRegister: srcReg1 andRegister: srcReg2 in
 	  bitOr: (2r100 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
 	  bitOr: riscvOpcode
-]
-
-{ #category : #concretization }
-CogRiscV64Compiler >> branchTo: offset ifCondition: condition [ 
-
-	"The base condition checking should be between the ConcreteFlagReg and the ConcreteIPReg
-	"	
-	self flag: #TODO.
-	self halt.
 ]
 
 { #category : #'machine code instruction' }
@@ -1377,7 +1412,7 @@ CogRiscV64Compiler >> concretizeAddCqR [
 	sourceReg := destReg := operands at: 1.
 	dependent
 		ifNil: [ 
-			 self signExtendValue: cq andAssertIsContainedIn: 12
+			 self assertValue: cq isContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
 					self machineCodeAt: 0 put: (self
 							 addImmediate: cq
@@ -1482,7 +1517,7 @@ CogRiscV64Compiler >> concretizeAndCqR [
 	sourceReg := destReg := operands at: 1.
 	dependent
 		ifNil: [ 
-			self signExtendValue: cq andAssertIsContainedIn: 12
+			self assertValue: cq isContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
 					self machineCodeAt: 0 put: (self
 							 bitwiseAndBetweenRegister: sourceReg
@@ -1528,7 +1563,7 @@ CogRiscV64Compiler >> concretizeAndCqRR [
 	destReg := operands at: 2.
 	dependent
 		ifNil: [ 
-			self signExtendValue: cq andAssertIsContainedIn: 12
+			self assertValue: cq isContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
 					self machineCodeAt: 0 put: (self
 							 bitwiseAndBetweenRegister: sourceReg
@@ -1605,7 +1640,7 @@ CogRiscV64Compiler >> concretizeArithmeticShiftRightCqR [
 	srcReg := destReg := operands at: 1.
 	dependent
 		ifNil: [ 
-			self signExtendValue: cq andAssertIsContainedIn: 12
+			self assertValue: cq isContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
 					self machineCodeAt: 0 put: (self
 							 arithmeticShiftRightValueInRegister: srcReg 
@@ -1814,23 +1849,6 @@ CogRiscV64Compiler >> concretizeCmpRdRd [
 			 fromRegister: srcReg1
 			 intoRegister: ConcreteFlagReg).
 	^ machineCodeSize := 4	
-]
-
-{ #category : #concretization }
-CogRiscV64Compiler >> concretizeConditionalJump: conditionCode [
-	"Will get inlined into concretizeAt: switch."
-
-	"Sizing/generating jumps.
-		Jump targets can be to absolute addresses or other abstract instructions.
-		Generating initial trampolines instructions may have no maxSize and be to absolute addresses.
-		Otherwise instructions must have a machineCodeSize which must be kept to."
-
-	<inline: true>
-	| offset |
-	offset := self computeJumpTargetOffsetPlus: 8.
- 	self assert: (self isInImmediateJumpRange: offset).
-	self machineCodeAt: 0 put: (self branchTo: offset ifCondition: conditionCode).
-	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
@@ -2301,7 +2319,7 @@ CogRiscV64Compiler >> concretizeLoadEffectiveAddressMwrR [
 	destReg := operands at: 2.
 	dependent
 		ifNil: [ 
-			 self signExtendValue: offset andAssertIsContainedIn: 12
+			 self assertValue: offset isContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
 					self machineCodeAt: 0 put: (self
 							 addImmediate: offset
@@ -2353,7 +2371,7 @@ CogRiscV64Compiler >> concretizeLogicalShiftLeftCqR [
 	sourceReg := destReg := operands at: 1.
 	dependent
 		ifNil: [ 
-			 self signExtendValue: cq andAssertIsContainedIn: 12
+			 self assertValue: cq isContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
 					self machineCodeAt: 0 put: (self
 							shiftLeftValueInRegister: sourceReg 
@@ -2411,7 +2429,7 @@ CogRiscV64Compiler >> concretizeLogicalShiftRightCqR [
 	sourceReg := destReg := operands at: 1.
 	dependent
 		ifNil: [ 
-			 self signExtendValue: cq andAssertIsContainedIn: 12
+			 self assertValue: cq isContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate SRLI"
 					self machineCodeAt: 0 put: (self
 							shiftRightValueInRegister: sourceReg 
@@ -2626,7 +2644,7 @@ CogRiscV64Compiler >> concretizeMoveM16rR [
 	destReg := operands at: 2.
 	dependent 
 		ifNil: [ 
-			self signExtendValue: offset andAssertIsContainedIn: 12 
+			self assertValue: offset isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 			 					loadHalfWordFromAddressInRegister: baseReg 
 								withOffset: offset 
@@ -2666,7 +2684,7 @@ CogRiscV64Compiler >> concretizeMoveM32rR [
 	destReg := operands at: 2.
 	dependent 
 		ifNil: [ 
-			self signExtendValue: offset andAssertIsContainedIn: 12 
+			self assertValue: offset isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 			 					loadWordFromAddressInRegister: baseReg 
 								withOffset: offset 
@@ -2705,7 +2723,7 @@ CogRiscV64Compiler >> concretizeMoveM32rRs [
 	destReg := operands at: 2.
 	dependent 
 		ifNil: [ 
-			self signExtendValue: offset andAssertIsContainedIn: 12 
+			self assertValue: offset isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 			 					fLoadWordFromAddressInRegister: baseReg 
 								withOffset: offset 
@@ -2743,7 +2761,7 @@ CogRiscV64Compiler >> concretizeMoveM64rRd [
 	destReg := operands at: 2.
 	dependent 
 		ifNil: [ 
-			self signExtendValue: offset andAssertIsContainedIn: 12 
+			self assertValue: offset isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 			 					fLoadDoubleWordFromAddressInRegister: baseReg 
 								withOffset: offset 
@@ -2783,7 +2801,7 @@ CogRiscV64Compiler >> concretizeMoveMbrR [
 	destReg := operands at: 2.
 	dependent 
 		ifNil: [ 
-			self signExtendValue: offset andAssertIsContainedIn: 12 
+			self assertValue: offset isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 			 					loadByteFromAddressInRegister: baseReg 
 								withOffset: offset 
@@ -2823,7 +2841,7 @@ CogRiscV64Compiler >> concretizeMoveMwrR [
 	destReg := operands at: 2.
 	dependent 
 		ifNil: [ 
-			self signExtendValue: offset andAssertIsContainedIn: 12 
+			self assertValue: offset isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 			 					loadDoubleWordFromAddressInRegister: baseReg 
 								withOffset: offset 
@@ -2912,7 +2930,7 @@ CogRiscV64Compiler >> concretizeMoveRM16r [
 	baseReg := operands at: 2.
 	dependent 
 		ifNil: [ 
-			self signExtendValue: offset andAssertIsContainedIn: 12 
+			self assertValue: offset isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 								 storeHalfWordFromRegister: srcReg
 			 					 toAddressInRegister: baseReg
@@ -2953,7 +2971,7 @@ CogRiscV64Compiler >> concretizeMoveRM32r [
 	baseReg := operands at: 2.
 	dependent 
 		ifNil: [ 
-			self signExtendValue: offset andAssertIsContainedIn: 12 
+			self assertValue: offset isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 								 storeWordFromRegister: srcReg
 			 					 toAddressInRegister: baseReg
@@ -2993,7 +3011,7 @@ CogRiscV64Compiler >> concretizeMoveRMbr [
 	baseReg := operands at: 2.
 	dependent 
 		ifNil: [ 
-			self signExtendValue: offset andAssertIsContainedIn: 12 
+			self assertValue: offset isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 								 storeByteFromRegister: srcReg
 			 					 toAddressInRegister: baseReg
@@ -3034,7 +3052,7 @@ CogRiscV64Compiler >> concretizeMoveRMwr [
 	baseReg := operands at: 2.
 	dependent 
 		ifNil: [ 
-			self signExtendValue: offset andAssertIsContainedIn: 12 
+			self assertValue: offset isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 								 storeDoubleWordFromRegister: srcReg
 			 					 toAddressInRegister: baseReg
@@ -3102,7 +3120,7 @@ CogRiscV64Compiler >> concretizeMoveRX32rR [
 	baseReg := operands at: 2.	
 	dependent 
 		ifNil: [ 
-			self signExtendValue: index andAssertIsContainedIn: 12 
+			self assertValue: index isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 								 storeWordFromRegister: srcReg
 			 					 toAddressInRegister: baseReg
@@ -3141,7 +3159,7 @@ CogRiscV64Compiler >> concretizeMoveRXbrR [
 	baseReg := operands at: 2.	
 	dependent 
 		ifNil: [ 
-			self signExtendValue: index andAssertIsContainedIn: 12 
+			self assertValue: index isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 								 storeByteFromRegister: srcReg
 			 					 toAddressInRegister: baseReg
@@ -3180,7 +3198,7 @@ CogRiscV64Compiler >> concretizeMoveRXwrR [
 	baseReg := operands at: 2.	
 	dependent 
 		ifNil: [ 
-			self signExtendValue: index andAssertIsContainedIn: 12 
+			self assertValue: index isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 								 storeWordFromRegister: srcReg
 			 					 toAddressInRegister: baseReg
@@ -3218,7 +3236,7 @@ CogRiscV64Compiler >> concretizeMoveRdM64r [
 	baseReg := operands at: 2.	
 	dependent 
 		ifNil: [ 
-			self signExtendValue: offset andAssertIsContainedIn: 12 
+			self assertValue: offset isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 								 fStoreDoubleWordFromRegister: srcReg
 			 					 toAddressInRegister: baseReg
@@ -3274,7 +3292,7 @@ CogRiscV64Compiler >> concretizeMoveRsM32r [
 	baseReg := operands at: 2.	
 	dependent 
 		ifNil: [ 
-			self signExtendValue: offset andAssertIsContainedIn: 12 
+			self assertValue: offset isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 								 fStoreWordFromRegister: srcReg
 			 					 toAddressInRegister: baseReg
@@ -3313,7 +3331,7 @@ CogRiscV64Compiler >> concretizeMoveX32rRR [
 	destReg := operands at: 2.
 	dependent 
 		ifNil: [ 
-			self signExtendValue: index andAssertIsContainedIn: 12 
+			self assertValue: index isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 			 					loadWordFromAddressInRegister: baseReg 
 								withOffset: index 
@@ -3353,7 +3371,7 @@ CogRiscV64Compiler >> concretizeMoveXbrRR [
 	destReg := operands at: 2.
 	dependent 
 		ifNil: [ 
-			self signExtendValue: index andAssertIsContainedIn: 12 
+			self assertValue: index isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 			 					loadByteFromAddressInRegister: baseReg 
 								withOffset: index 
@@ -3392,7 +3410,7 @@ CogRiscV64Compiler >> concretizeMoveXwrRR [
 	destReg := operands at: 2.
 	dependent 
 		ifNil: [ 
-			self signExtendValue: index andAssertIsContainedIn: 12 
+			self assertValue: index isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
 			 					loadDoubleWordFromAddressInRegister: baseReg 
 								withOffset: index 
@@ -3478,7 +3496,7 @@ CogRiscV64Compiler >> concretizeOrCqR [
 	sourceReg := destReg := operands at: 1.
 	dependent
 		ifNil: [ 
-			self signExtendValue: cq andAssertIsContainedIn: 12
+			self assertValue: cq isContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
 					self machineCodeAt: 0 put: (self
 							 bitwiseOrBetweenRegister: sourceReg
@@ -3660,7 +3678,7 @@ CogRiscV64Compiler >> concretizeRotateLeftCqR [
 	srcReg := destReg := operands at: 1.
 	dependent
 		ifNil: [ 
-			self signExtendValue: cq andAssertIsContainedIn: 12
+			self assertValue: cq isContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
 					self machineCodeAt: 0 put: (self
 							 rotateLeftValueInRegister: srcReg 
@@ -3705,7 +3723,7 @@ CogRiscV64Compiler >> concretizeRotateRightCqR [
 	srcReg := destReg := operands at: 1.
 	dependent
 		ifNil: [ 
-			self signExtendValue: cq andAssertIsContainedIn: 12
+			self assertValue: cq isContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
 					self machineCodeAt: 0 put: (self
 							 rotateRightValueInRegister: srcReg 
@@ -3892,7 +3910,7 @@ CogRiscV64Compiler >> concretizeTstCqR [
 
 	dependent
 		ifNil: [ "No literal -> and immediate then load the immediate to register (for further checks)"
-			self signExtendValue: cq abs andAssertIsContainedIn: 12 
+			self assertValue: cq abs isContainedIn: 12 
 				ifTrue: [ "Direct encoding as an immediate"
 					self machineCodeAt: 0 put: (self
 						bitwiseAndBetweenRegister: srcReg
@@ -3938,7 +3956,7 @@ CogRiscV64Compiler >> concretizeXorCqR [
 	sourceReg := destReg := operands at: 1.
 	dependent
 		ifNil: [ 
-			 self signExtendValue: cq andAssertIsContainedIn: 12
+			 self assertValue: cq isContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
 					self machineCodeAt: 0 put: (self
 							 bitwiseXorBetweenRegister: sourceReg 
@@ -5004,10 +5022,10 @@ CogRiscV64Compiler >> immediateLoadInstructionBytes: anImmediate [
 	 else if < 16rffff ffff ffff ffff -> lui addiw slli addi slli addi slli addi | 32"
 	<inline:true>
 	self flag: #TODO.
-	self signExtendValue: anImmediate andAssertIsContainedIn: 12 ifTrue: [ ^ 4 ].
-	self signExtendValue: anImmediate andAssertIsContainedIn: 32 ifTrue: [ ^ 8 ].	
-	self signExtendValue: anImmediate andAssertIsContainedIn: 44 ifTrue: [ ^ 16 ].
-	self signExtendValue: anImmediate andAssertIsContainedIn: 56 ifTrue: [ ^ 24 ].	
+	self assertValue: anImmediate isContainedIn: 12 ifTrue: [ ^ 4 ].
+	self assertValue: anImmediate isContainedIn: 32 ifTrue: [ ^ 8 ].	
+	self assertValue: anImmediate isContainedIn: 44 ifTrue: [ ^ 16 ].
+	self assertValue: anImmediate isContainedIn: 56 ifTrue: [ ^ 24 ].	
 	^ 32
 ]
 
@@ -5464,10 +5482,10 @@ CogRiscV64Compiler >> loadImmediate: anImmediate inRegister: destReg [
 
 	self flag: #DONE.
 	" < 16rfff"
-	self signExtendValue: anImmediate andAssertIsContainedIn: 12 
+	self assertValue: anImmediate isContainedIn: 12 
 		ifTrue: [ ^ { self load12BitsImmediate: anImmediate inRegister: destReg }].
 	" < 16rffff ffff"
-	self signExtendValue: anImmediate andAssertIsContainedIn: 32 
+	self assertValue: anImmediate isContainedIn: 32 
 		ifTrue: [ 
 		^ {  
 		self loadUpperImmediate: ((anImmediate >> 12) bitAnd: 16rfffff) inRegister: destReg. 
@@ -5475,7 +5493,7 @@ CogRiscV64Compiler >> loadImmediate: anImmediate inRegister: destReg [
 		}
 	].
 	" < 16rffff ffff fff"
-	self signExtendValue: anImmediate andAssertIsContainedIn: 44 
+	self assertValue: anImmediate isContainedIn: 44 
 		ifTrue: [ 
 		^ {  
 	 	self loadUpperImmediate: ((anImmediate >> 24) bitAnd: 16rfffff) inRegister: destReg.
@@ -5485,7 +5503,7 @@ CogRiscV64Compiler >> loadImmediate: anImmediate inRegister: destReg [
 		}
 	].
 	" < 16rffff ffff ffff ff"
-	self signExtendValue: anImmediate andAssertIsContainedIn: 56 
+	self assertValue: anImmediate isContainedIn: 56 
 		ifTrue:  [ 
 		^ { 
 	 	self loadUpperImmediate: ((anImmediate >> 36) bitAnd: 16rfffff) inRegister: destReg.
@@ -6384,29 +6402,6 @@ CogRiscV64Compiler >> shiftSetsConditionCodesFor: aConditionalJumpOpcode [
 			[JumpLess]	->	[true].
 		}
 		otherwise: [self halt: 'unhandled opcode in setsConditionCodesFor:'. false]
-]
-
-{ #category : #'helpers - size sign' }
-CogRiscV64Compiler >> signExtendValue: aValue andAssertIsContainedIn: aSize ifTrue: trueBlock [ 
-
-	"Extend the given value with its sign to a given size and asserts it fits in the given size"
-
-	self flag: #TODO.
-	self signExtendValue: aValue andAssertIsContainedIn: aSize ifTrue: trueBlock ifFalse: [  ]
-]
-
-{ #category : #'helpers - size sign' }
-CogRiscV64Compiler >> signExtendValue: aValue andAssertIsContainedIn: aSize ifTrue: trueBlock ifFalse: falseBlock [
-
-	"Extend the given value with its sign to a given size and asserts it fits in the given size"
-	
-	| mask signExtendedValue |
-	self flag: #TODO.
-	mask := (1 << aSize) - 1.
-	signExtendedValue := self computeSignExtendedValueOf: aValue ofSize: aSize.
-	(signExtendedValue bitAnd: mask) = signExtendedValue 
-		ifTrue: [ trueBlock value ]
-		ifFalse: [ falseBlock value ]
 ]
 
 { #category : #accessing }
