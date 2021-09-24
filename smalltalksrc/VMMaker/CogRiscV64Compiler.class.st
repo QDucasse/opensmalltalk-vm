@@ -327,7 +327,7 @@ CogRiscV64Compiler >> addImmediate: anImmediate toRegister: sourceRegister inReg
 	riscvOpcode := 2r0010011.	
 	"Check size and sign"
 	self assertValue: anImmediate isContainedIn: 12.
-	signExtendedImmediate := self computeSignExtendedValueOf: anImmediate ofSize: 12.
+	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 12.
 	^ ((((signExtendedImmediate bitAnd: 16rfff) << 20) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 15) 
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
@@ -366,7 +366,7 @@ CogRiscV64Compiler >> addUpperImmediateToPC: anImmediate toRegister: destination
 	self flag: #DONE.
 	"Check size and sign"	
 	self assertValue: anImmediate isContainedIn: 32.
-	signExtendedImmediate := self computeSignExtendedValueOf: anImmediate ofSize: 32.
+	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 32.
 	riscvOpcode := 2r0010111.
 	^ (((signExtendedImmediate bitAnd: 16rfffff) << 12) 
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
@@ -389,7 +389,7 @@ CogRiscV64Compiler >> addWordImmediate: anImmediate toRegister: sourceRegister i
 	riscvOpcode := 2r0011011.
 	"Check size and sign"
 	self assertValue: anImmediate isContainedIn: 12.
-	signExtendedImmediate := self computeSignExtendedValueOf: anImmediate ofSize: 12.
+	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 12.
 	^ ((((signExtendedImmediate bitAnd: 16rfff) << 20) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 15) 
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
@@ -548,7 +548,7 @@ CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg andImmediate: anImmed
 	riscvopcode := 2r0010011.
 	"Check size and sign"
 	self assertValue: anImmediate isContainedIn: 12.
-	signExtendedImmediate := self computeSignExtendedValueOf: anImmediate ofSize: 12.
+	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 12.
 	^ (((((signExtendedImmediate bitAnd: 16rfff) << 20)
 	  bitOr: (sourceReg bitAnd: 16r1f) << 15)
 	  bitOr: 2r111 << 12)
@@ -589,7 +589,7 @@ CogRiscV64Compiler >> bitwiseOrBetweenRegister: sourceReg andImmediate: anImmedi
 	riscvopcode := 2r0010011.
 	"Check size and sign"
 	self assertValue: anImmediate isContainedIn: 12.	
-	signExtendedImmediate := self computeSignExtendedValueOf: anImmediate ofSize: 12.
+	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 12.
 	^ (((((signExtendedImmediate bitAnd: 16rfff) << 20)
 	  bitOr: (sourceReg bitAnd: 16r1f) << 15)
 	  bitOr: 2r110 << 12)
@@ -632,7 +632,7 @@ CogRiscV64Compiler >> bitwiseXorBetweenRegister: srcReg andImmediate: immediate 
 	riscvOpcode := 2r0010011.	
 	"Check for sign and size"
 	self assertValue: immediate isContainedIn: 12.	
-	signExtendedImmediate :=	self computeSignExtendedValueOf: immediate ofSize: 12.
+	signExtendedImmediate :=	self computeSignedValueOf: immediate ofSize: 12.
 	^ (((((signExtendedImmediate bitAnd: 16rfff) << 20)
 	  bitOr: (srcReg bitAnd: 16r1f) << 15)
 	  bitOr: (2r100 << 12))
@@ -674,7 +674,7 @@ CogRiscV64Compiler >> branchTo: offset ifCondition: condition betweenRegister: s
 	riscvopcode := 2r1100011.
 	 "Check size and sign"	
 	self assertValue: offset isContainedIn: 13.
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 13.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 13.
 	^ (((((((((signExtendedOffset >> 12) bitAnd: 16r1) << 31)
 	  bitOr: ((signExtendedOffset >> 5) bitAnd: 16r3f)  << 25)
 	  bitOr: (srcReg2 bitAnd: 16r1f)  << 20)
@@ -928,6 +928,24 @@ CogRiscV64Compiler >> canMulRR [
 	^true
 ]
 
+{ #category : #'helpers - size sign' }
+CogRiscV64Compiler >> checkIfValue: aValue isContainedIn: aSize [ 
+
+	"Checks that the given value is contained in a certain number of bits"
+	| mask twosComplement |
+	self flag: #TODO.
+	mask := (1 << aSize) - 1.
+	aValue >= 0
+		ifTrue: [ "Compare the value with the mask"
+			^ (aValue bitAnd: mask) = aValue 
+		] 
+		ifFalse: [ "Try to do the two's complement in the given size" 
+			twosComplement := mask - aValue abs + 1.
+			^ (twosComplement >= 0 and: twosComplement <= mask) "Checks that the twos complement fits"
+		]
+
+]
+
 { #category : #accessing }
 CogRiscV64Compiler >> codeGranularity [
 	"Answer the size in bytes of a unit of machine code."
@@ -995,7 +1013,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | cq |
 								cq := operands at: 0.
-								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								((self computeSignedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
 								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in addi"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
@@ -1004,7 +1022,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | cq |
 								cq := operands at: 0.
-								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								((self computeSignedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
 								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in andi"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
@@ -1013,7 +1031,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | cq |
 								cq := operands at: 0.
-								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								((self computeSignedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
 								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in andi"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
@@ -1033,7 +1051,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | cq |
 								cq := operands at: 0.
-								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								((self computeSignedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
 								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in ori"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
@@ -1053,7 +1071,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | cq |
 								cq := operands at: 0.
-								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								((self computeSignedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
 								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in xori"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
@@ -1075,7 +1093,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | offset |
 								offset := operands at: 0.
-								((self computeSignExtendedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
+								((self computeSignedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
 								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in addi"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
@@ -1085,7 +1103,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | cq |
 								cq := operands at: 0.
-								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								((self computeSignedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
 								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in slli"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
@@ -1094,7 +1112,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | cq |
 								cq := operands at: 0.
-								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								((self computeSignedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
 								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in srli"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
@@ -1103,7 +1121,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | cq |
 								cq := operands at: 0.
-								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								((self computeSignedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
 								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in srai"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
@@ -1115,7 +1133,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | cq |
 								cq := operands at: 0.
-								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								((self computeSignedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
 								   ifTrue: [ ^ 12 ] "Immediate that can be encoded in roli (slli srli or)"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 16 ]. "immediate loaded in a register + 4 instructions for rotate regs"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 16 ] "literal load"
@@ -1124,7 +1142,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | cq |
 								cq := operands at: 0.
-								((self computeSignExtendedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+								((self computeSignedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
 								   ifTrue: [ ^ 12 ] "Immediate that can be encoded in rori (srli slli or)"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 16 ]. "immediate loaded in a register + 4 instructions for rotate regs"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 16 ] "literal load"
@@ -1195,7 +1213,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | offset |
 								offset := operands at: 1.
-								((self computeSignExtendedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
+								((self computeSignedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: offset) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1204,7 +1222,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ |  offset |
 								offset := operands at: 1.
-								((self computeSignExtendedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
+								((self computeSignedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: offset) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1213,7 +1231,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | offset |
 								offset := operands at: 1.
-								((self computeSignExtendedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
+								((self computeSignedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: offset) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1222,7 +1240,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | offset |
 								offset := operands at: 1.
-								((self computeSignExtendedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
+								((self computeSignedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: offset) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1231,7 +1249,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | offset |
 								offset := operands at: 0.
-								((self computeSignExtendedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
+								((self computeSignedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: offset) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1241,7 +1259,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | offset |
 								offset := operands at: 1.
-								((self computeSignExtendedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
+								((self computeSignedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: offset) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1250,7 +1268,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | offset |
 								offset := operands at: 1.
-								((self computeSignExtendedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
+								((self computeSignedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: offset) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1259,7 +1277,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | offset |
 								offset := operands at: 0.
-								((self computeSignExtendedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
+								((self computeSignedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: offset) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1268,7 +1286,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | offset |
 								offset := operands at: 0.
-								((self computeSignExtendedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
+								((self computeSignedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: offset) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1277,7 +1295,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | offset |
 								offset := operands at: 0.
-								((self computeSignExtendedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
+								((self computeSignedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: offset) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1286,7 +1304,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | offset |
 								offset := operands at: 0.
-								((self computeSignExtendedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
+								((self computeSignedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: offset) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1295,7 +1313,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | offset |
 								offset := operands at: 0.
-								((self computeSignExtendedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
+								((self computeSignedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: offset) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1304,7 +1322,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | index |
 								index := operands at: 0.
-								((self computeSignExtendedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
+								((self computeSignedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: index) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1313,7 +1331,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | index |
 								index := operands at: 0.
-								((self computeSignExtendedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
+								((self computeSignedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: index) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1322,7 +1340,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | index |
 								index := operands at: 1.
-								((self computeSignExtendedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
+								((self computeSignedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: index) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1331,7 +1349,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | index |
 								index := operands at: 1.
-								((self computeSignExtendedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
+								((self computeSignedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: index) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1340,7 +1358,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | index |
 								index := operands at: 0.
-								((self computeSignExtendedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
+								((self computeSignedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: index) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1349,7 +1367,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 						dependent 
 							ifNil:[ | index |
 								index := operands at: 1.
-								((self computeSignExtendedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
+								((self computeSignedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
 								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: index) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
@@ -1377,9 +1395,9 @@ CogRiscV64Compiler >> computeMaximumSize [
 ]
 
 { #category : #'helpers - size sign' }
-CogRiscV64Compiler >> computeSignExtendedValueOf: aValue ofSize: aSize [
+CogRiscV64Compiler >> computeSignedValueOf: aValue ofSize: aSize [
 
-	"Returns the two's complement value within a given number of bits. If the number is negative, returns two's complement, otherwise return the value"
+	"If the number is negative, returns two's complement, otherwise return the value"
 	self flag: #DONE.
 	aValue < 0
 		ifTrue: [ ^ aValue twoComplementOfBitSize: aSize ]  "Compute two's complement" 
@@ -4420,7 +4438,7 @@ CogRiscV64Compiler >> fLoadDoubleWordFromAddressInRegister: baseRegister withOff
 	riscvOpcode :=  2r0000111.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	"Actual bit instruction"
 	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
@@ -4447,7 +4465,7 @@ CogRiscV64Compiler >> fLoadWordFromAddressInRegister: baseRegister withOffset: o
 	riscvOpcode :=  2r0000111.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	"Actual bit instruction"
 	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
@@ -4631,7 +4649,7 @@ CogRiscV64Compiler >> fStoreDoubleWordFromRegister: sourceRegister toAddressInRe
 	riscvOpcode := 2r0100111.
 	"Check for sign and size"
 	self assertValue: offset isContainedIn: 12.
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	^ ((((((
 	  signExtendedOffset >> 5 bitAnd: 16r7f) << 25) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 20)
@@ -4655,7 +4673,7 @@ CogRiscV64Compiler >> fStoreWordFromRegister: sourceRegister toAddressInRegister
 	riscvOpcode := 2r0100111.
 	"Check for sign and size"
 	self assertValue: offset isContainedIn: 12.
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	^ ((((((
 	  signExtendedOffset >> 5 bitAnd: 16r7f) << 25) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 20)
@@ -5022,10 +5040,10 @@ CogRiscV64Compiler >> immediateLoadInstructionBytes: anImmediate [
 	 else if < 16rffff ffff ffff ffff -> lui addiw slli addi slli addi slli addi | 32"
 	<inline:true>
 	self flag: #TODO.
-	self assertValue: anImmediate isContainedIn: 12 ifTrue: [ ^ 4 ].
+"	self assertValue: anImmediate isContainedIn: 12 ifTrue: [ ^ 4 ].
 	self assertValue: anImmediate isContainedIn: 32 ifTrue: [ ^ 8 ].	
 	self assertValue: anImmediate isContainedIn: 44 ifTrue: [ ^ 16 ].
-	self assertValue: anImmediate isContainedIn: 56 ifTrue: [ ^ 24 ].	
+	self assertValue: anImmediate isContainedIn: 56 ifTrue: [ ^ 24 ].	"
 	^ 32
 ]
 
@@ -5270,7 +5288,7 @@ CogRiscV64Compiler >> jumpTo: sourceRegisterValueAddress withOffset: offset andS
 	riscvOpcode := 2r1100111.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	^ (((((signExtendedOffset bitAnd: 16rfff) << 20)
 		bitOr: (sourceRegisterValueAddress bitAnd: 16r1f) << 15)
 		bitOr: (destinationRegister bitAnd: 16r1f) << 7)
@@ -5301,7 +5319,7 @@ CogRiscV64Compiler >> jumpToOffset: offset andStorePreviousPCPlus4in: destinatio
 	riscvOpcode := 2r1101111.
 	"Check size and sign"	
 	self assertValue: offset isContainedIn: 21.	
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 21.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 21.
 	^  (((((((signExtendedOffset >> 20)  bitAnd: 16r1) << 31) 
 		bitOr: ((signExtendedOffset >> 1) bitAnd: 16r3ff) << 21)
 		bitOr: ((signExtendedOffset >> 11) bitAnd: 16r1) << 20)
@@ -5406,7 +5424,7 @@ CogRiscV64Compiler >> loadByteFromAddressInRegister: baseRegister withOffset: of
 	riscvOpcode :=  2r0000011.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.	
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	"Actual bit instruction"
 	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
@@ -5432,7 +5450,7 @@ CogRiscV64Compiler >> loadDoubleWordFromAddressInRegister: baseRegister withOffs
 	riscvOpcode :=  2r0000011.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.	
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	"Actual bit instruction"
 	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
@@ -5458,7 +5476,7 @@ CogRiscV64Compiler >> loadHalfWordFromAddressInRegister: baseRegister withOffset
 	riscvOpcode :=  2r0000011.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.	
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	"Actual bit instruction"
 	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
@@ -5471,63 +5489,17 @@ CogRiscV64Compiler >> loadHalfWordFromAddressInRegister: baseRegister withOffset
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> loadImmediate: anImmediate inRegister: destReg [
+CogRiscV64Compiler >> loadImmediate: aSignedImmediate inRegister: destReg [
 
 	"li: Pseudo-instruction that expands to variable instructions:
-	 if < 16rfff                      -> load12BitsImmediate (addi) 
-	 else if < 16rffff ffff           -> lui addiw
-	 else if < 16rffff ffff fff       -> lui addiw slli addi 
-	 else if < 16rffff ffff ffff ff   -> lui addiw slli addi slli addi
-	 else if < 16rffff ffff ffff ffff -> lui addiw slli addi slli addi slli addi"
+	 addi (< 12 bits), lui addiw (< 32 bits) and up to lui addiw slli addi slli addi slli addi (< 64 bits)"
 
+	| instructionCollection |
 	self flag: #DONE.
-	" < 16rfff"
-	self assertValue: anImmediate isContainedIn: 12 
-		ifTrue: [ ^ { self load12BitsImmediate: anImmediate inRegister: destReg }].
-	" < 16rffff ffff"
-	self assertValue: anImmediate isContainedIn: 32 
-		ifTrue: [ 
-		^ {  
-		self loadUpperImmediate: ((anImmediate >> 12) bitAnd: 16rfffff) inRegister: destReg. 
-	  	self addWordImmediate: (anImmediate bitAnd: 16rfff) toRegister: destReg inRegister: destReg
-		}
-	].
-	" < 16rffff ffff fff"
-	self assertValue: anImmediate isContainedIn: 44 
-		ifTrue: [ 
-		^ {  
-	 	self loadUpperImmediate: ((anImmediate >> 24) bitAnd: 16rfffff) inRegister: destReg.
-		self addWordImmediate: (anImmediate bitAnd: 16rfff000) >> 12 toRegister: destReg inRegister: destReg.
-		self shiftLeftValueInRegister: destReg byShiftAmount: 12 intoRegister: destReg.
-		self addImmediate: (anImmediate bitAnd: 16rfff) toRegister: destReg inRegister: destReg
-		}
-	].
-	" < 16rffff ffff ffff ff"
-	self assertValue: anImmediate isContainedIn: 56 
-		ifTrue:  [ 
-		^ { 
-	 	self loadUpperImmediate: ((anImmediate >> 36) bitAnd: 16rfffff) inRegister: destReg.
-		self addWordImmediate: (anImmediate bitAnd: 16rfff000000) >> 24 toRegister: destReg inRegister: destReg.
-		self shiftLeftValueInRegister: destReg byShiftAmount: 12 intoRegister: destReg.
-		self addImmediate: (anImmediate bitAnd: 16rfff000) >> 12 toRegister: destReg inRegister: destReg.	
-		self shiftLeftValueInRegister: destReg byShiftAmount: 12 intoRegister: destReg.
-		self addImmediate: (anImmediate bitAnd: 16rfff) toRegister: destReg inRegister: destReg
-		}
-   ].
-
-	"16rffff ffff ffff ffff"
-	^ { 
-	self loadUpperImmediate: ((anImmediate >> 48) bitAnd: 16rfffff) inRegister: destReg.
-	self addWordImmediate: (anImmediate bitAnd: 16rfff000000000) >> 36 toRegister: destReg inRegister: destReg.
-	self shiftLeftValueInRegister: destReg byShiftAmount: 12 intoRegister: destReg.
-	self addImmediate: (anImmediate bitAnd: 16rfff000000) >> 24 toRegister: destReg inRegister: destReg.	
-	self shiftLeftValueInRegister: destReg byShiftAmount: 12 intoRegister: destReg.
-	self addImmediate: (anImmediate bitAnd: 16rfff000) >> 12 toRegister: destReg inRegister: destReg.	
-	self shiftLeftValueInRegister: destReg byShiftAmount: 12 intoRegister: destReg.
-	self addImmediate: (anImmediate bitAnd: 16rfff) toRegister: destReg inRegister: destReg
-	}
-
-
+	instructionCollection := OrderedCollection new.
+	self recursiveLoadImmediate: aSignedImmediate inRegister: destReg andEmitInstructionsIn: instructionCollection.
+	^ instructionCollection
+	
 ]
 
 { #category : #'machine code instruction' }
@@ -5569,7 +5541,7 @@ CogRiscV64Compiler >> loadUnsignedByteFromAddressInRegister: baseRegister withOf
 	riscvOpcode :=  2r0000011.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.	
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	"Actual bit instruction"
 	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
@@ -5595,7 +5567,7 @@ CogRiscV64Compiler >> loadUnsignedHalfWordFromAddressInRegister: baseRegister wi
 	riscvOpcode :=  2r0000011.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.	
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	"Actual bit instruction"
 	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
@@ -5621,7 +5593,7 @@ CogRiscV64Compiler >> loadUnsignedWordFromAddressInRegister: baseRegister withOf
 	riscvOpcode :=  2r0000011.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.	
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	"Actual bit instruction"
 	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
@@ -5636,7 +5608,7 @@ CogRiscV64Compiler >> loadUnsignedWordFromAddressInRegister: baseRegister withOf
 { #category : #'machine code instruction' }
 CogRiscV64Compiler >> loadUpperImmediate: anImmediate inRegister: destReg [
 
-	"lui: Writes the sign-extended 20-bit immediate, let-shifted by 12 bits,
+	"lui: Writes the sign-extended 20-bit immediate, left-shifted by 12 bits,
 	 to x[rd], zeroing the lower 12 bits
 	
 	31                 12 11   7 6         0
@@ -5648,7 +5620,7 @@ CogRiscV64Compiler >> loadUpperImmediate: anImmediate inRegister: destReg [
 	riscvOpcode := 2r0110111.
 	"Check size and sign"
 	self assertValue: anImmediate isContainedIn: 20.	
-	signExtendedImmediate := self computeSignExtendedValueOf: anImmediate ofSize: 20.
+	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 20.
 	^ (((signExtendedImmediate bitAnd: 16rfffff) << 12) 
 	  bitOr: (destReg bitAnd: 16r1f) << 7) 
 	  bitOr: riscvOpcode
@@ -5668,7 +5640,7 @@ CogRiscV64Compiler >> loadWordFromAddressInRegister: baseRegister withOffset: of
 	riscvOpcode :=  2r0000011.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.	
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	"Actual bit instruction"
 	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
@@ -5902,7 +5874,7 @@ CogRiscV64Compiler >> popToRegister: destReg [
 
 	| offset |
 	self flag: #TODO.
-	offset := self computeSignExtendedValueOf: 8 ofSize: 12.
+	offset := self computeSignedValueOf: 8 ofSize: 12.
 	^ { 
 	  self loadDoubleWordFromAddressInRegister: SP withOffset: 0 toRegister: destReg .	
 	  self addImmediate: offset toRegister: SP inRegister: SP
@@ -5929,7 +5901,7 @@ CogRiscV64Compiler >> pushFromRegister: destReg [
 
 	| offset |
 	self flag: #TODO.
-	offset := self computeSignExtendedValueOf: -8 ofSize: 12.		
+	offset := self computeSignedValueOf: -8 ofSize: 12.		
 	^ { 
 	 self addImmediate: offset toRegister: SP inRegister: SP.
     self storeDoubleWordFromRegister: destReg toAddressInRegister: SP withOffset: 0
@@ -5939,6 +5911,63 @@ CogRiscV64Compiler >> pushFromRegister: destReg [
 { #category : #accessing }
 CogRiscV64Compiler >> pushLinkRegisterByteSize [
 	^4
+]
+
+{ #category : #'machine code instruction' }
+CogRiscV64Compiler >> recursiveLoadImmediate: anImmediate inRegister: aRegister andEmitInstructionsIn: aCollection [
+
+
+	"Check if the immediate can be contained in 32 bits"
+	| hi20 lo12 hi52 shiftAmount |
+	self flag: #TODO.
+	self assertValue: anImmediate isContainedIn: 32 
+		ifTrue: [ 
+			"Depending on the value of the immediate, the following instructions are emitted:
+				imm == 0                          : ADDI 
+				imm[0,12) != 0 && imm[12,32) == 0 : ADDI 
+			   imm[0,12) == 0 && imm[12,32) != 0 : LUI 
+				imm[0,32) != 0                    : LUI+ADDIW 
+			"
+			hi20 := (((self signExtendValue64Bits: anImmediate) + 16r800) >> 12) bitAnd: 16rFFFFF.
+			lo12 := self signExtendValue64Bits: (anImmediate bitAnd: 16rFFF).
+			
+			"lui instruction"
+			hi20 ~= 0
+				ifTrue: [ aCollection add: (self loadUpperImmediate: hi20 inRegister: aRegister) ].
+			 
+			((lo12 ~= 0) or: (hi20 = 0))
+				ifTrue: [ hi20 ~= 0
+						ifTrue: [ aCollection add: (self addWordImmediate: lo12 toRegister: aRegister inRegister: aRegister)]
+						ifFalse: [ aCollection add: (self addImmediate: lo12 toRegister: aRegister inRegister: aRegister) ] 
+					].
+			"Return to end the recursion"			
+			^ 0
+		]. 
+	
+		"In the case the value does not fit in 32 bits"
+		lo12 := self signExtendValue64Bits: (anImmediate bitAnd: 16rFFF).
+		hi52 := ((self signExtendValue64Bits: anImmediate) + 16r800) >> 12.
+		"Process the optimal shift amount"
+		shiftAmount := 12 + (self trailingZerosOf: hi52).
+		hi52 := self computeSignedValueOf: hi52 >> (shiftAmount - 12) ofSize: (64 - shiftAmount).
+		
+		"Check if the shift amount can be reduced to fit in a 32 bit variable"
+		((shiftAmount > 12) and: (((hi52 bitAnd: 16rFFF) = 0) and: (self checkIfValue: (hi52 << 12) isContainedIn: 32)))
+			ifTrue: [
+				"Reduce the shift amount"  
+				shiftAmount := shiftAmount - 12.
+				hi52 := self computeSignedValueOf: hi52 << 12 ofSize: 64.
+			].
+		
+		" Recursive call"
+		self recursiveLoadImmediate: hi52 inRegister: aRegister andEmitInstructionsIn: aCollection.	
+		"Add shift and add"		
+		aCollection add: (self shiftLeftValueInRegister: aRegister byShiftAmount: shiftAmount intoRegister: aRegister).
+		lo12 ~= 0
+			ifTrue: [ aCollection add: (self addImmediate: lo12 toRegister: aRegister inRegister: aRegister) ].
+		
+		^ 0
+	
 ]
 
 { #category : #'inline cacheing' }
@@ -6404,6 +6433,12 @@ CogRiscV64Compiler >> shiftSetsConditionCodesFor: aConditionalJumpOpcode [
 		otherwise: [self halt: 'unhandled opcode in setsConditionCodesFor:'. false]
 ]
 
+{ #category : #'machine code instruction' }
+CogRiscV64Compiler >> signExtendValue64Bits: aValue [ 
+
+	^ self computeSignedValueOf: aValue ofSize: 64
+]
+
 { #category : #accessing }
 CogRiscV64Compiler >> stackPageInterruptHeadroomBytes [
 	"Return a minimum amount of headroom for each stack page (in bytes).  In a
@@ -6455,7 +6490,7 @@ CogRiscV64Compiler >> storeByteFromRegister: sourceRegister toAddressInRegister:
 	riscvOpcode := 2r0100011.
 	"Check for sign and size"
 	self assertValue: offset isContainedIn: 12.	
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	^ ((((((
 	  offset >> 5 bitAnd: 16r7f) << 25) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 20 )
@@ -6479,7 +6514,7 @@ CogRiscV64Compiler >> storeDoubleWordFromRegister: sourceRegister toAddressInReg
 	riscvOpcode := 2r0100011.
 	"Check for sign and size"
 	self assertValue: offset isContainedIn: 12.	
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	^ ((((((
 	  signExtendedOffset >> 5 bitAnd: 16r7f) << 25) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 20)
@@ -6503,7 +6538,7 @@ CogRiscV64Compiler >> storeHalfWordFromRegister: sourceRegister toAddressInRegis
 	riscvOpcode := 2r0100011.
 	"Check for sign and size"
 	self assertValue: offset isContainedIn: 12.	
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	^ ((((((
 	  offset >> 5 bitAnd: 16r7f) << 25) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 20 )
@@ -6533,7 +6568,7 @@ CogRiscV64Compiler >> storeWordFromRegister: sourceRegister toAddressInRegister:
 	riscvOpcode := 2r0100011.
 	"Check for sign and size"
 	self assertValue: offset isContainedIn: 12.	
-	signExtendedOffset := self computeSignExtendedValueOf: offset ofSize: 12.
+	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	^ ((((((
 	  offset >> 5 bitAnd: 16r7f) << 25) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 20 )

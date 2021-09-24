@@ -1291,8 +1291,6 @@ VMSimpleStackBasedCogitBytecodeTest >> testSendEqualsEqualsWithIdenticalObjectsP
 	"Push receiver, arg then send"
 	self pushAddress: memory nilObject.
 	self pushAddress: memory nilObject.
-	self openMachineDebugger.
-	1halt.
 	self runFrom: sendAddress until: self getLastAddress.		
 	self
 		assert: self popAddress
