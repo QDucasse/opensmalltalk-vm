@@ -5,13 +5,15 @@ Class {
 		'cogit',
 		'machineSimulator',
 		'instructions',
+		'irinstructions',
 		'stepButton',
 		'disassembleAtPCButton',
 		'machineState',
 		'initialInstructionToDisassemble',
 		'stack',
 		'ipInput',
-		'jumpToButton'
+		'jumpToButton',
+		'abstractInstructions'
 	],
 	#category : #'VMMaker-Tools'
 }
@@ -21,6 +23,7 @@ VMMachineCodeDebugger class >> defaultSpec [
 
 	^  SpBoxLayout newVertical 
 		add:(SpBoxLayout newHorizontal
+			add: #irinstructions expand: true fill: true padding: 5;
 			add: #instructions expand: true fill: true padding: 5;		
 			add: #machineState expand: true fill: true padding: 5;	
 			add: #stack expand: true fill: true padding: 5; 
@@ -48,6 +51,18 @@ VMMachineCodeDebugger class >> openOnCogit: aCogit ip: anInstructionPointer [
 		machineSimulator: aCogit processor machineSimulator;
 		initialInstructionToDisassemble: anInstructionPointer;
 		openWithSpec.
+]
+
+{ #category : #showing }
+VMMachineCodeDebugger >> abstractInstructions [
+
+	^ abstractInstructions
+]
+
+{ #category : #showing }
+VMMachineCodeDebugger >> abstractInstructions: aCollection [
+
+	^ abstractInstructions := aCollection
 ]
 
 { #category : #accessing }
@@ -156,6 +171,12 @@ VMMachineCodeDebugger >> initialExtent [
 ]
 
 { #category : #showing }
+VMMachineCodeDebugger >> initialIRDisassemble [ 
+
+	^ self abstractInstructions collect: [ :anInstruction | anInstruction symbolic ]
+]
+
+{ #category : #showing }
 VMMachineCodeDebugger >> initialInstructionToDisassemble [
 
 	^ initialInstructionToDisassemble
@@ -177,6 +198,16 @@ VMMachineCodeDebugger >> initializePresenters [
 		addColumn: (SpStringTableColumn evaluated: #alias);
 		addColumn: (SpStringTableColumn evaluated: [ :register | register printString ]).
 
+	irinstructions := self newTable.
+	irinstructions 
+		isResizable: true;
+		addColumn: ((SpStringTableColumn 
+			title: 'IR Instructions'
+			evaluated: #printString)
+			isSortable: false; 
+			yourself);		
+		showColumnHeaders.
+		
 	instructions := self newTable.
 	instructions
 		isResizable: true;
@@ -227,6 +258,11 @@ VMMachineCodeDebugger >> inspectSelectedInstruction [
 	instructions selection selectedItem inspect
 ]
 
+{ #category : #accessing }
+VMMachineCodeDebugger >> irinstructions: aCollection [ 
+	irinstructions := aCollection
+]
+
 { #category : #actions }
 VMMachineCodeDebugger >> jump [
 
@@ -254,10 +290,17 @@ VMMachineCodeDebugger >> openWithSpec [
 
 { #category : #showing }
 VMMachineCodeDebugger >> refreshAll [ 
-	
+
+	self refreshIRInstructions.
 	self refreshInstructions.
 	self refreshStack.
 	self refreshRegisters.
+]
+
+{ #category : #showing }
+VMMachineCodeDebugger >> refreshIRInstructions [
+
+	irinstructions items: self initialIRDisassemble  
 ]
 
 { #category : #showing }
