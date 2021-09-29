@@ -4,6 +4,7 @@ Class {
 	#instVars : [
 		'simulator',
 		'registerAliases',
+		'registerSmalltalkAliases',
 		'memory'
 	],
 	#category : #VMMakerTests
@@ -19,6 +20,12 @@ ProcessorSimulator class >> simulatorFor: isa [
 ProcessorSimulator >> aliasForRegister: aRegisterName [
 
 	^ registerAliases at: aRegisterName ifAbsent: [ '' ]
+]
+
+{ #category : #accessing }
+ProcessorSimulator >> aliasSmalltalkForRegister: aRegisterName [
+
+	^ registerSmalltalkAliases at: aRegisterName ifAbsent: [ '' ]
 ]
 
 { #category : #registers }
@@ -184,6 +191,12 @@ ProcessorSimulator >> hasLinkRegister [
 
 { #category : #initialization }
 ProcessorSimulator >> initializeRegisterAliases [
+
+	"Hook for subclasses"
+]
+
+{ #category : #initialization }
+ProcessorSimulator >> initializeRegisterSmalltalkAliases [
 
 	"Hook for subclasses"
 ]
@@ -395,13 +408,20 @@ ProcessorSimulator >> register: aRegisterIndex write: aByteArray [
 	simulator register: aRegisterIndex readInto: aByteArray 
 ]
 
+{ #category : #'reading memory' }
+ProcessorSimulator >> registerAliases [ 
+
+	^ registerAliases
+]
+
 { #category : #accessing }
 ProcessorSimulator >> registerDescriptors [
 	
 	^ self registerList collect: [ :e |
-		UnicornRegisterDescriptor new
+		RegisterDescriptor new
 			simulator: self;
 			alias: (self aliasForRegister: e);
+			smalltalkAlias: (self aliasSmalltalkForRegister: e);
 			name: e;
 			yourself ]
 ]

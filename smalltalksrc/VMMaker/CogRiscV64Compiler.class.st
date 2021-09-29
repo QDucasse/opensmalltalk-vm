@@ -5920,7 +5920,7 @@ CogRiscV64Compiler >> recursiveLoadImmediate: anImmediate inRegister: aRegister 
 	"Check if the immediate can be contained in 32 bits"
 	| hi20 lo12 hi52 shiftAmount |
 	self flag: #TODO.
-	self assertValue: anImmediate isContainedIn: 32 
+	self assertValue: anImmediate isContainedIn: 31 
 		ifTrue: [ 
 			"Depending on the value of the immediate, the following instructions are emitted:
 				imm == 0                          : ADDI 
@@ -5938,7 +5938,7 @@ CogRiscV64Compiler >> recursiveLoadImmediate: anImmediate inRegister: aRegister 
 			((lo12 ~= 0) or: (hi20 = 0))
 				ifTrue: [ hi20 ~= 0
 						ifTrue: [ aCollection add: (self addWordImmediate: lo12 toRegister: aRegister inRegister: aRegister)]
-						ifFalse: [ aCollection add: (self addImmediate: lo12 toRegister: aRegister inRegister: aRegister) ] 
+						ifFalse: [ aCollection add: (self addImmediate: lo12 toRegister: X0 inRegister: aRegister) ] 
 					].
 			"Return to end the recursion"			
 			^ 0

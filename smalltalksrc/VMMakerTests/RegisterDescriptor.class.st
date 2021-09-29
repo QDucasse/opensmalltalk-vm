@@ -1,49 +1,50 @@
 Class {
-	#name : #UnicornRegisterDescriptor,
+	#name : #RegisterDescriptor,
 	#superclass : #Object,
 	#instVars : [
 		'simulator',
 		'name',
-		'alias'
+		'alias',
+		'smalltalkAlias'
 	],
-	#category : #'VMMakerTests-Unicorn'
+	#category : #VMMakerTests
 }
 
 { #category : #accessing }
-UnicornRegisterDescriptor >> alias [
+RegisterDescriptor >> alias [
 	^ alias
 ]
 
 { #category : #accessing }
-UnicornRegisterDescriptor >> alias: aString [ 
+RegisterDescriptor >> alias: aString [ 
 	
 	alias := aString
 ]
 
 { #category : #actions }
-UnicornRegisterDescriptor >> copyValueToClipboard [
+RegisterDescriptor >> copyValueToClipboard [
 	
 	Clipboard clipboardText: self value hex
 ]
 
 { #category : #actions }
-UnicornRegisterDescriptor >> inspectValue [
+RegisterDescriptor >> inspectValue [
 
 	self value inspect
 ]
 
 { #category : #accessing }
-UnicornRegisterDescriptor >> name [
+RegisterDescriptor >> name [
 	^ name
 ]
 
 { #category : #accessing }
-UnicornRegisterDescriptor >> name: anObject [
+RegisterDescriptor >> name: anObject [
 	name := anObject
 ]
 
 { #category : #accessing }
-UnicornRegisterDescriptor >> printOn: aStream [
+RegisterDescriptor >> printOn: aStream [
 
 	(self value isKindOf: Boolean )
 		ifTrue: [ ^ aStream print: self value ].
@@ -53,23 +54,35 @@ UnicornRegisterDescriptor >> printOn: aStream [
 ]
 
 { #category : #actions }
-UnicornRegisterDescriptor >> printValue [
+RegisterDescriptor >> printValue [
 
 	simulator memory interpreter longPrintOop: self value
 ]
 
 { #category : #accessing }
-UnicornRegisterDescriptor >> simulator [
+RegisterDescriptor >> simulator [
 	^ simulator
 ]
 
 { #category : #accessing }
-UnicornRegisterDescriptor >> simulator: anObject [
+RegisterDescriptor >> simulator: anObject [
 	simulator := anObject
 ]
 
 { #category : #accessing }
-UnicornRegisterDescriptor >> value [
+RegisterDescriptor >> smalltalkAlias [
+	
+	^ smalltalkAlias
+]
+
+{ #category : #accessing }
+RegisterDescriptor >> smalltalkAlias: aString [ 
+	
+	smalltalkAlias := aString
+]
+
+{ #category : #accessing }
+RegisterDescriptor >> value [
 
 	^ simulator perform: name
 ]

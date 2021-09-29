@@ -9,7 +9,7 @@ VMRISCV64SpecificEncodingTest >> testEncode12BitImmediate [
 
 	self compile: [		 
 		cogit MoveCq: 16r800 R: ReceiverResultReg ].
-
+	
 	self runGeneratedCode.
 
 	self assert: machineSimulator receiverRegisterValue equals: 16r800
@@ -45,7 +45,7 @@ VMRISCV64SpecificEncodingTest >> testEncode32BitImmediate [
 	"Should lui addi"
 	self compile: [		 
 		cogit MoveCq: 16r80000000 R: ReceiverResultReg ].
-
+	
 	self runGeneratedCode.
 
 	self assert: machineSimulator receiverRegisterValue equals: 16r80000000
@@ -82,7 +82,23 @@ VMRISCV64SpecificEncodingTest >> testEncode64BitImmediate800 [
 	self compile: [		 
 		cogit MoveCq: 16r8000800800800800 R: ReceiverResultReg ].
 
+	1halt.
+	self openMachineDebugger.
 	self runGeneratedCode.
 
 	self assert: machineSimulator receiverRegisterValue equals: 16r8000800800800800
+]
+
+{ #category : #tests }
+VMRISCV64SpecificEncodingTest >> testEncode64BitImmediateF [
+
+	"Should lui addi"
+	self compile: [		 
+		cogit MoveCq: 16rFFFFFFFFFFFFFFFF R: ReceiverResultReg ].
+
+	1halt.
+	self openMachineDebugger.
+	self runGeneratedCode.
+
+	self assert: machineSimulator receiverRegisterValue equals: 16rFFFFFFFFFFFFFFFF
 ]
