@@ -1529,10 +1529,10 @@ CogRiscV64Compiler >> concretizeAndCqR [
 		"
 
 	<inline: true>
-	| cq destReg sourceReg instrOffset |
+	| cq sourceReg instrOffset |
 	self flag: #TODO.
 	cq := operands at: 0.
-	sourceReg := destReg := operands at: 1.
+	sourceReg := operands at: 1.
 	dependent
 		ifNil: [ 
 			self assertValue: cq isContainedIn: 12
@@ -1540,7 +1540,7 @@ CogRiscV64Compiler >> concretizeAndCqR [
 					self machineCodeAt: 0 put: (self
 							 bitwiseAndBetweenRegister: sourceReg
 							 andImmediate: cq
-							 toRegister: destReg).
+							 toRegister: ConcreteFlagReg).
 					^ machineCodeSize := 4 ]
 				ifFalse: [ "Move to a register before performing AND on the registers"	
 					"Load the immediate to a register"
@@ -1551,7 +1551,7 @@ CogRiscV64Compiler >> concretizeAndCqR [
 	self machineCodeAt: instrOffset put: (self
 			bitwiseAndBetweenRegister: sourceReg
 			andRegister: ConcreteIPReg
-			toRegister: destReg).
+			toRegister: ConcreteFlagReg).
 	^ machineCodeSize := instrOffset + 4
 ]
 
@@ -1877,6 +1877,7 @@ CogRiscV64Compiler >> concretizeConvertRRd [
 	<inline: true>
 	| srcReg destReg |
 	self flag: #TODO.
+	1halt.
 	srcReg := operands at:0.
 	destReg := operands at: 1.
 	self machineCodeAt: 0 put: (self

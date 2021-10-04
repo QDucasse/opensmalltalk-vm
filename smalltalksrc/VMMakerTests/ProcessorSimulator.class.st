@@ -190,6 +190,14 @@ ProcessorSimulator >> hasLinkRegister [
 ]
 
 { #category : #initialization }
+ProcessorSimulator >> initialize [ 
+
+	super initialize.
+	registerAliases := Dictionary new.
+	registerSmalltalkAliases := Dictionary new.
+]
+
+{ #category : #initialization }
 ProcessorSimulator >> initializeRegisterAliases [
 
 	"Hook for subclasses"

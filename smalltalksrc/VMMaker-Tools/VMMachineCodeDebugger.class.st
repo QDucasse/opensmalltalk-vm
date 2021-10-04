@@ -513,7 +513,8 @@ VMMachineCodeDebugger >> selectedInstruction [
 { #category : #actions }
 VMMachineCodeDebugger >> setInstructionPointerToSelectedInstruction [
 	
-	machineSimulator instructionPointerValue: instructions selection selectedItem address
+	machineSimulator instructionPointerValue: instructions selection selectedItem address.
+	self highlightPCInstruction 
 ]
 
 { #category : #actions }
