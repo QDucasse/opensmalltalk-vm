@@ -388,6 +388,13 @@ VMSimpleStackBasedCogitAbstractTest >> initialCodeSize [
 	^ 4 * 1024
 ]
 
+{ #category : #helpers }
+VMSimpleStackBasedCogitAbstractTest >> initializationOptions [
+	
+	^ super initializationOptions, {
+		#bytecodeTableInitializer. #initializeBytecodeTableForSqueakV3PlusClosures}
+]
+
 { #category : #running }
 VMSimpleStackBasedCogitAbstractTest >> initializeInitialStackFrame [
 
@@ -417,6 +424,12 @@ VMSimpleStackBasedCogitAbstractTest >> initializeStackMemory [
 VMSimpleStackBasedCogitAbstractTest >> instructionPointer [
 
 	^ self readRegister: machineSimulator instructionPointerRegister
+]
+
+{ #category : #helpers }
+VMSimpleStackBasedCogitAbstractTest >> interpreterClass [
+
+	^ CogVMSimulatorLSB
 ]
 
 { #category : #running }
@@ -464,25 +477,6 @@ VMSimpleStackBasedCogitAbstractTest >> memoryClass [
 	^ self wordSize = 4
 		ifTrue: [ Spur32BitCoMemoryManager ]
 		ifFalse: [ Spur64BitCoMemoryManager ]
-]
-
-{ #category : #helpers }
-VMSimpleStackBasedCogitAbstractTest >> newInterpreter [
-
-	| theMemory |
-	theMemory := self newMemory.
-
-	CogVMSimulatorLSB
-		initializeWithOptions: {
-			#BytesPerWord. 8.
-			#ObjectMemory. theMemory class name.
-			#bytecodeTableInitializer. #initializeBytecodeTableForSqueakV3PlusClosures}
-		objectMemoryClass: theMemory class.
-		
-		
-	^ CogVMSimulatorLSB basicNew
-		objectMemory: theMemory;
-		basicInitialize
 ]
 
 { #category : #running }

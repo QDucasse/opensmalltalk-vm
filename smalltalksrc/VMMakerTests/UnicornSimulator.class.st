@@ -10,13 +10,13 @@ Class {
 
 { #category : #'instance creation' }
 UnicornSimulator class >> ARMv5 [
-	
+
 	^ UnicornARMv5Simulator new
 ]
 
 { #category : #'instance creation' }
 UnicornSimulator class >> ARMv8 [
-	
+
 	^ UnicornARMv8Simulator new
 ]
 
@@ -28,18 +28,190 @@ UnicornSimulator class >> IA32 [
 
 { #category : #'instance creation' }
 UnicornSimulator class >> X64 [
-	
+
 	^ UnicornX64Simulator new
 ]
 
 { #category : #'instance creation' }
 UnicornSimulator class >> aarch64 [
-	
+
 	^ UnicornARMv8Simulator new
 ]
 
+{ #category : #accessing }
+UnicornSimulator >> aliasForRegister: aRegisterName [
+
+	^ registerAliases at: aRegisterName ifAbsent: [ '' ]
+]
+
+{ #category : #registers }
+UnicornSimulator >> arg0Register [
+
+	^ self subclassResponsibility
+]
+
+{ #category : #registers }
+UnicornSimulator >> arg0RegisterValue [
+
+	^ self readRegister: self arg0Register
+]
+
+{ #category : #registers }
+UnicornSimulator >> arg0RegisterValue: aValue [
+
+	^ self writeRegister: self arg0Register value: aValue
+]
+
+{ #category : #registers }
+UnicornSimulator >> arg1Register [
+
+	^ self subclassResponsibility
+]
+
+{ #category : #registers }
+UnicornSimulator >> arg1RegisterValue [
+
+	^ self readRegister: self arg1Register
+]
+
 { #category : #'as yet unclassified' }
-UnicornSimulator class >> supportsISA: isa [
+UnicornSimulator >> argument0RegisterValue [
+
+	^ self subclassResponsibility
+]
+
+{ #category : #accessing }
+UnicornSimulator >> argument0RegisterValue: anInteger [
+
+	self subclassResponsibility
+]
+
+{ #category : #registers }
+UnicornSimulator >> baseRegister [
+
+	^ self subclassResponsibility
+]
+
+{ #category : #registers }
+UnicornSimulator >> baseRegisterValue [
+
+	^ self readRegister: self baseRegister
+]
+
+{ #category : #registers }
+UnicornSimulator >> baseRegisterValue: aValue [
+
+	^ self writeRegister: self baseRegister value: aValue
+]
+
+{ #category : #'c calling convention' }
+UnicornSimulator >> cResultRegister [
+
+	^ self subclassResponsibility
+]
+
+{ #category : #'c calling convention' }
+UnicornSimulator >> cReturnRegisterValue: anInteger [
+
+	self eax: anInteger
+]
+
+{ #category : #'c calling convention' }
+UnicornSimulator >> carg0 [
+
+	"By default fetch values from registers, override in platforms that don't (e.g. IA32)"
+	^ self carg0RegisterValue
+]
+
+{ #category : #'c calling convention' }
+UnicornSimulator >> carg0Register [
+
+	^ self subclassResponsibility
+]
+
+{ #category : #'c calling convention' }
+UnicornSimulator >> carg0RegisterValue [
+
+	^ self readRegister: self carg0Register
+]
+
+{ #category : #'c calling convention' }
+UnicornSimulator >> carg1 [
+
+	"By default fetch values from registers, override in platforms that don't (e.g. IA32)"
+	^ self carg1RegisterValue
+]
+
+{ #category : #'c calling convention' }
+UnicornSimulator >> carg1Register [
+
+	^ self subclassResponsibility
+]
+
+{ #category : #'c calling convention' }
+UnicornSimulator >> carg1RegisterValue [
+
+	^ self readRegister: self carg1Register
+]
+
+{ #category : #'c calling convention' }
+UnicornSimulator >> carg2 [
+
+	"By default fetch values from registers, override in platforms that don't (e.g. IA32)"
+	^ self carg2RegisterValue
+]
+
+{ #category : #'c calling convention' }
+UnicornSimulator >> carg2Register [
+
+	^ self subclassResponsibility
+]
+
+{ #category : #'c calling convention' }
+UnicornSimulator >> carg2RegisterValue [
+
+	^ self readRegister: self carg2Register
+]
+
+{ #category : #'c calling convention' }
+UnicornSimulator >> carg3 [
+
+	"By default fetch values from registers, override in platforms that don't (e.g. IA32)"
+	^ self carg3RegisterValue
+]
+
+{ #category : #'c calling convention' }
+UnicornSimulator >> carg3Register [
+
+	^ self subclassResponsibility
+]
+
+{ #category : #'c calling convention' }
+UnicornSimulator >> carg3RegisterValue [
+
+	^ self readRegister: self carg3Register
+]
+
+{ #category : #registers }
+UnicornSimulator >> classRegister [
+
+	^ self subclassResponsibility
+]
+
+{ #category : #registers }
+UnicornSimulator >> classRegisterValue [
+
+	^ self readRegister: self classRegister
+]
+
+{ #category : #registers }
+UnicornSimulator >> classRegisterValue: aValue [
+
+	^ self writeRegister: self classRegister value: aValue
+]
+
+{ #category : #accessing }
+UnicornSimulator >> cogit [
 
 	^ #( #ARMv5 #ARMv8 #IA32 #X64 #aarch64 ) includes: isa
 ]
@@ -61,63 +233,63 @@ UnicornSimulator >> doStartAt: startAddress until: until timeout: timeout count:
 	remainingCount := count.
 
 	[ true ]
-		whileTrue: [ 
+		whileTrue: [
 			[result :=  simulator
 				startAt: self instructionPointerValue
 				until: until
 				timeout: remainingTimeout
 				count: remainingCount.
-					
-				stopReason ifNotNil: [ 
+
+				stopReason ifNotNil: [
 						error := stopReason.
 						stopReason := nil.
 						error signal ].
-		
+
 			"If execution did not stop because of a stop reason, verify the error code"
-			simulator verifyErrorCode: result] 
+			simulator verifyErrorCode: result]
 				on: UnicornInvalidMemoryAccess do: [ :invalidAccess |
-					
+
 					self instructionPointerValue = until ifTrue: [ ^ 0 ].
-					
+
 					(self handleInvalidAccess: invalidAccess)
 						ifFalse: [ ^ result ]].
-			
+
 			stopReason ifNotNil: [ ^ result ].
-		
+
 			count ~= 0 ifTrue: [ | lastCount |
 				lastCount := simulator lastInstructionCount.
 				remainingCount := remainingCount - lastCount.
 				remainingCount <= 0 ifTrue: [ ^ result ]].
-			
-			timeout ~= 0 ifTrue: [  
+
+			timeout ~= 0 ifTrue: [
 				currentTime := Time millisecondClockValue.
 				remainingTimeout := remainingTimeout - (currentTime - startTime).
-				
+
 				remainingTimeout <= 0
-					ifTrue: [ 	
+					ifTrue: [
 						UnicornTimeout new
 								target: until;
 								signal ]].
-			
-			self instructionPointerValue = until 
+
+			self instructionPointerValue = until
 				ifTrue: [ ^ result ]]
 ]
 
 { #category : #'handling invalid accesses' }
-UnicornSimulator >> handleInvalidAccess: invalidAccess [ 
+UnicornSimulator >> handleInvalidAccess: invalidAccess [
 
 	| previousInstructionPointer hasToContinue |
 	previousInstructionPointer := self instructionPointerValue.
-	
+
 	"If the called handler want to resume execution but it has not set a next instruction pointer to execute I will calculate it"
-	
+
 	(hasToContinue := invalidAccessHandler value: invalidAccess)
-		ifTrue: [ previousInstructionPointer = self instructionPointerValue 
-			ifTrue: [  
-					self instructionPointerValue: 
-						self lastExecutedInstructionAddress + self lastExecutedInstructionSize 
-				] ].	
-		
+		ifTrue: [ previousInstructionPointer = self instructionPointerValue
+			ifTrue: [
+					self instructionPointerValue:
+						self lastExecutedInstructionAddress + self lastExecutedInstructionSize
+				] ].
+
 	^ hasToContinue
 ]
 
@@ -127,11 +299,11 @@ UnicornSimulator >> initialize [
 	super initialize.
 	simulator := self createUnicorn.
 	self initializeUnicorn.
-	
+
 	registerAliases := Dictionary new.
 	self initializeRegisterAliases.
-	
-	invalidAccessHandler := [ :invalidAccess | 
+
+	invalidAccessHandler := [ :invalidAccess |
 		self cogit handleSimulationTrap: (UnicornSimulationTrap simulator: self error: invalidAccess).
 		true]
 ]
@@ -140,8 +312,8 @@ UnicornSimulator >> initialize [
 UnicornSimulator >> initializeUnicorn [
 
 	simulator
-		registerInvalidMemoryAccessHook: UcHookType invalidMemoryAccess value 
-		doing: [ :type :address :size :value | 
+		registerInvalidMemoryAccessHook: UcHookType invalidMemoryAccess value
+		doing: [ :type :address :size :value |
 			simulator stop.
 			stopReason := UnicornInvalidMemoryAccess new
 				type: type;
@@ -153,31 +325,401 @@ UnicornSimulator >> initializeUnicorn [
 ]
 
 { #category : #'handling invalid accesses' }
-UnicornSimulator >> invalidAccessHandler: aFullBlockClosure [ 
+UnicornSimulator >> invalidAccessHandler: aFullBlockClosure [
 	invalidAccessHandler := aFullBlockClosure
 ]
 
+<<<<<<< HEAD
+=======
+{ #category : #accessing }
+UnicornSimulator >> lastExecutedInstructionAddress [
+
+	^ unicorn lastExecutedInstructionAddress
+]
+
+{ #category : #accessing }
+UnicornSimulator >> lastExecutedInstructionSize [
+
+	^ unicorn lastExecutedInstructionSize
+]
+
+{ #category : #accessing }
+UnicornSimulator >> lastInstructionCount [
+
+	^ unicorn lastInstructionCount
+]
+
+{ #category : #memory }
+UnicornSimulator >> mapMemory: aMemory at: anAddress [
+
+	unicorn
+		mapHostMemory: aMemory
+		atAddress: anAddress
+		withPermissions: UnicornConstants permissionAll.
+]
+
+{ #category : #'memory-mapping' }
+UnicornSimulator >> mapMemoryInManager: aSlangMemoryManager [
+
+	aSlangMemoryManager regionsDo: [ :startAddress :region |
+		self mapMemory: region at: startAddress
+	]
+]
+
+{ #category : #accessing }
+UnicornSimulator >> memory [
+	^ memory
+]
+
+{ #category : #accessing }
+UnicornSimulator >> memory: aSpur64BitMMLECoSimulator [
+
+	memory := aSpur64BitMMLECoSimulator
+]
+
+{ #category : #memory }
+UnicornSimulator >> memoryAt: address readNext: byteSize [
+
+	^ unicorn memoryAt: address readNext: byteSize
+]
+
+{ #category : #memory }
+UnicornSimulator >> memoryAt: address write: bytes size: size [
+
+	unicorn memoryAt: address write: bytes size: size
+]
+
+{ #category : #'helpers - stack' }
+UnicornSimulator >> peek [
+
+	| stackAddressIntegerValue peekedByteArray |
+
+	"Getting address from stack register"
+	stackAddressIntegerValue := self stackPointerRegisterValue.
+
+	"Putting the value in the stack memory"
+	peekedByteArray := self memoryAt: stackAddressIntegerValue readNext: self wordSize.
+
+	^ peekedByteArray
+]
+
+{ #category : #'helpers - stack' }
+UnicornSimulator >> peekAddress [
+
+	^ self peek integerAt: 1 size: self wordSize signed: false
+]
+
+{ #category : #'stack-access' }
+UnicornSimulator >> popBytes [
+
+	| stackAddressIntegerValue aByteArray |
+
+	"Getting address from stack register"
+	stackAddressIntegerValue := self stackPointerRegisterValue.
+	"Putting the value from the stack memory"
+	aByteArray := self memoryAt: stackAddressIntegerValue readNext: self wordSize.
+
+	"Updating SP"
+	stackAddressIntegerValue := stackAddressIntegerValue + self wordSize.
+	self stackPointerRegisterValue: stackAddressIntegerValue.
+
+	^ aByteArray
+]
+
+{ #category : #'stack-access' }
+UnicornSimulator >> popWord [
+
+	| aByteArray |
+	aByteArray := self popBytes.
+	^ aByteArray integerAt: 1 size: self wordSize signed: false.
+]
+
+{ #category : #'stack-access' }
+UnicornSimulator >> pushBytes: aByteArray [
+
+	| stackAddressIntegerValue |
+	self assert: aByteArray size = self wordSize.
+
+	"Getting address from stack register"
+	stackAddressIntegerValue := self stackPointerRegisterValue.
+
+	"Updating SP"
+	stackAddressIntegerValue := stackAddressIntegerValue - self wordSize.
+	self stackPointerRegisterValue: stackAddressIntegerValue.
+
+	"Putting the value in the stack memory"
+	self
+		memoryAt: stackAddressIntegerValue
+		write: aByteArray
+		size: self wordSize
+
+]
+
+{ #category : #'stack-access' }
+UnicornSimulator >> pushWord: anInteger [
+
+	| aByteArray |
+	aByteArray := ByteArray new: self wordSize.
+	aByteArray integerAt: 1 put: anInteger size: self wordSize signed: false.
+	self pushBytes: aByteArray
+]
+
+{ #category : #'as yet unclassified' }
+UnicornSimulator >> readFloat64Register: aRegisterID [
+
+	| registerValue |
+	registerValue := ByteArray new: 8.
+	unicorn register: aRegisterID value readInto: registerValue.
+
+	^ registerValue doubleAt: 1
+]
+
+{ #category : #registers }
+UnicornSimulator >> readRegister: aRegisterID [
+
+	| registerValue |
+	registerValue := ByteArray new: self wordSize.
+	unicorn register: aRegisterID value readInto: registerValue.
+	^ registerValue integerAt: 1 size: self wordSize signed: false
+]
+
+{ #category : #registers }
+UnicornSimulator >> receiverRegister [
+
+	^ self subclassResponsibility
+]
+
+{ #category : #registers }
+UnicornSimulator >> receiverRegisterValue [
+
+	^ self readRegister: self receiverRegister
+]
+
+{ #category : #registers }
+UnicornSimulator >> receiverRegisterValue: anInteger [
+
+	self writeRegister: self receiverRegister value: anInteger
+]
+
+{ #category : #'reading memory' }
+UnicornSimulator >> register: anIndex readInto: aByteArray [
+
+	unicorn register: anIndex readInto: aByteArray
+]
+
+{ #category : #'as yet unclassified' }
+UnicornSimulator >> register: aRegisterIndex write: aByteArray [
+
+	unicorn register: aRegisterIndex readInto: aByteArray
+]
+
+{ #category : #accessing }
+UnicornSimulator >> registerDescriptors [
+
+	^ self registerList collect: [ :e |
+		UnicornRegisterDescriptor new
+			simulator: self;
+			alias: (self aliasForRegister: e);
+			name: e;
+			yourself ]
+]
+
+>>>>>>> upstream/headless
 { #category : #initialization }
 UnicornSimulator >> registerHook: aBlock atAddress: anAddress [
 
 	simulator
-		registerInvalidMemoryAccessHook: UcHookType fetchingAccess value 
+		registerInvalidMemoryAccessHook: UcHookType fetchingAccess value
 		doing: [ :type :address :size :value | address = anAddress ifTrue: aBlock ]
 ]
 
+<<<<<<< HEAD
+=======
+{ #category : #registers }
+UnicornSimulator >> returnRegisterValue [
+
+	^ self receiverRegisterValue
+]
+
+{ #category : #registers }
+UnicornSimulator >> returnRegisterValue: aValue [
+
+	^ self receiverRegisterValue: aValue
+]
+
+{ #category : #registers }
+UnicornSimulator >> sendNumberOfArgumentsRegister [
+
+	self subclassResponsibility
+]
+
+{ #category : #registers }
+UnicornSimulator >> sendNumberOfArgumentsRegister: anInteger [
+	self shouldBeImplemented.
+]
+
+{ #category : #registers }
+UnicornSimulator >> sendNumberOfArgumentsRegisterValue [
+
+	^ self readRegister: self sendNumberOfArgumentsRegister
+]
+
+{ #category : #registers }
+UnicornSimulator >> sendNumberOfArgumentsRegisterValue: aValue [
+
+	^ self writeRegister: self sendNumberOfArgumentsRegister value: aValue
+]
+
+{ #category : #'as yet unclassified' }
+UnicornSimulator >> simulateLeafCallOf: address nextpc: nextpc memory: aMemory [
+
+	self pushWord: nextpc.
+	self rip: address
+]
+
+{ #category : #accessing }
+UnicornSimulator >> smalltalkStackPointerRegister [
+	"By default they are the same"
+	^ self stackPointerRegister
+]
+
+{ #category : #registers }
+UnicornSimulator >> smalltalkStackPointerRegisterValue [
+
+	^ self readRegister: self smalltalkStackPointerRegister
+]
+
+{ #category : #registers }
+UnicornSimulator >> smalltalkStackPointerRegisterValue: aValue [
+
+	self writeRegister: self smalltalkStackPointerRegister value: aValue
+]
+
+{ #category : #registers }
+UnicornSimulator >> smashRegisterAccessors [
+
+	^ self subclassResponsibility
+]
+
+{ #category : #registers }
+UnicornSimulator >> smashRegistersWithValuesFrom: base by: step [
+
+	self smashRegisterAccessors withIndexDo: [:accessor :index|
+		self perform: accessor with: index - 1 * step + base]
+]
+
+{ #category : #registers }
+UnicornSimulator >> stackPointerRegister [
+
+	self subclassResponsibility
+]
+
+{ #category : #registers }
+UnicornSimulator >> stackPointerRegisterValue [
+
+	^ self readRegister: self stackPointerRegister
+]
+
+{ #category : #registers }
+UnicornSimulator >> stackPointerRegisterValue: aValue [
+
+	self writeRegister: self stackPointerRegister value: aValue
+]
+
+{ #category : #'stack-access' }
+UnicornSimulator >> stackValueAt: anInteger [
+
+	"Get a value from the stack at a 0-base position"
+	| aByteArray |
+	aByteArray := self stackValueBytesAt: anInteger.
+	^ aByteArray integerAt: 1 size: self wordSize signed: false
+]
+
+{ #category : #'stack-access' }
+UnicornSimulator >> stackValueBytesAt: position [
+
+	"Get the bytes from the stack at a 0-base position"
+	| stackAddressIntegerValue aByteArray |
+
+	"Getting address from stack register"
+	stackAddressIntegerValue := self stackPointerRegisterValue.
+
+	"Putting the value from the stack memory.
+	Remember, stack grows down, so we add the offset"
+	aByteArray := self
+		memoryAt: stackAddressIntegerValue + (position * self wordSize)
+		readNext: self wordSize.
+
+	^ aByteArray
+]
+
+{ #category : #'stack-access' }
+UnicornSimulator >> stackValues [
+
+	| initialValue |
+	initialValue := self smalltalkStackPointerRegisterValue.
+
+	^ (1 to: 30) collect: [ :anIndex |
+		VMMachineCodeDebuggerStackItem address: initialValue + (memory wordSize * (anIndex - 1)) on: self.
+	]
+]
+
+>>>>>>> upstream/headless
 { #category : #executing }
-UnicornSimulator >> startAt: begin until: until timeout: timeout count: count [ 
+UnicornSimulator >> startAt: begin until: until timeout: timeout count: count [
 
 	^ self doStartAt: begin until: until timeout: timeout count: count.
-	
+
 ]
 
 { #category : #actions }
 UnicornSimulator >> step [
-	
+
 	self
 		startAt: self instructionPointerValue
 		until: 0
 		timeout: 0
 		count: 1
 ]
+<<<<<<< HEAD
+=======
+
+{ #category : #registers }
+UnicornSimulator >> temporaryRegister [
+
+	^ self subclassResponsibility
+]
+
+{ #category : #accessing }
+UnicornSimulator >> temporaryRegisterValue [
+
+	^ self readRegister: self temporaryRegister
+]
+
+{ #category : #registers }
+UnicornSimulator >> temporaryRegisterValue: anInteger [
+
+	^ self writeRegister: self temporaryRegister value: anInteger
+]
+
+{ #category : #accessing }
+UnicornSimulator >> wordAt: anInteger [
+
+	^ memory longAt: anInteger
+]
+
+{ #category : #accessing }
+UnicornSimulator >> wordSize [
+	self subclassResponsibility
+]
+
+{ #category : #registers }
+UnicornSimulator >> writeRegister: aRegister value: anInteger [
+
+	| value |
+	value := ByteArray new: self wordSize.
+	value integerAt: 1 put: anInteger size: self wordSize signed: false.
+	unicorn register: aRegister value write: value.
+
+]
+>>>>>>> upstream/headless
