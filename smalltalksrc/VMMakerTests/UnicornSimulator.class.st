@@ -329,8 +329,6 @@ UnicornSimulator >> invalidAccessHandler: aFullBlockClosure [
 	invalidAccessHandler := aFullBlockClosure
 ]
 
-<<<<<<< HEAD
-=======
 { #category : #accessing }
 UnicornSimulator >> lastExecutedInstructionAddress [
 
@@ -524,7 +522,6 @@ UnicornSimulator >> registerDescriptors [
 			yourself ]
 ]
 
->>>>>>> upstream/headless
 { #category : #initialization }
 UnicornSimulator >> registerHook: aBlock atAddress: anAddress [
 
@@ -533,8 +530,6 @@ UnicornSimulator >> registerHook: aBlock atAddress: anAddress [
 		doing: [ :type :address :size :value | address = anAddress ifTrue: aBlock ]
 ]
 
-<<<<<<< HEAD
-=======
 { #category : #registers }
 UnicornSimulator >> returnRegisterValue [
 
@@ -664,7 +659,6 @@ UnicornSimulator >> stackValues [
 	]
 ]
 
->>>>>>> upstream/headless
 { #category : #executing }
 UnicornSimulator >> startAt: begin until: until timeout: timeout count: count [
 
@@ -681,8 +675,6 @@ UnicornSimulator >> step [
 		timeout: 0
 		count: 1
 ]
-<<<<<<< HEAD
-=======
 
 { #category : #registers }
 UnicornSimulator >> temporaryRegister [
@@ -722,4 +714,3 @@ UnicornSimulator >> writeRegister: aRegister value: anInteger [
 	unicorn register: aRegister value write: value.
 
 ]
->>>>>>> upstream/headless
