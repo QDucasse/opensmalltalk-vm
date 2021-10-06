@@ -10,22 +10,6 @@ UnicornX64Simulator >> arg0Register [
 	^ UcX86Registers rdi
 ]
 
-{ #category : #'as yet unclassified' }
-UnicornX64Simulator >> argument0RegisterValue [
-	
-	"System V value.
-	
-	This does not (yet) handle Win64 ABI which uses RCX"
-	
-	^ self rdi
-]
-
-{ #category : #accessing }
-UnicornX64Simulator >> argument0RegisterValue: anInteger [ 
-
-	self writeRegister: UcX86Registers rdi value: anInteger
-]
-
 { #category : #'phisical-registers' }
 UnicornX64Simulator >> baseRegister [
 
@@ -38,10 +22,32 @@ UnicornX64Simulator >> cResultRegister [
 	^ self rax
 ]
 
-{ #category : #'as yet unclassified' }
-UnicornX64Simulator >> cReturnRegisterValue: anInteger [ 
+{ #category : #registers }
+UnicornX64Simulator >> carg0Register [
 	
-	self rax: anInteger
+	"Assume SysV"
+	^ UcX86Registers rdi
+]
+
+{ #category : #registers }
+UnicornX64Simulator >> carg1Register [
+	
+	"Assume SysV"
+	^ UcX86Registers rsi
+]
+
+{ #category : #registers }
+UnicornX64Simulator >> carg2Register [
+	
+	"Assume SysV"
+	^ UcX86Registers rdx
+]
+
+{ #category : #registers }
+UnicornX64Simulator >> carg3Register [
+
+	"Assume SysV"
+	^ UcX86Registers rcx
 ]
 
 { #category : #'virtual-registers' }
@@ -466,6 +472,13 @@ UnicornX64Simulator >> sp [
 UnicornX64Simulator >> stackPointerRegister [
 
 	^ UcX86Registers rsp
+]
+
+{ #category : #registers }
+UnicornX64Simulator >> temporaryRegister [
+	
+	"Both in System V and Windows"
+	^ UcX86Registers rax
 ]
 
 { #category : #accessing }

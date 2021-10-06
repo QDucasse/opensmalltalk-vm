@@ -170,7 +170,7 @@ VMMachineCodeDebugger >> connectPresenters [
 { #category : #actions }
 VMMachineCodeDebugger >> disassembleAtPC [
 
-	self initialInstructionToDisassemble:  machineSimulator instructionPointerValue.
+	self initialInstructionToDisassemble:  machineSimulator instructionPointerRegisterValue.
 	self refreshInstructions.
 ]
 
@@ -185,7 +185,7 @@ VMMachineCodeDebugger >> doInitialDisassemble [
 			copyFrom: self initialInstructionToDisassemble
 			to: self initialInstructionToDisassemble + 600)
 		startAddress: self initialInstructionToDisassemble
-		pc: machineSimulator instructionPointerValue 
+		pc: machineSimulator instructionPointerRegisterValue 
 ]
 
 { #category : #actions }
@@ -278,7 +278,7 @@ VMMachineCodeDebugger >> initialIRDisassembly [
 VMMachineCodeDebugger >> initialInstructionToDisassemble [
 
 	^ initialInstructionToDisassemble
-		ifNil: [ machineSimulator instructionPointerValue ]
+		ifNil: [ machineSimulator instructionPointerRegisterValue ]
 ]
 
 { #category : #showing }
@@ -428,7 +428,7 @@ VMMachineCodeDebugger >> irinstructions: aCollection [
 { #category : #actions }
 VMMachineCodeDebugger >> jump [
 
-	machineSimulator instructionPointerValue: (NumberParser parse: ipInput text).
+	machineSimulator instructionPointerRegisterValue: (NumberParser parse: ipInput text).
 	self refreshInstructions.
 	self refreshRegisters.
 ]
@@ -483,7 +483,7 @@ VMMachineCodeDebugger >> refreshStack [
 	stack items: machineSimulator stackValues
 ]
 
-{ #category : #actions }
+{ #category : #'as yet unclassified' }
 VMMachineCodeDebugger >> runToSelectedInstruction [
 	
 	| selectedInstruction |
@@ -491,7 +491,7 @@ VMMachineCodeDebugger >> runToSelectedInstruction [
 	selectedInstruction := self selectedInstruction.
 
 	machineSimulator
-		startAt: machineSimulator instructionPointerValue
+		startAt: machineSimulator instructionPointerRegisterValue
 		until: selectedInstruction address
 		timeout: 100000 "microseconds = 100ms"
 		count: 0.
@@ -513,8 +513,7 @@ VMMachineCodeDebugger >> selectedInstruction [
 { #category : #actions }
 VMMachineCodeDebugger >> setInstructionPointerToSelectedInstruction [
 	
-	machineSimulator instructionPointerValue: instructions selection selectedItem address.
-	self highlightPCInstruction 
+	machineSimulator instructionPointerRegisterValue: instructions selection selectedItem address
 ]
 
 { #category : #actions }

@@ -346,7 +346,7 @@ VMJittedGeneralPrimitiveTest >> testGetClassObjectOfClassIndex [
 	machineSimulator receiverRegisterValue: ClassFloatCompactIndex.
 	self runGeneratedCode.
 	
-	self assert: machineSimulator argument0RegisterValue equals: classFloat
+	self assert: machineSimulator arg0RegisterValue equals: classFloat
 ]
 
 { #category : #'tests - support' }
@@ -360,7 +360,7 @@ VMJittedGeneralPrimitiveTest >> testGetNumberOfSlotsOf16BitIndexable [
 	machineSimulator receiverRegisterValue: (self new16BitIndexableOfSize: 8).
 	self runGeneratedCode.
 
-	self assert: machineSimulator argument0RegisterValue equals: 8 * 2 "bytes" / self wordSize
+	self assert: machineSimulator arg0RegisterValue equals: 8 * 2 "bytes" / self wordSize
 ]
 
 { #category : #'tests - support' }
@@ -374,7 +374,7 @@ VMJittedGeneralPrimitiveTest >> testGetNumberOfSlotsOf16BitIndexableWithPadding 
 	machineSimulator receiverRegisterValue: (self new16BitIndexableOfSize: 7).
 	self runGeneratedCode.
 
-	self assert: machineSimulator argument0RegisterValue equals: 8 * 2 "bytes" / self wordSize
+	self assert: machineSimulator arg0RegisterValue equals: 8 * 2 "bytes" / self wordSize
 ]
 
 { #category : #'tests - support' }
@@ -388,7 +388,7 @@ VMJittedGeneralPrimitiveTest >> testGetNumberOfSlotsOf32BitIndexable [
 	machineSimulator receiverRegisterValue: (self new32BitIndexableOfSize: 8).
 	self runGeneratedCode.
 
-	self assert: machineSimulator argument0RegisterValue equals: 8 * 4 "bytes" / self wordSize
+	self assert: machineSimulator arg0RegisterValue equals: 8 * 4 "bytes" / self wordSize
 ]
 
 { #category : #'tests - support' }
@@ -402,7 +402,7 @@ VMJittedGeneralPrimitiveTest >> testGetNumberOfSlotsOf32BitIndexableWithPadding 
 	machineSimulator receiverRegisterValue: (self new32BitIndexableOfSize: 7).
 	self runGeneratedCode.
 
-	self assert: machineSimulator argument0RegisterValue equals: (7 * 4 roundUpTo: self wordSize) "bytes" / self wordSize
+	self assert: machineSimulator arg0RegisterValue equals: (7 * 4 roundUpTo: self wordSize) "bytes" / self wordSize
 ]
 
 { #category : #'tests - support' }
@@ -420,7 +420,7 @@ VMJittedGeneralPrimitiveTest >> testGetNumberOfSlotsOf64BitIndexable [
 	machineSimulator receiverRegisterValue: (self new64BitIndexableOfSize: desiredSlots).
 	self runGeneratedCode.
 
-	self assert: machineSimulator argument0RegisterValue equals: (desiredSlots * 8 / self wordSize)
+	self assert: machineSimulator arg0RegisterValue equals: (desiredSlots * 8 / self wordSize)
 ]
 
 { #category : #'tests - support' }
@@ -434,7 +434,7 @@ VMJittedGeneralPrimitiveTest >> testGetNumberOfSlotsOf8BitIndexable [
 	machineSimulator receiverRegisterValue: (self new8BitIndexableOfSize: 8).
 	self runGeneratedCode.
 
-	self assert: machineSimulator argument0RegisterValue equals: 8 "bytes" / self wordSize
+	self assert: machineSimulator arg0RegisterValue equals: 8 "bytes" / self wordSize
 ]
 
 { #category : #'tests - support' }
@@ -448,7 +448,7 @@ VMJittedGeneralPrimitiveTest >> testGetNumberOfSlotsOf8BitIndexableWithPadding [
 	machineSimulator receiverRegisterValue: (self new8BitIndexableOfSize: 7).
 	self runGeneratedCode.
 
-	self assert: machineSimulator argument0RegisterValue equals: 8 "bytes" / self wordSize
+	self assert: machineSimulator arg0RegisterValue equals: 8 "bytes" / self wordSize
 ]
 
 { #category : #'tests - support' }
@@ -599,7 +599,7 @@ VMJittedGeneralPrimitiveTest >> testPrimitiveAsFloatIsCompleteWhenReceiverTagIsS
 	cogit receiverTags: memory smallIntegerTag.
 	
 	self compile: [ result := cogit objectRepresentation genPrimitiveAsFloat ].
-	self assert: result equals: CompletePrimitive.
+	self assert: result equals: 0. "Incomplete Primitive, if the float cannot be allocated, it executes the C code"
 ]
 
 { #category : #'tests - primitiveAsFloat' }
@@ -1074,7 +1074,7 @@ VMJittedGeneralPrimitiveTest >> testSmallIntegerLessThanNonSmallIntegerArgumentD
 	
 	"Receiver and argument should stay untouched"
 	self assert: machineSimulator receiverRegisterValue equals: (self memory integerObjectOf: 42).
-	self assert: machineSimulator argument0RegisterValue equals: self memory falseObject.
+	self assert: machineSimulator arg0RegisterValue equals: self memory falseObject.
 ]
 
 { #category : #'tests - support' }

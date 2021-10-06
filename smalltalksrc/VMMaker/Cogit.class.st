@@ -3880,6 +3880,13 @@ Cogit >> ceCheckFeatures [
 	^self simulateLeafCallOf: ceCheckFeaturesFunction
 ]
 
+{ #category : #testing }
+Cogit >> ceCheckFeaturesFunction: anAddress [
+	<doNotGenerate> 
+
+	ceCheckFeaturesFunction := anAddress 
+]
+
 { #category : #accessing }
 Cogit >> ceCheckForInterruptTrampoline: anInteger [ 
 	<doNotGenerate>
@@ -11854,6 +11861,7 @@ Cogit >> setStackAlignment: stackAlignment expectedSPOffset: spOffset expectedFP
 	"Spcific platform ABIs mandate specific stack frame alignments.  We capture
 	 these constraints in the variables here and test they are adhered to via
 	 assertCStackWellAligned whenever transitioning to code that will run in C."
+	<doNotGenerate>
 	self assert: stackAlignment isPowerOfTwo.
 	expectedSPAlignment := spOffset \\ stackAlignment.
 	expectedFPAlignment := fpOffset \\ stackAlignment.

@@ -10,16 +10,22 @@ UnicornARMv8Simulator >> arg0Register [
 	^ UcARM64Registers x3
 ]
 
-{ #category : #'as yet unclassified' }
-UnicornARMv8Simulator >> argument0RegisterValue [
+{ #category : #registers }
+UnicornARMv8Simulator >> arg1Register [
 	
-	^ self x3
+	^ UcARM64Registers x1
 ]
 
-{ #category : #accessing }
-UnicornARMv8Simulator >> argument0RegisterValue: anInteger [ 
+{ #category : #registers }
+UnicornARMv8Simulator >> arg2Register [
+	
+	^ UcARM64Registers x2
+]
 
-	self writeRegister: UcARM64Registers x3 value: anInteger
+{ #category : #registers }
+UnicornARMv8Simulator >> arg3Register [
+	
+	^ UcARM64Registers x3
 ]
 
 { #category : #registers }
@@ -34,10 +40,28 @@ UnicornARMv8Simulator >> cResultRegister [
 	^ self x0
 ]
 
-{ #category : #'as yet unclassified' }
-UnicornARMv8Simulator >> cReturnRegisterValue: anInteger [ 
+{ #category : #registers }
+UnicornARMv8Simulator >> carg0Register [
 	
-	self x0: anInteger
+	^ UcARM64Registers x0
+]
+
+{ #category : #registers }
+UnicornARMv8Simulator >> carg1Register [
+	
+	^ UcARM64Registers x1
+]
+
+{ #category : #registers }
+UnicornARMv8Simulator >> carg2Register [
+	
+	^ UcARM64Registers x2
+]
+
+{ #category : #registers }
+UnicornARMv8Simulator >> carg3Register [
+	
+	^ UcARM64Registers x3
 ]
 
 { #category : #'as yet unclassified' }
@@ -80,15 +104,21 @@ UnicornARMv8Simulator >> disassembler [
 ]
 
 { #category : #'as yet unclassified' }
-UnicornARMv8Simulator >> doublePrecisionFloatingPointRegister0Value [
+UnicornARMv8Simulator >> doublePrecisionFloatingPointRegister0 [
 
-	^ self readFloat64Register: UcARM64Registers d0 
+	^ UcARM64Registers d0
 ]
 
 { #category : #'as yet unclassified' }
-UnicornARMv8Simulator >> doublePrecisionFloatingPointRegister1Value [
+UnicornARMv8Simulator >> doublePrecisionFloatingPointRegister1 [
 
-	^ self readFloat64Register: UcARM64Registers d1
+	^ UcARM64Registers d1
+]
+
+{ #category : #'as yet unclassified' }
+UnicornARMv8Simulator >> doublePrecisionFloatingPointRegister2 [
+
+	^ UcARM64Registers d2
 ]
 
 { #category : #'as yet unclassified' }
@@ -100,11 +130,6 @@ UnicornARMv8Simulator >> extractDestinationRegisterFromAssembly: aLLVMInstructio
 	"
 	
 	^ (aLLVMInstruction assemblyCodeString substrings: String tab, ',') second trimBoth.
-]
-
-{ #category : #registers }
-UnicornARMv8Simulator >> fp [
-	^ self readRegister: UcARM64Registers x29
 ]
 
 { #category : #registers }
@@ -143,38 +168,10 @@ UnicornARMv8Simulator >> instructionPointerRegister [
 	^ UcARM64Registers pc
 ]
 
-{ #category : #'as yet unclassified' }
-UnicornARMv8Simulator >> integerRegisterState [
-
-	^{	 }
-]
-
 { #category : #registers }
 UnicornARMv8Simulator >> linkRegister [
 	
 	^ UcARM64Registers x30
-]
-
-{ #category : #accessing }
-UnicornARMv8Simulator >> linkRegisterValue [
-
-	^ self readRegister: self linkRegister 
-]
-
-{ #category : #registers }
-UnicornARMv8Simulator >> linkRegisterValue: aValue [ 
-
-	^ self writeRegister: self linkRegister value: aValue
-]
-
-{ #category : #registers }
-UnicornARMv8Simulator >> lr [
-	^ self readRegister: self linkRegister
-]
-
-{ #category : #registers }
-UnicornARMv8Simulator >> lr: aValue [
-	^ self writeRegister: self linkRegister value: aValue
 ]
 
 { #category : #'as yet unclassified' }
@@ -193,16 +190,6 @@ UnicornARMv8Simulator >> nzcv [
 UnicornARMv8Simulator >> overflow [
 
 	^ (self nzcv bitAnd: (1<<28)) ~= 0
-]
-
-{ #category : #registers }
-UnicornARMv8Simulator >> pc [
-	^ self readRegister: self instructionPointerRegister
-]
-
-{ #category : #registers }
-UnicornARMv8Simulator >> pc: aValue [
-	^ self writeRegister: self instructionPointerRegister value: aValue
 ]
 
 { #category : #'as yet unclassified' }
@@ -263,7 +250,7 @@ UnicornARMv8Simulator >> simulateJumpCallOf: address memory: aMemory [
 	self pushWord: self fp.
 	self framePointerRegisterValue: self stackPointerRegisterValue.
 
-	self instructionPointerValue: address
+	self instructionPointerRegisterValue: address
 ]
 
 { #category : #'as yet unclassified' }
@@ -279,7 +266,7 @@ UnicornARMv8Simulator >> simulateReturnIn: aSpurSimulatedMemory [
 	self framePointerRegisterValue: self popWord.
 	self linkRegisterValue: self popWord.
 
-	self instructionPointerValue: self linkRegisterValue
+	self instructionPointerRegisterValue: self linkRegisterValue
 
 ]
 
@@ -305,20 +292,15 @@ UnicornARMv8Simulator >> smashRegisterAccessors [
 ]
 
 { #category : #registers }
-UnicornARMv8Simulator >> sp [
-	^ self readRegister: UcARM64Registers sp
-]
-
-{ #category : #registers }
 UnicornARMv8Simulator >> stackPointerRegister [
 	
 	^ UcARM64Registers sp
 ]
 
-{ #category : #accessing }
-UnicornARMv8Simulator >> temporaryRegisterValue [
-	
-	^ self x1
+{ #category : #registers }
+UnicornARMv8Simulator >> temporaryRegister [
+
+	^ UcARM64Registers x1
 ]
 
 { #category : #accessing }
