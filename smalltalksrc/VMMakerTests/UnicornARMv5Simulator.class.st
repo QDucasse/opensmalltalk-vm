@@ -11,15 +11,9 @@ UnicornARMv5Simulator >> arg0Register [
 ]
 
 { #category : #registers }
-UnicornARMv5Simulator >> argument0RegisterValue [
-	
-	^ self r3
-]
+UnicornARMv5Simulator >> arg1Register [
 
-{ #category : #accessing }
-UnicornARMv5Simulator >> argument0RegisterValue: anInteger [ 
-
-	self writeRegister: UcARMRegisters r3 value: anInteger
+	^ UcARMRegisters r4
 ]
 
 { #category : #registers }
@@ -32,12 +26,6 @@ UnicornARMv5Simulator >> baseRegister [
 UnicornARMv5Simulator >> cResultRegister [
 	
 	^ self r0
-]
-
-{ #category : #'c calling convention' }
-UnicornARMv5Simulator >> cReturnRegisterValue: anInteger [ 
-
-	self r0: anInteger 
 ]
 
 { #category : #'c calling convention' }
@@ -139,14 +127,14 @@ UnicornARMv5Simulator >> doStartAt: startAddress until: until timeout: timeout c
 	more than one instruction. It has the problem that it misses the count or the current address"
 
 	actualCount := 0.
-	self instructionPointerValue: startAddress.
+	self instructionPointerRegisterValue: startAddress.
 	startTime := Time millisecondClockValue.
 	remainingTimeout := timeout.
 
 	[ true ]
 		whileTrue: [ 
 			[result :=  simulator
-				startAt: self instructionPointerValue
+				startAt: self instructionPointerRegisterValue
 				until: 0
 				timeout: 0
 				count: 1.
@@ -162,7 +150,7 @@ UnicornARMv5Simulator >> doStartAt: startAddress until: until timeout: timeout c
 			
 					actualCount := actualCount + 1] 
 				on: UnicornInvalidMemoryAccess do: [ :invalidAccess |
-					self instructionPointerValue = until ifTrue: [ ^ 0 ].
+					self instructionPointerRegisterValue = until ifTrue: [ ^ 0 ].
 					
 					(self handleInvalidAccess: invalidAccess)
 						ifFalse: [ ^ result ].
@@ -183,13 +171,25 @@ UnicornARMv5Simulator >> doStartAt: startAddress until: until timeout: timeout c
 								target: until;
 								signal ]].
 
-			self instructionPointerValue = until ifTrue: [ ^ result ]]
+			self instructionPointerRegisterValue = until ifTrue: [ ^ result ]]
 ]
 
 { #category : #'as yet unclassified' }
-UnicornARMv5Simulator >> doublePrecisionFloatingPointRegister0Value [
+UnicornARMv5Simulator >> doublePrecisionFloatingPointRegister0 [
 
-	^ self readFloat64Register: UcARMRegisters d0
+	^ UcARMRegisters d0
+]
+
+{ #category : #'as yet unclassified' }
+UnicornARMv5Simulator >> doublePrecisionFloatingPointRegister1 [
+
+	^ UcARMRegisters d1
+]
+
+{ #category : #'as yet unclassified' }
+UnicornARMv5Simulator >> doublePrecisionFloatingPointRegister2 [
+
+	^ UcARMRegisters d2
 ]
 
 { #category : #'as yet unclassified' }
@@ -255,18 +255,6 @@ UnicornARMv5Simulator >> integerRegisterState [
 UnicornARMv5Simulator >> linkRegister [
 	
 	^ UcARMRegisters lr
-]
-
-{ #category : #accessing }
-UnicornARMv5Simulator >> linkRegisterValue [
-
-	^ self readRegister: self linkRegister 
-]
-
-{ #category : #registers }
-UnicornARMv5Simulator >> linkRegisterValue: aValue [ 
-
-	^ self writeRegister: self linkRegister value: aValue
 ]
 
 { #category : #registers }

@@ -37,11 +37,11 @@ Class {
 VMSimpleStackBasedCogitAbstractTest class >> testParameters [
 
 	^ ParametrizedTestMatrix new
-		addCase: { #ISA -> #'riscv64' . #wordSize -> 8 };
+		"addCase: { #ISA -> #'riscv64' . #wordSize -> 8 };"
 		addCase: { #ISA -> #'aarch64'. #wordSize -> 8};
-		addCase: { #ISA -> #'IA32'. #wordSize -> 4};
+		"addCase: { #ISA -> #'IA32'. #wordSize -> 4};
 		addCase: { #ISA -> #'X64'. #wordSize -> 8};
-		addCase: { #ISA -> #'ARMv5'. #wordSize -> 4};
+		addCase: { #ISA -> #'ARMv5'. #wordSize -> 4};"
 		yourself
 ]
 
@@ -569,7 +569,7 @@ VMSimpleStackBasedCogitAbstractTest >> prepareStackForSendReceiver: aReceiver ar
 
 	"If the cogit is the StackToRegisterMapping the arguments should go in the registers also"
 	(cogit isKindOf: StackToRegisterMappingCogit) ifTrue: [
-		arguments size >= 1 ifTrue: [ self machineSimulator argument0RegisterValue: (arguments at: 1) ].
+		arguments size >= 1 ifTrue: [ self machineSimulator arg0RegisterValue: (arguments at: 1) ].
 		arguments size > 1 ifTrue: [ self halt ]].
 	
 	self prepareCall
