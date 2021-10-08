@@ -52,6 +52,14 @@ CogOutOfLineLiteralsRiscV64Compiler >> concretizeMovePatcheableC32R [
 	^ machineCodeSize := 8
 ]
 
+{ #category : #simulation }
+CogOutOfLineLiteralsRiscV64Compiler >> configureStackAlignment [
+	
+	<doNotGenerate>
+	"Acordinh to RISC-V ISA description, stack should always be kept 16-byte aligned"
+	cogit setStackAlignment: 16 expectedSPOffset: 0 expectedFPOffset: 0.
+]
+
 { #category : #accessing }
 CogOutOfLineLiteralsRiscV64Compiler >> getDefaultCogCodeSize [
 	"Return the default number of bytes to allocate for native code at startup.

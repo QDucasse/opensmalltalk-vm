@@ -322,16 +322,15 @@ CogRiscV64Compiler >> addImmediate: anImmediate toRegister: sourceRegister inReg
 	|  	immediate[11:0]  |  rs1   |  000  |  rd  |  0010011  |
 	"
 	
-	| riscvOpcode signExtendedImmediate |
+	| signExtendedImmediate |
 	self flag: #DONE.	
-	riscvOpcode := 2r0010011.	
 	"Check size and sign"
 	self assertValue: anImmediate isContainedIn: 12.
 	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 12.
 	^ ((((signExtendedImmediate bitAnd: 16rfff) << 20) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 15) 
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcode
+	  bitOr: 2r0010011
 ]
 
 { #category : #'machine code instruction' }
@@ -344,13 +343,11 @@ CogRiscV64Compiler >> addRegister: sourceRegister1 toRegister: sourceRegister2 i
 	|  	0000000  |  rs2  |  rs1  |  000  |  rd  |  0110011  |
 	"
 	
-	| riscvOpcode |
-	self flag: #DONE.	
-	riscvOpcode := 2r0110011.	
+	self flag: #DONE.		
 	^ ((((sourceRegister2 bitAnd: 16r1f) << 20)
 	  bitOr: (sourceRegister1 bitAnd: 16r1f) << 15) 
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcode
+	  bitOr: 2r0110011
 ]
 
 { #category : #'machine code instruction' }
@@ -362,15 +359,14 @@ CogRiscV64Compiler >> addUpperImmediateToPC: anImmediate toRegister: destination
 	|  	immediate[31:12]  |   rd   |   0010111  |
 	"
 
-	| riscvOpcode signExtendedImmediate |
+	| signExtendedImmediate |
 	self flag: #DONE.
 	"Check size and sign"	
 	self assertValue: anImmediate isContainedIn: 32.
 	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 32.
-	riscvOpcode := 2r0010111.
 	^ (((signExtendedImmediate bitAnd: 16rfffff) << 12) 
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcode
+	  bitOr: 2r0010111
 ]
 
 { #category : #'machine code instruction' }
@@ -384,16 +380,15 @@ CogRiscV64Compiler >> addWordImmediate: anImmediate toRegister: sourceRegister i
 	|  	immediate[11:0]  |  rs1   |  000  |  rd  |  0011011  |
 	"
 	
-	| riscvOpcode signExtendedImmediate |
+	| signExtendedImmediate |
 	self flag: #DONE.
-	riscvOpcode := 2r0011011.
 	"Check size and sign"
 	self assertValue: anImmediate isContainedIn: 12.
 	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 12.
 	^ ((((signExtendedImmediate bitAnd: 16rfff) << 20) 
 	  bitOr: (sourceRegister bitAnd: 16r1f) << 15) 
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcode
+	  bitOr: 2r0011011
 ]
 
 { #category : #'machine code instruction' }
@@ -406,14 +401,12 @@ CogRiscV64Compiler >> addWordRegister: sourceRegister1 toRegister: sourceRegiste
 	31        25 24   20 19   15 14   12 11   7 6         0
 	|  	0000000  |  rs2  |  rs1  |  000  |  rd  | 0111011  |
 	"
-	
-	| riscvOpcode |
+
 	self flag: #DONE.
-	riscvOpcode := 2r0111011.
 	^ ((((sourceRegister1 bitAnd: 16r1f) << 20) 
 	  bitOr: (sourceRegister2 bitAnd: 16r1f) << 15) 
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcode
+	  bitOr: 2r0111011
 ]
 
 { #category : #'machine code instruction' }
@@ -426,15 +419,13 @@ CogRiscV64Compiler >> arithmeticShiftRightValueInRegister: sourceReg byShiftAmou
 	|  010000 |  shamt  |  rs1  |  101  |  rd  |  0010011  |
 	"
 
-	| riscvOpcode |
 	self flag: #DONE.
-	riscvOpcode := 2r0010011.
 	^ ((((((2r1 << 30) 
 	  bitOr: ((shiftAmount bitAnd: 16r3f) << 20))
 	  bitOr: (sourceReg bitAnd: 16r1f) << 15))
 	  bitOr: (2r101 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode
+	  bitOr: 2r0010011
 ]
 
 { #category : #'machine code instruction' }
@@ -447,15 +438,13 @@ CogRiscV64Compiler >> arithmeticShiftRightValueInRegister: sourceReg1 byShiftAmo
 	|  0100000 |  rs2  |  rs1  |  101  |  rd  |  0110011  |
 	"
 
-	| riscvOpcode |
 	self flag: #DONE.
-	riscvOpcode := 2r0110011.
 	^ ((((((2r1 << 30) 
 	  bitOr: ((sourceReg2 bitAnd: 16r3f) << 20))
 	  bitOr: (sourceReg1 bitAnd: 16r1f) << 15))
 	  bitOr: (2r101 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode
+	  bitOr: 2r0110011
 ]
 
 { #category : #'helpers - size sign' }
@@ -543,9 +532,8 @@ CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg andImmediate: anImmed
 	31                20 19   15 14   12 11   7 6         0
 	|  	immediate[11:0]  |  rs1  |  111  |  rd  |  0010011 
 	"
-	| riscvopcode signExtendedImmediate |
+	| signExtendedImmediate |
 	self flag: #DONE.
-	riscvopcode := 2r0010011.
 	"Check size and sign"
 	self assertValue: anImmediate isContainedIn: 12.
 	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 12.
@@ -553,7 +541,7 @@ CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg andImmediate: anImmed
 	  bitOr: (sourceReg bitAnd: 16r1f) << 15)
 	  bitOr: 2r111 << 12)
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvopcode
+	  bitOr: 2r0010011
 	
 ]
 
@@ -565,14 +553,13 @@ CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg1 andRegister: sourceR
 	31        25 24    20 19   15 14   12 11   7 6         0
 	|  	0000000  |  rs2   |  rs1  |  111  |  rd  |  0110011 
 	"
-	| riscvopcode |
+	
 	self flag: #DONE.
-	riscvopcode := 2r0110011.
 	^ (((((sourceReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (sourceReg1 bitAnd: 16r1f) << 15)
 	  bitOr: 2r111 << 12)
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvopcode
+	  bitOr: 2r0110011
 	
 ]
 
@@ -584,9 +571,8 @@ CogRiscV64Compiler >> bitwiseOrBetweenRegister: sourceReg andImmediate: anImmedi
 	31                20 19   15 14   12 11   7 6         0
 	|  	immediate[11:0]  |  rs1  |  110  |  rd  |  0010011 
 	"
-	| riscvopcode signExtendedImmediate |
+	| signExtendedImmediate |
 	self flag: #DONE.
-	riscvopcode := 2r0010011.
 	"Check size and sign"
 	self assertValue: anImmediate isContainedIn: 12.	
 	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 12.
@@ -594,7 +580,7 @@ CogRiscV64Compiler >> bitwiseOrBetweenRegister: sourceReg andImmediate: anImmedi
 	  bitOr: (sourceReg bitAnd: 16r1f) << 15)
 	  bitOr: 2r110 << 12)
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvopcode
+	  bitOr: 2r0010011
 	
 ]
 
@@ -606,14 +592,13 @@ CogRiscV64Compiler >> bitwiseOrBetweenRegister: sourceReg1 andRegister: sourceRe
 	31        25 24    20 19   15 14   12 11   7 6         0
 	|  	0000000  |  rs2   |  rs1  |  110  |  rd  |  0110011 
 	"
-	| riscvopcode |
+	
 	self flag: #DONE.
-	riscvopcode := 2r0110011.
 	^ (((((sourceReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (sourceReg1 bitAnd: 16r1f) << 15)
 	  bitOr: 2r110 << 12)
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvopcode
+	  bitOr: 2r0110011
 	
 ]
 
@@ -627,9 +612,8 @@ CogRiscV64Compiler >> bitwiseXorBetweenRegister: srcReg andImmediate: immediate 
 	|  	immediate[11:0]  |  rs1  |  100  |   rd   |  0010011  |
 	"
 
-	| riscvOpcode signExtendedImmediate |
+	| signExtendedImmediate |
 	self flag: #DONE.	
-	riscvOpcode := 2r0010011.	
 	"Check for sign and size"
 	self assertValue: immediate isContainedIn: 12.	
 	signExtendedImmediate :=	self computeSignedValueOf: immediate ofSize: 12.
@@ -637,7 +621,7 @@ CogRiscV64Compiler >> bitwiseXorBetweenRegister: srcReg andImmediate: immediate 
 	  bitOr: (srcReg bitAnd: 16r1f) << 15)
 	  bitOr: (2r100 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode
+	  bitOr: 2r0010011
 ]
 
 { #category : #'machine code instruction' }
@@ -650,14 +634,12 @@ CogRiscV64Compiler >> bitwiseXorBetweenRegister: srcReg1 andRegister: srcReg2 in
 	|  	0000000  |  rs2  |  rs1  |  100  |   rd   |  0110011  |
 	"
 
-	| riscvOpcode |
 	self flag: #DONE.	
-	riscvOpcode := 2r0110011.	
 	^ (((((srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
 	  bitOr: (2r100 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode
+	  bitOr: 2r0110011
 ]
 
 { #category : #'machine code instruction' }
@@ -669,9 +651,8 @@ CogRiscV64Compiler >> branchTo: offset ifCondition: condition betweenRegister: s
 	|  	offset[12|10:5]  |  rs2  |  rs1  |  condition  | offset[4:1|11] | 1100011 
 	"	
 
-	| riscvopcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.
-	riscvopcode := 2r1100011.
 	 "Check size and sign"	
 	self assertValue: offset isContainedIn: 13.
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 13.
@@ -682,7 +663,7 @@ CogRiscV64Compiler >> branchTo: offset ifCondition: condition betweenRegister: s
 	  bitOr: (condition bitAnd: 16r7) << 12)
 	  bitOr: ((signExtendedOffset >> 1) bitAnd: 16rf)   << 8)
 	  bitOr: ((signExtendedOffset >> 11) bitAnd: 16r1)  << 7)
-	  bitOr: riscvopcode 
+	  bitOr: 2r1100011 
 ]
 
 { #category : #'machine code instruction' }
@@ -1877,7 +1858,6 @@ CogRiscV64Compiler >> concretizeConvertRRd [
 	<inline: true>
 	| srcReg destReg |
 	self flag: #TODO.
-	1halt.
 	srcReg := operands at:0.
 	destReg := operands at: 1.
 	self machineCodeAt: 0 put: (self
@@ -4213,17 +4193,14 @@ CogRiscV64Compiler >> divideRegisterValue: srcReg1 byRegisterValue: srcReg2 into
 	| 0000001  |  rs2  |  rs1   |  100  |   rd   |  0110011  |
 	"
 
-	| riscvOpcode1 riscvOpcode2 |
 	self flag: #DONE.
-	riscvOpcode1 :=  2r0000001.
-   riscvOpcode2 :=  2r0110011.
 	"Actual bit instruction"
-	^ (((((riscvOpcode1 << 25) 
+	^ (((((2r0000001 << 25) 
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
 	  bitOr: (2r100 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode2 
+	  bitOr: 2r0110011 
 
 ]
 
@@ -4237,17 +4214,14 @@ CogRiscV64Compiler >> divideRegisterValueUnsigned: srcReg1 byRegisterValueUnsign
 	| 0000001  |  rs2  |  rs1   |  101  |   rd   |  0110011  |
 	"
 
-	| riscvOpcode1 riscvOpcode2 |
 	self flag: #DONE.
-	riscvOpcode1 :=  2r0000001.
-   riscvOpcode2 :=  2r0110011.
 	"Actual bit instruction"
-	^ (((((riscvOpcode1 << 25) 
+	^ (((((2r0000001 << 25) 
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
 	  bitOr: (2r101 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode2 
+	  bitOr: 2r0110011 
 
 ]
 
@@ -4318,17 +4292,14 @@ CogRiscV64Compiler >> fAddRegister: srcReg1 toRegister: srcReg2 intoRegister: de
 	rm = 111 by default
 	"
 
-	| riscvOpcode1 riscvOpcode2 |
 	self flag: #DONE.
-	riscvOpcode1 :=  2r0000001.
-   riscvOpcode2 :=  2r1010011.
 	"Actual bit instruction"
-	^ (((((riscvOpcode1 << 25) 
+	^ (((((2r0000001 << 25) 
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
 	  bitOr: (2r111 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode2 
+	  bitOr: 2r1010011 
 
 ]
 
@@ -4343,16 +4314,13 @@ CogRiscV64Compiler >> fConvertDoublePrecisionInRegister: srcReg toSinglePrecisio
 	|  	0100001  |  00001  |  rs1  |  rm  |  rd  |  1010011  |
 	"
 
-	| riscvOpcode1 riscvOpcode2 |
 	self flag: #TODO.	
-	riscvOpcode1 := 2r0100001.
-	riscvOpcode2 := 2r1010011.	
-	^ (((((riscvOpcode1  << 25)
+	^ (((((2r0100001  << 25)
 	  bitOr: 00001 << 20)
 	  bitOr: (srcReg bitAnd: 16r1f) << 15)
 	  bitOr: (2r111 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode2 
+	  bitOr: 2r1010011 
 ]
 
 { #category : #'machine code instruction' }
@@ -4366,16 +4334,13 @@ CogRiscV64Compiler >> fConvertLongSignedInRegister: srcReg toDoublePrecisionInRe
 	|  	1101001  |  00010  |  rs1  |  rm  |  rd  |  1010011  |
 	"
 
-	| riscvOpcode1 riscvOpcode2 |
 	self flag: #TODO.	
-	riscvOpcode1 := 2r1101001.
-	riscvOpcode2 := 2r1010011.	
-	^ (((((riscvOpcode1  << 25)
-	  bitOr: 00010 << 20)
+	^ (((((2r1101001  << 25)
+	  bitOr: (2r00010 << 20))
 	  bitOr: (srcReg bitAnd: 16r1f) << 15)
 	  bitOr: (2r111 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode2 
+	  bitOr: 2r1010011 
 ]
 
 { #category : #'machine code instruction' }
@@ -4389,16 +4354,13 @@ CogRiscV64Compiler >> fConvertSinglePrecisionInRegister: srcReg toDoublePrecisio
 	|  	0100000  |  00001  |  rs1  |  rm  |  rd  |  1010011  |
 	"
 
-	| riscvOpcode1 riscvOpcode2 |
 	self flag: #TODO.	
-	riscvOpcode1 := 2r0100000.
-	riscvOpcode2 := 2r1010011.	
-	^ (((((riscvOpcode1  << 25)
+	^ (((((2r0100000  << 25)
 	  bitOr: 00001 << 20)
 	  bitOr: (srcReg bitAnd: 16r1f) << 15)
 	  bitOr: (2r111 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode2 
+	  bitOr: 2r1010011 
 ]
 
 { #category : #'machine code instruction' }
@@ -4412,16 +4374,13 @@ CogRiscV64Compiler >> fDivideRegister: srcReg1 byRegister: srcReg2 intoRegister:
 	|  	0001101  |  rs2  |  rs1  |  rm  |  rd  |  1010011  |
 	"
 
-	| riscvOpcode1 riscvOpcode2 |
 	self flag: #TODO.	
-	riscvOpcode1 := 2r0001101.
-	riscvOpcode2 := 2r1010011.	
-	^ (((((riscvOpcode1 << 25)
+	^ (((((2r0001101 << 25)
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
 	  bitOr: (2r111 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode2
+	  bitOr: 2r1010011
 ]
 
 { #category : #'machine code instruction' }
@@ -4434,9 +4393,8 @@ CogRiscV64Compiler >> fLoadDoubleWordFromAddressInRegister: baseRegister withOff
 	|  	offset[11:0]  |   rs1   |  011   |   rd   |   0000111  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.
-	riscvOpcode :=  2r0000111.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -4445,7 +4403,7 @@ CogRiscV64Compiler >> fLoadDoubleWordFromAddressInRegister: baseRegister withOff
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
 	  bitOr: 2r011 << 	12)
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode) 
+	  bitOr: 2r0000111) 
 
 
 	
@@ -4461,9 +4419,8 @@ CogRiscV64Compiler >> fLoadWordFromAddressInRegister: baseRegister withOffset: o
 	|  	offset[11:0  |   rs1   |  011   |   rd   |   0000111  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.
-	riscvOpcode :=  2r0000111.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -4472,7 +4429,7 @@ CogRiscV64Compiler >> fLoadWordFromAddressInRegister: baseRegister withOffset: o
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
 	  bitOr: 2r010 << 	12)
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode) 
+	  bitOr: 2r0000111) 
 
 
 	
@@ -4489,15 +4446,12 @@ CogRiscV64Compiler >> fMoveDoubleWordInFRegister: fregister toXRegister: xregist
 	| 1110001  |  00000  |  rs1   |   000  |   rd   |  1010011  |
 	"
 
-	| riscvOpcode1 riscvOpcode2 |
 	self flag: #DONE.
-	riscvOpcode1 :=  2r1110001.
-   riscvOpcode2 :=  2r1010011.
 	"Actual bit instruction"
-	^ (((riscvOpcode1 << 25) 
+	^ (((2r1110001 << 25) 
 	  bitOr: (fregister bitAnd: 16r1f) << 15)
 	  bitOr: (xregister bitAnd: 16r1f) << 12)
-	  bitOr: riscvOpcode2 
+	  bitOr: 2r1010011 
 
 ]
 
@@ -4512,15 +4466,12 @@ CogRiscV64Compiler >> fMoveDoubleWordInXRegister: xregister toFRegister: fregist
 	| 1111001  |  00000  |  rs1   |   000  |   rd   |  1010011  |
 	"
 
-	| riscvOpcode1 riscvOpcode2 |
 	self flag: #DONE.
-	riscvOpcode1 :=  2r1111001.
-   riscvOpcode2 :=  2r1010011.
 	"Actual bit instruction"
-	^ (((riscvOpcode1 << 25) 
+	^ (((2r1111001 << 25) 
 	  bitOr: (fregister bitAnd: 16r1f) << 15)
 	  bitOr: (xregister bitAnd: 16r1f) << 12)
-	  bitOr: riscvOpcode2 
+	  bitOr: 2r1010011 
 
 ]
 
@@ -4535,15 +4486,13 @@ CogRiscV64Compiler >> fMultiplyRegister: srcReg1 fromRegister: srcReg2 intoRegis
 	|  	0001001  |  rs2  |  rs1  |  rm  |  rd  |  1010011  |
 	"
 
-	| riscvOpcode |
 	self flag: #TODO.	
-	riscvOpcode := 2r1010011.	
 	^ (((((2r0001001 << 25)
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
 	  bitOr: (2r111 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode 
+	  bitOr: 2r1010011 
 ]
 
 { #category : #'machine code instruction' }
@@ -4556,17 +4505,14 @@ CogRiscV64Compiler >> fRegisterValue: srcReg1 isEqualToRegisterValue: srcReg2 in
 	|  1010001  |   rs2   |   rs1   |  010   |   rd   |   1010011  |
 	"
 
-	| riscvOpcode1 riscvOpcode2 |
 	self flag: #TODO.	
-	riscvOpcode1 := 2r1010001.
-	riscvOpcode2 := 2r1010011.
 	^ (((((
-	  riscvOpcode1 << 25) 
+	  2r1010001 << 25) 
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15) 
 	  bitOr: 2r010 << 12)
 	  bitOr: (destReg bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcode2
+	  bitOr: 2r1010011
 ]
 
 { #category : #'machine code instruction' }
@@ -4578,18 +4524,15 @@ CogRiscV64Compiler >> fRegisterValue: srcReg1 isLessThanOrEqualToRegisterValue: 
 	 31       25 24     20 19     15 14    12 11     7 6          0
 	|  1010001  |   rs2   |   rs1   |  000   |   rd   |   1010011  |
 	"
-
-	| riscvOpcode1 riscvOpcode2 |
+	
 	self flag: #TODO.	
-	riscvOpcode1 := 2r1010001.
-	riscvOpcode2 := 2r1010011.
 	^ (((((
-	  riscvOpcode1 << 25) 
+	  2r1010001 << 25) 
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15) 
 	  bitOr: 2r000 << 12)
 	  bitOr: (destReg bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcode2
+	  bitOr: 2r1010011
 ]
 
 { #category : #'machine code instruction' }
@@ -4602,17 +4545,14 @@ CogRiscV64Compiler >> fRegisterValue: srcReg1 isLessThanToRegisterValue: srcReg2
 	|  1010001  |   rs2   |   rs1   |  001   |   rd   |   1010011  |
 	"
 
-	| riscvOpcode1 riscvOpcode2 |
 	self flag: #TODO.	
-	riscvOpcode1 := 2r1010001.
-	riscvOpcode2 := 2r1010011.
 	^ (((((
-	  riscvOpcode1 << 25) 
+	  2r1010001 << 25) 
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15) 
 	  bitOr: 2r001 << 12)
 	  bitOr: (destReg bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcode2
+	  bitOr: 2r1010011
 ]
 
 { #category : #'machine code instruction' }
@@ -4626,14 +4566,13 @@ CogRiscV64Compiler >> fSquareRootOfRegister: srcReg inRegister: destReg [
 	|  	0101100  |  00000  |  rs1  |  rm  |  rd  |  1010011  |
 	"
 
-	| riscvOpcode |
 	self flag: #TODO.	
-	riscvOpcode := 2r0110011.	
-	^ ((((2r0000100 << 25)
+	^ ((((
+	  2r0000100 << 25)
 	  bitOr: (srcReg bitAnd: 16r1f) << 15)
 	  bitOr: (2r111 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode
+	  bitOr: 2r0110011
 ]
 
 { #category : #'machine code instruction' }
@@ -4645,9 +4584,8 @@ CogRiscV64Compiler >> fStoreDoubleWordFromRegister: sourceRegister toAddressInRe
 	|  	offset[11:5]  |   rs2   |   rs1   |  011   |   offset[4:0]   |   0100111  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.	
-	riscvOpcode := 2r0100111.
 	"Check for sign and size"
 	self assertValue: offset isContainedIn: 12.
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -4657,7 +4595,7 @@ CogRiscV64Compiler >> fStoreDoubleWordFromRegister: sourceRegister toAddressInRe
 	  bitOr: (destinationAddressRegister bitAnd: 16r1f) << 15) 
 	  bitOr: 2r011 << 12)
 	  bitOr: (signExtendedOffset bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcode
+	  bitOr: 2r0100111
 ]
 
 { #category : #'machine code instruction' }
@@ -4669,9 +4607,8 @@ CogRiscV64Compiler >> fStoreWordFromRegister: sourceRegister toAddressInRegister
 	|  	offset[11:5]  |   rs2   |   rs1   |  010   |   offset[4:0]   |   0100111  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.	
-	riscvOpcode := 2r0100111.
 	"Check for sign and size"
 	self assertValue: offset isContainedIn: 12.
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -4681,7 +4618,7 @@ CogRiscV64Compiler >> fStoreWordFromRegister: sourceRegister toAddressInRegister
 	  bitOr: (destinationAddressRegister bitAnd: 16r1f) << 15) 
 	  bitOr: 2r010 << 12)
 	  bitOr: (signExtendedOffset bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcode
+	  bitOr: 2r0100111
 ]
 
 { #category : #'machine code instruction' }
@@ -4692,18 +4629,16 @@ CogRiscV64Compiler >> fSubtractRegister: srcReg2 fromRegister: srcReg1 intoRegis
  	 rm is set to 111 (dynamic rounding mode by default)
 	
 	 31       25 24   20 19   15 14  12 11   7 6        0
-	|  	0000100  |  rs2  |  rs1  |  rm  |  rd  |  1010011  |
+	|  	0000101  |  rs2  |  rs1  |  rm  |  rd  |  1010011  |
 	"
 
-	| riscvOpcode |
-	self flag: #TODO.	
-	riscvOpcode := 2r0110011.	
-	^ (((((2r0000100 << 25)
+	self flag: #TODO.		
+	^ (((((2r0000101 << 25)
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
 	  bitOr: (2r111 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode 
+	  bitOr: 2r1010011
 ]
 
 { #category : #abi }
@@ -5284,16 +5219,15 @@ CogRiscV64Compiler >> jumpTo: sourceRegisterValueAddress withOffset: offset andS
 	|  	offset[11:0]  |   rs1   |  000   |   rd   |   1100111  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.	
-	riscvOpcode := 2r1100111.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
 	^ (((((signExtendedOffset bitAnd: 16rfff) << 20)
 		bitOr: (sourceRegisterValueAddress bitAnd: 16r1f) << 15)
 		bitOr: (destinationRegister bitAnd: 16r1f) << 7)
-		bitOr: riscvOpcode)
+		bitOr: 2r1100111)
 ]
 
 { #category : #'machine code instruction' }
@@ -5315,9 +5249,8 @@ CogRiscV64Compiler >> jumpToOffset: offset andStorePreviousPCPlus4in: destinatio
 	|  	 offset[20|10:1|11|19:12]   |   rd   |   1101111  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.
-	riscvOpcode := 2r1101111.
 	"Check size and sign"	
 	self assertValue: offset isContainedIn: 21.	
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 21.
@@ -5326,7 +5259,7 @@ CogRiscV64Compiler >> jumpToOffset: offset andStorePreviousPCPlus4in: destinatio
 		bitOr: ((signExtendedOffset >> 11) bitAnd: 16r1) << 20)
 		bitOr: ((signExtendedOffset >> 12) bitAnd: 16rff) << 12)
 		bitOr: (destinationRegister bitAnd: 16r1f) << 7)
-		bitOr: riscvOpcode
+		bitOr: 2r1101111
 ]
 
 { #category : #'machine code instruction' }
@@ -5420,9 +5353,8 @@ CogRiscV64Compiler >> loadByteFromAddressInRegister: baseRegister withOffset: of
 	|  	offset[11:0]  |  rs1   |  000   |   rd   |   0000011  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.
-	riscvOpcode :=  2r0000011.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.	
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -5431,7 +5363,7 @@ CogRiscV64Compiler >> loadByteFromAddressInRegister: baseRegister withOffset: of
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
 	  bitOr: 2r000 << 	12)
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode) 
+	  bitOr: 2r0000011) 
 
 
 	
@@ -5446,9 +5378,8 @@ CogRiscV64Compiler >> loadDoubleWordFromAddressInRegister: baseRegister withOffs
 	|  	offset[11:0  |   rs1   |  011   |   rd   |   0000011  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.
-	riscvOpcode :=  2r0000011.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.	
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -5457,7 +5388,7 @@ CogRiscV64Compiler >> loadDoubleWordFromAddressInRegister: baseRegister withOffs
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
 	  bitOr: 2r011 << 	12)
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode) 
+	  bitOr: 2r0000011) 
 
 
 	
@@ -5472,9 +5403,8 @@ CogRiscV64Compiler >> loadHalfWordFromAddressInRegister: baseRegister withOffset
 	|  	offset[11:0  |   rs1   |  001   |   rd   |   0000011  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.
-	riscvOpcode :=  2r0000011.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.	
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -5483,7 +5413,7 @@ CogRiscV64Compiler >> loadHalfWordFromAddressInRegister: baseRegister withOffset
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
 	  bitOr: 2r001 << 	12)
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode) 
+	  bitOr: 2r0000011) 
 
 
 	
@@ -5537,9 +5467,8 @@ CogRiscV64Compiler >> loadUnsignedByteFromAddressInRegister: baseRegister withOf
 	|  	offset[11:0]  |  rs1   |  100   |   rd   |   0000011  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.
-	riscvOpcode :=  2r0000011.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.	
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -5548,7 +5477,7 @@ CogRiscV64Compiler >> loadUnsignedByteFromAddressInRegister: baseRegister withOf
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
 	  bitOr: 2r100 << 	12)
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode) 
+	  bitOr: 2r0000011) 
 
 
 	
@@ -5563,9 +5492,8 @@ CogRiscV64Compiler >> loadUnsignedHalfWordFromAddressInRegister: baseRegister wi
 	|  	offset[11:0]  |   rs1   |  101   |   rd   |   0000011  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.
-	riscvOpcode :=  2r0000011.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.	
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -5574,7 +5502,7 @@ CogRiscV64Compiler >> loadUnsignedHalfWordFromAddressInRegister: baseRegister wi
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
 	  bitOr: 2r101 << 	12)
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode) 
+	  bitOr: 2r0000011) 
 
 
 	
@@ -5589,9 +5517,8 @@ CogRiscV64Compiler >> loadUnsignedWordFromAddressInRegister: baseRegister withOf
 	|  	offset[11:0]  |   rs1   |  010   |   rd   |   0000011  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.
-	riscvOpcode :=  2r0000011.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.	
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -5600,7 +5527,7 @@ CogRiscV64Compiler >> loadUnsignedWordFromAddressInRegister: baseRegister withOf
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
 	  bitOr: 2r010 << 	12)
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode) 
+	  bitOr: 2r0000011) 
 
 
 	
@@ -5616,15 +5543,14 @@ CogRiscV64Compiler >> loadUpperImmediate: anImmediate inRegister: destReg [
 	|  	immediate[31:12]  |  rd  |  0110111  |
 	"
 
-	| riscvOpcode signExtendedImmediate |
+	| signExtendedImmediate |
 	self flag: #DONE.	
-	riscvOpcode := 2r0110111.
 	"Check size and sign"
 	self assertValue: anImmediate isContainedIn: 20.	
 	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 20.
 	^ (((signExtendedImmediate bitAnd: 16rfffff) << 12) 
 	  bitOr: (destReg bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcode
+	  bitOr: 2r0110111
 ]
 
 { #category : #'machine code instruction' }
@@ -5636,9 +5562,8 @@ CogRiscV64Compiler >> loadWordFromAddressInRegister: baseRegister withOffset: of
 	|  	offset[11:0]  |   rs1   |  010   |   rd   |   0000011  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.
-	riscvOpcode :=  2r0000011.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.	
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -5647,7 +5572,7 @@ CogRiscV64Compiler >> loadWordFromAddressInRegister: baseRegister withOffset: of
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
 	  bitOr: 2r010 << 	12)
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode) 
+	  bitOr: 2r0000011) 
 
 
 	
@@ -5730,16 +5655,14 @@ CogRiscV64Compiler >> multiplyHighRegisterValue: srcReg1 byRegisterValue: srcReg
 	|  	0000001  |   rs2   |   rs1   |  010  |   rd   |   0110011   |
 	"
 
-	| riscvOpcode |
 	self flag: #TODO.
-	riscvOpcode :=  2r0110011.
 	"Actual bit instruction"
-	^ ((((((2r1 << 25) 
+	^ ((((((2r0000001 << 25) 
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
 	  bitOr: 2r001 << 	12)
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode) 
+	  bitOr: 2r0110011) 
 
 
 	
@@ -5755,16 +5678,14 @@ CogRiscV64Compiler >> multiplyRegisterValue: srcReg1 byRegisterValue: srcReg2 in
 	|  	0000001  |   rs2   |   rs1   |  000  |   rd   |   0110011   |
 	"
 
-	| riscvOpcode |
 	self flag: #TODO.
-	riscvOpcode :=  2r0110011.
 	"Actual bit instruction"
 	^ ((((((2r1 << 25) 
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
 	  bitOr: 2r000 << 	12)
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode) 
+	  bitOr: 2r0110011) 
 
 
 	
@@ -5780,16 +5701,14 @@ CogRiscV64Compiler >> multiplyWordRegisterValue: srcReg1 byRegisterValue: srcReg
 	|  	0000001  |   rs2   |   rs1   |  000  |   rd   |   0111011   |
 	"
 
-	| riscvOpcode |
 	self flag: #TODO.
-	riscvOpcode :=  2r0111011.
 	"Actual bit instruction"
-	^ ((((((2r1 << 25) 
+	^ ((((((2r0000001 << 25) 
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
 	  bitOr: 2r000 << 	12)
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode) 
+	  bitOr: 2r0111011) 
 
 
 	
@@ -6353,14 +6272,12 @@ CogRiscV64Compiler >> shiftLeftValueInRegister: sourceReg byShiftAmount: shiftAm
 	|  000000 |  shamt  |  rs1  |  001  |  rd  |  0010011  |
 	"
 
-	| riscvOpcode |
 	self flag: #DONE.
-	riscvOpcode := 2r0010011.
 	^ (((((shiftAmount bitAnd: 16r3f) << 20) 
 	  bitOr: (sourceReg bitAnd: 16r1f) << 15)
 	  bitOr: (2r001 << 12)) 
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode
+	  bitOr: 2r0010011
 ]
 
 { #category : #'machine code instruction' }
@@ -6373,14 +6290,12 @@ CogRiscV64Compiler >> shiftLeftValueInRegister: sourceReg1 byShiftAmountInRegist
 	|  0000000 |  rs2  |  rs1  |  001  |  rd  |  0110011  |
 	"
 
-	| riscvOpcode |
 	self flag: #DONE.
-	riscvOpcode := 2r0110011.
 	^ (((((sourceReg2 bitAnd: 16r3f) << 20) 
 	  bitOr: (sourceReg1 bitAnd: 16r1f) << 15)
 	  bitOr: (2r001 << 12)) 
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode
+	  bitOr: 2r0110011
 ]
 
 { #category : #'machine code instruction' }
@@ -6393,14 +6308,12 @@ CogRiscV64Compiler >> shiftRightValueInRegister: sourceReg byShiftAmount: shiftA
 	|  000000 |  shamt  |  rs1  |  101  |  rd  |  0010011  |
 	"
 
-	| riscvOpcode |
 	self flag: #DONE.
-	riscvOpcode := 2r0010011.
 	^ (((((shiftAmount bitAnd: 16r3f) << 20) 
 	  bitOr: (sourceReg bitAnd: 16r1f) << 15)
 	  bitOr: (2r101 << 12)) 
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode
+	  bitOr: 2r0010011
 ]
 
 { #category : #'machine code instruction' }
@@ -6413,14 +6326,12 @@ CogRiscV64Compiler >> shiftRightValueInRegister: sourceReg1 byShiftAmountInRegis
 	|  0000000 |  rs2  |  rs1  |  101  |  rd  |  0110011  |
 	"
 
-	| riscvOpcode |
 	self flag: #DONE.
-	riscvOpcode := 2r0110011.
 	^ (((((sourceReg2 bitAnd: 16r3f) << 20) 
 	  bitOr: (sourceReg1 bitAnd: 16r1f) << 15)
 	  bitOr: (2r101 << 12)) 
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode
+	  bitOr: 2r0110011
 ]
 
 { #category : #testing }
@@ -6486,9 +6397,8 @@ CogRiscV64Compiler >> storeByteFromRegister: sourceRegister toAddressInRegister:
 	|  	offset[11:5]  |   rs2   |   rs1   |  000   |  offset[4:0]  |   0100011  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.	
-	riscvOpcode := 2r0100011.
 	"Check for sign and size"
 	self assertValue: offset isContainedIn: 12.	
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -6498,7 +6408,7 @@ CogRiscV64Compiler >> storeByteFromRegister: sourceRegister toAddressInRegister:
 	  bitOr: (destinationAddressRegister bitAnd: 16r1f) << 15) 
 	  bitOr: 2r000 << 12)
 	  bitOr: (signExtendedOffset bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcode
+	  bitOr: 2r0100011
 ]
 
 { #category : #'machine code instruction' }
@@ -6510,9 +6420,8 @@ CogRiscV64Compiler >> storeDoubleWordFromRegister: sourceRegister toAddressInReg
 	|  	offset[11:5]  |   rs2   |   rs1   |  011   |   offset[4:0]   |   0100011  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.	
-	riscvOpcode := 2r0100011.
 	"Check for sign and size"
 	self assertValue: offset isContainedIn: 12.	
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -6522,7 +6431,7 @@ CogRiscV64Compiler >> storeDoubleWordFromRegister: sourceRegister toAddressInReg
 	  bitOr: (destinationAddressRegister bitAnd: 16r1f) << 15) 
 	  bitOr: 2r011 << 12)
 	  bitOr: (signExtendedOffset bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcode
+	  bitOr: 2r0100011
 ]
 
 { #category : #'machine code instruction' }
@@ -6534,9 +6443,8 @@ CogRiscV64Compiler >> storeHalfWordFromRegister: sourceRegister toAddressInRegis
 	|  	offset[11:5]  |   rs2   |   rs1   |  001   |  offset[4:0]  |   0100011  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.	
-	riscvOpcode := 2r0100011.
 	"Check for sign and size"
 	self assertValue: offset isContainedIn: 12.	
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -6546,7 +6454,7 @@ CogRiscV64Compiler >> storeHalfWordFromRegister: sourceRegister toAddressInRegis
 	  bitOr: (destinationAddressRegister bitAnd: 16r1f) << 15) 
 	  bitOr: 2r001 << 12)
 	  bitOr: (signExtendedOffset bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcode
+	  bitOr: 2r0100011
 ]
 
 { #category : #'inline cacheing' }
@@ -6564,9 +6472,8 @@ CogRiscV64Compiler >> storeWordFromRegister: sourceRegister toAddressInRegister:
 	|  	offset[11:5]  |   rs2   |   rs1   |  010   |  offset[4:0]  |   0100011  |
 	"
 
-	| riscvOpcode signExtendedOffset |
+	| signExtendedOffset |
 	self flag: #DONE.	
-	riscvOpcode := 2r0100011.
 	"Check for sign and size"
 	self assertValue: offset isContainedIn: 12.	
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -6576,7 +6483,7 @@ CogRiscV64Compiler >> storeWordFromRegister: sourceRegister toAddressInRegister:
 	  bitOr: (destinationAddressRegister bitAnd: 16r1f) << 15) 
 	  bitOr: 2r010 << 12)
 	  bitOr: (signExtendedOffset bitAnd: 16r1f) << 7) 
-	  bitOr: riscvOpcode
+	  bitOr: 2r0100011
 ]
 
 { #category : #'machine code instruction' }
@@ -6588,15 +6495,13 @@ CogRiscV64Compiler >> subtractRegister: srcReg2 fromRegister: srcReg1 intoRegist
 	 31       25 24   20 19   15 14   12 11     7 6         0
 	|  	0100000  |  rs2  |  rs1  |  000  |   rd   |  0110011  |
 	"
-
-	| riscvOpcode |
-	self flag: #DONE.	
-	riscvOpcode := 2r0110011.	
+	
+	self flag: #DONE.		
 	^ ((((2r0100000 << 25)
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode 
+	  bitOr: 2r0110011 
 ]
 
 { #category : #'machine code instruction' }
@@ -6610,14 +6515,12 @@ CogRiscV64Compiler >> subtractWordRegister: srcReg2 fromRegister: srcReg1 intoRe
 	|  	0100000  |  rs2  |  rs1  |  000  |   rd   |  0111011  |
 	"
 
-	| riscvOpcode |
 	self flag: #DONE.	
-	riscvOpcode := 2r0111011.	
 	^ ((((2r0100000 << 25)
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: riscvOpcode
+	  bitOr: 2r0111011
 ]
 
 { #category : #'private-bit-manipulation' }
