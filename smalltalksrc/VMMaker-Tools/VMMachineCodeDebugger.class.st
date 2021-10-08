@@ -20,7 +20,7 @@ Class {
 VMMachineCodeDebugger class >> defaultSpec [
 
 	^ SpPanedLayout newHorizontal
-		add: #instructions;		
+		add: #instructions;
 		add: (SpPanedLayout newHorizontal
 			add: (SpBoxLayout newVertical
 					add: #machineState;
@@ -30,13 +30,13 @@ VMMachineCodeDebugger class >> defaultSpec [
 					add: #stepButton;
 					add: #disassembleAtPCButton;
 					yourself);
-			add: #stack; 
+			add: #stack;
 			yourself)
 		yourself
 ]
 
 { #category : #'as yet unclassified' }
-VMMachineCodeDebugger class >> openOnCogit: aCogit [ 
+VMMachineCodeDebugger class >> openOnCogit: aCogit [
 
 	self openOnCogit: aCogit ip: aCogit processor machineSimulator pc
 ]
@@ -65,26 +65,26 @@ VMMachineCodeDebugger >> cogit: anObject [
 VMMachineCodeDebugger >> connectMachineStatePresenter [
 
 	| contextMenu |
-	
+
 	contextMenu := SpMenuPresenter new.
 	contextMenu addItem: [ :item |
-		item 
-			name: 'Inspect Value'; 
+		item
+			name: 'Inspect Value';
 			action: [ machineState selection selectedItem inspectValue ] ].
 
 	contextMenu addItem: [ :item |
-		item 
-			name: 'Copy Value to Clipboard'; 
+		item
+			name: 'Copy Value to Clipboard';
 			action: [ machineState selection selectedItem copyValueToClipboard ] ].
 
 	contextMenu addItem: [ :item |
-		item 
-			name: 'Print Value'; 
+		item
+			name: 'Print Value';
 			action: [ machineState selection selectedItem printValue ] ].
 
 	machineState contextMenu: contextMenu.
 
-	
+
 
 ]
 
@@ -94,26 +94,26 @@ VMMachineCodeDebugger >> connectPresenters [
 	| instructionsContextMenu |
 	stepButton action: [ self step ].
 	disassembleAtPCButton action: [ self disassembleAtPC ].
-	
+
 	instructionsContextMenu := SpMenuPresenter new.
 	instructionsContextMenu addItem: [ :item |
-		item 
-			name: 'Set Intruction Pointer Here'; 
+		item
+			name: 'Set Intruction Pointer Here';
 			action: [ self setInstructionPointerToSelectedInstruction ] ].
 
 	instructionsContextMenu addItem: [ :item |
-		item 
-			name: 'Run to Here'; 
+		item
+			name: 'Run to Here';
 			action: [ self runToSelectedInstruction ] ].
 
 	instructionsContextMenu addItem: [ :item |
-		item 
-			name: 'Inspect'; 
+		item
+			name: 'Inspect';
 			action: [ self inspectSelectedInstruction ] ].
 	instructions contextMenu: instructionsContextMenu.
-	
+
 	self connectMachineStatePresenter.
-	
+
 	jumpToButton action: [ self jump ].
 ]
 
@@ -135,13 +135,70 @@ VMMachineCodeDebugger >> doInitialDisassemble [
 			copyFrom: self initialInstructionToDisassemble
 			to: self initialInstructionToDisassemble + 600)
 		startAddress: self initialInstructionToDisassemble
-		pc: machineSimulator instructionPointerRegisterValue 
+		pc: machineSimulator instructionPointerRegisterValue
+]
+
+{ #category : #actions }
+VMMachineCodeDebugger >> highlightMCInstructions: aVMDebuggerIRInstruction [
+
+	"Extract the machine code instructions from the IR instruction"
+
+	| indexes instructionAddresses |
+	instructionAddresses := aVMDebuggerIRInstruction machineCodeInstructionsAddresses.
+	indexes := instructionAddresses collect: [ :addr | (self initialDisassembly collect: [ :e | e address ]) indexOf: addr ].
+	indexes size = 1
+		ifTrue: [ instructions beSingleSelection ]
+		ifFalse: [ instructions beMultipleSelection ].
+	instructions selection selectIndexes: indexes.
+
+
+]
+
+{ #category : #actions }
+VMMachineCodeDebugger >> highlightPCInstruction [
+
+	| index |
+	index :=	(self initialDisassembly collect: [ :e | e address ]) indexOf: machineSimulator instructionPointerRegisterValue.
+	instructions selection selectIndex: index
+
+]
+
+{ #category : #actions }
+VMMachineCodeDebugger >> highlightRegisters: aVMDebuggerInstruction [
+
+	"Extract registers name from instruction assembly and highlight the corresponding lines"
+	| usedRegisters indexes |
+	usedRegisters := aVMDebuggerInstruction usedRegisters.
+	indexes := usedRegisters collect: [ :reg | machineSimulator registerList indexOf: reg ].
+	indexes size = 1
+		ifTrue: [ machineState beSingleSelection ]
+		ifFalse: [ machineState beMultipleSelection ].
+	machineState selection selectIndexes: indexes.
+
+
+]
+
+{ #category : #actions }
+VMMachineCodeDebugger >> highlightSelectedIRInstructionMCInstructions [
+
+	self selectedIRInstruction
+		ifNotNil: [ self highlightMCInstructions: self selectedIRInstruction ]
+
+
+]
+
+{ #category : #actions }
+VMMachineCodeDebugger >> highlightSelectedInstructionRegisters [
+
+	self selectedInstruction
+		ifNotNil: [ self highlightRegisters: self selectedInstruction ]
+
 ]
 
 { #category : #showing }
 VMMachineCodeDebugger >> initialDisassembly [
 
-	^ self doInitialDisassemble collect: [ :anInstruction | 
+	^ self doInitialDisassemble collect: [ :anInstruction |
 			VMMachineCodeDebuggerInstruction new
 				instruction: anInstruction;
 				bytes: (anInstruction codeBytes: cogit objectMemory memoryManager);
@@ -151,7 +208,7 @@ VMMachineCodeDebugger >> initialDisassembly [
 ]
 
 { #category : #showing }
-VMMachineCodeDebugger >> initialExtent [ 
+VMMachineCodeDebugger >> initialExtent [
 
 	^ 1000@1000
 ]
@@ -181,42 +238,42 @@ VMMachineCodeDebugger >> initializePresenters [
 	instructions := self newTable.
 	instructions
 		isResizable: true;
-		addColumn: ((SpStringTableColumn 
+		addColumn: ((SpStringTableColumn
 			title: 'Address'
-			evaluated: #addressString) 
-				isSortable: false; 
+			evaluated: #addressString)
+				isSortable: false;
 				yourself);
 		addColumn:
-			((SpImageTableColumn 
+			((SpImageTableColumn
 				title: ''
 				evaluated: #icon )
 				width: 50;
 				beNotExpandable;
 				yourself);
-		addColumn: ((SpStringTableColumn 
+		addColumn: ((SpStringTableColumn
 			title: 'ASM'
-			evaluated: #assemblyCodeString) 
+			evaluated: #assemblyCodeString)
 				isSortable: false;
 				yourself);
 		addColumn: ((SpStringTableColumn title: 'Bytes'
-			evaluated: #bytesString) 
-			isSortable: false; 
-			yourself);		
+			evaluated: #bytesString)
+			isSortable: false;
+			yourself);
 		showColumnHeaders.
-	
+
 	stack := self newTable.
 	stack
 		addColumn: (SpStringTableColumn evaluated: [ :aPosition | aPosition specialRegister ] );
 		addColumn: (SpStringTableColumn evaluated: [ :aPosition | aPosition address hex ] );
-		addColumn: (SpStringTableColumn evaluated: [ :aPosition | 
+		addColumn: (SpStringTableColumn evaluated: [ :aPosition |
 			[aPosition value hex] on: Error do: [ 'Error' ] ]).
-	
+
 	stepButton := self newButton.
 	stepButton label: 'Step'.
-	
+
 	disassembleAtPCButton := self newButton.
 	disassembleAtPCButton label: 'Disassemble at PC'.
-	
+
 	ipInput := self newTextInput.
 	jumpToButton := self newButton.
 	jumpToButton label: 'Jump to'
@@ -252,7 +309,7 @@ VMMachineCodeDebugger >> openWithSpec [
 	self refreshRegisters.
 	self refreshInstructions.
 	self refreshStack.
-	
+
 	super openWithSpec.
 ]
 
@@ -276,7 +333,7 @@ VMMachineCodeDebugger >> refreshStack [
 
 { #category : #'as yet unclassified' }
 VMMachineCodeDebugger >> runToSelectedInstruction [
-	
+
 	| selectedInstruction |
 
 	selectedInstruction := self selectedInstruction.
@@ -297,7 +354,7 @@ VMMachineCodeDebugger >> selectedInstruction [
 
 { #category : #actions }
 VMMachineCodeDebugger >> setInstructionPointerToSelectedInstruction [
-	
+
 	machineSimulator instructionPointerRegisterValue: instructions selection selectedItem address
 ]
 
