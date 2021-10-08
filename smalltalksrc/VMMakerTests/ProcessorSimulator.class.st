@@ -10,8 +10,46 @@ Class {
 	#category : #VMMakerTests
 }
 
+{ #category : #'instance creation' }
+ProcessorSimulator class >> ARMv5 [
+
+	^ UnicornARMv5Simulator new
+]
+
+{ #category : #'instance creation' }
+ProcessorSimulator class >> ARMv8 [
+
+	^ UnicornARMv8Simulator new
+]
+
+{ #category : #'instance creation' }
+ProcessorSimulator class >> IA32 [
+
+	^ UnicornI386Simulator new
+]
+
+{ #category : #'instance creation' }
+ProcessorSimulator class >> X64 [
+
+	^ UnicornX64Simulator new
+]
+
+{ #category : #'instance creation' }
+ProcessorSimulator class >> aarch64 [
+
+	^ UnicornARMv8Simulator new
+]
+
+{ #category : #'instance creation' }
+ProcessorSimulator class >> riscv64 [
+
+	"TODO: Add riscv32 and possibly two subclasses for the RISCV simulator"
+	"^ UnicornRISCVSimulator new"
+	^ SpikeRISCVSimulator new
+]
+
 { #category : #'as yet unclassified' }
-ProcessorSimulator class >> simulatorFor: isa [ 
+ProcessorSimulator class >> simulatorFor: isa [
 
 	^ (self subclasses detect: [ :each | each supportsISA: isa ]) perform: isa asSymbol
 ]
@@ -30,8 +68,8 @@ ProcessorSimulator >> aliasSmalltalkForRegister: aRegisterName [
 
 { #category : #registers }
 ProcessorSimulator >> arg0Register [
-	
-	^ self subclassResponsibility 
+
+	^ self subclassResponsibility
 ]
 
 { #category : #registers }
@@ -61,7 +99,7 @@ ProcessorSimulator >> arg1RegisterValue [
 { #category : #registers }
 ProcessorSimulator >> baseRegister [
 
-	self subclassResponsibility 
+	self subclassResponsibility
 ]
 
 { #category : #registers }
@@ -76,15 +114,15 @@ ProcessorSimulator >> baseRegisterValue: aValue [
 	^ self writeRegister: self baseRegister value: aValue
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #'c calling convention' }
 ProcessorSimulator >> cResultRegister [
 
 	^ self subclassResponsibility
 ]
 
-{ #category : #'as yet unclassified' }
-ProcessorSimulator >> cReturnRegisterValue: aValue [ 
-	
+{ #category : #'c calling convention' }
+ProcessorSimulator >> cReturnRegisterValue: aValue [
+
 	self writeRegister: self cResultRegister value: aValue
 ]
 
@@ -190,7 +228,7 @@ ProcessorSimulator >> cogit [
 
 { #category : #disassembling }
 ProcessorSimulator >> disassembleCurrentInstruction [
-	
+
 	^ (self disassembleFrom: self instructionPointerRegisterValue opcodes: 1) first
 ]
 
@@ -206,7 +244,7 @@ ProcessorSimulator >> disassembleFrom: anIndex opcodes: numberOfInstructions [
 ]
 
 { #category : #disassembling }
-ProcessorSimulator >> disassembleFrom: start to: stop [ 
+ProcessorSimulator >> disassembleFrom: start to: stop [
 
 	^ self disassembler
 		printImmediatesInHexa;
@@ -221,70 +259,70 @@ ProcessorSimulator >> disassembler [
 	self subclassResponsibility
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #registers }
 ProcessorSimulator >> doublePrecisionFloatingPointRegister0 [
 
-	self subclassResponsibility 
+	self subclassResponsibility
 ]
 
 { #category : #registers }
 ProcessorSimulator >> doublePrecisionFloatingPointRegister0: aValue [
-	
+
 	^ self writeFloat64Register: self doublePrecisionFloatingPointRegister0 value: aValue
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #registers }
 ProcessorSimulator >> doublePrecisionFloatingPointRegister0Value [
 
 	^ self readFloat64Register: self doublePrecisionFloatingPointRegister0
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #registers }
 ProcessorSimulator >> doublePrecisionFloatingPointRegister1 [
 
-	self subclassResponsibility 
+	self subclassResponsibility
 ]
 
 { #category : #registers }
 ProcessorSimulator >> doublePrecisionFloatingPointRegister1: aValue [
-	
+
 	^ self writeFloat64Register: self doublePrecisionFloatingPointRegister1 value: aValue
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #registers }
 ProcessorSimulator >> doublePrecisionFloatingPointRegister1Value [
 
 	^ self readFloat64Register: self doublePrecisionFloatingPointRegister1
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #registers }
 ProcessorSimulator >> doublePrecisionFloatingPointRegister2 [
 
-	self subclassResponsibility 
+	self subclassResponsibility
 ]
 
 { #category : #registers }
 ProcessorSimulator >> doublePrecisionFloatingPointRegister2: aValue [
-	
+
 	^ self writeFloat64Register: self doublePrecisionFloatingPointRegister2 value: aValue
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #registers }
 ProcessorSimulator >> doublePrecisionFloatingPointRegister2Value [
 
 	^ self readFloat64Register: self doublePrecisionFloatingPointRegister2
 ]
 
 { #category : #disassembling }
-ProcessorSimulator >> extractDestinationRegisterFromAssembly: aLLVMInstruction [ 
-	
+ProcessorSimulator >> extractDestinationRegisterFromAssembly: aLLVMInstruction [
+
 	self subclassResponsibility
 ]
 
 { #category : #memory }
-ProcessorSimulator >> finishMappingMemory [ 
+ProcessorSimulator >> finishMappingMemory [
 
-	self subclassResponsibility 
+	self subclassResponsibility
 ]
 
 { #category : #shortcut }
@@ -301,7 +339,7 @@ ProcessorSimulator >> fp: aValue [
 
 { #category : #registers }
 ProcessorSimulator >> framePointerRegister [
-	
+
 	^ self subclassResponsibility
 ]
 
@@ -313,7 +351,7 @@ ProcessorSimulator >> framePointerRegisterValue [
 
 { #category : #registers }
 ProcessorSimulator >> framePointerRegisterValue: aValue [
-	
+
 	self writeRegister: self framePointerRegister value: aValue
 ]
 
@@ -327,8 +365,8 @@ ProcessorSimulator >> getLastAddress: abstractInstructions [
 
 { #category : #testing }
 ProcessorSimulator >> hasLinkRegister [
-	
-	self subclassResponsibility 
+
+	self subclassResponsibility
 ]
 
 { #category : #initialization }
@@ -359,54 +397,54 @@ ProcessorSimulator >> instructionPointerRegister [
 
 { #category : #registers }
 ProcessorSimulator >> instructionPointerRegisterValue [
-	
+
 	^ self readRegister: self instructionPointerRegister
 ]
 
 { #category : #registers }
 ProcessorSimulator >> instructionPointerRegisterValue: aValue [
-	
+
 	^ self writeRegister: self instructionPointerRegister value: aValue
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #registers }
 ProcessorSimulator >> integerRegisterState [
-	
+
 	^ {  }
 ]
 
 { #category : #accessing }
 ProcessorSimulator >> lastExecutedInstructionAddress [
 
-	^ simulator lastExecutedInstructionAddress 
+	^ simulator lastExecutedInstructionAddress
 ]
 
 { #category : #accessing }
 ProcessorSimulator >> lastExecutedInstructionSize [
 
-	^ simulator lastExecutedInstructionSize 
+	^ simulator lastExecutedInstructionSize
 ]
 
 { #category : #accessing }
 ProcessorSimulator >> lastInstructionCount [
-	
-	^ simulator lastInstructionCount 
+
+	^ simulator lastInstructionCount
 ]
 
 { #category : #registers }
-ProcessorSimulator >> linkRegister [ 
+ProcessorSimulator >> linkRegister [
 
 	self subclassResponsibility
 ]
 
-{ #category : #accessing }
+{ #category : #registers }
 ProcessorSimulator >> linkRegisterValue [
 
-	^ self readRegister: self linkRegister 
+	^ self readRegister: self linkRegister
 ]
 
 { #category : #registers }
-ProcessorSimulator >> linkRegisterValue: aValue [ 
+ProcessorSimulator >> linkRegisterValue: aValue [
 
 	^ self writeRegister: self linkRegister value: aValue
 ]
@@ -414,7 +452,7 @@ ProcessorSimulator >> linkRegisterValue: aValue [
 { #category : #shortcut }
 ProcessorSimulator >> lr [
 
-	^ self linkRegisterValue 
+	^ self linkRegisterValue
 ]
 
 { #category : #shortcut }
@@ -448,13 +486,13 @@ ProcessorSimulator >> memory [
 
 { #category : #accessing }
 ProcessorSimulator >> memory: aSpur64BitMMLECoSimulator [
-	
-	memory := aSpur64BitMMLECoSimulator 
+
+	memory := aSpur64BitMMLECoSimulator
 ]
 
 { #category : #memory }
 ProcessorSimulator >> memoryAt: address readNext: byteSize [
-	
+
 	^ simulator memoryAt: address readNext: byteSize
 ]
 
@@ -486,17 +524,17 @@ ProcessorSimulator >> peek [
 
 	"Putting the value in the stack memory"
 	peekedByteArray := self memoryAt: stackAddressIntegerValue readNext: self wordSize.
-	
+
 	^ peekedByteArray
 ]
 
 { #category : #'helpers - stack' }
 ProcessorSimulator >> peekAddress [
-	
+
 	^ self peek integerAt: 1 size: self wordSize signed: false
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #'helpers - stack' }
 ProcessorSimulator >> popBytes [
 
 	| stackAddressIntegerValue aByteArray |
@@ -505,15 +543,15 @@ ProcessorSimulator >> popBytes [
 	stackAddressIntegerValue := self stackPointerRegisterValue.
 	"Putting the value from the stack memory"
 	aByteArray := self memoryAt: stackAddressIntegerValue readNext: self wordSize.
-	
+
 	"Updating SP"
 	stackAddressIntegerValue := stackAddressIntegerValue + self wordSize.
 	self stackPointerRegisterValue: stackAddressIntegerValue.
-	
+
 	^ aByteArray
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #'helpers - stack' }
 ProcessorSimulator >> popWord [
 
 	| aByteArray |
@@ -521,8 +559,8 @@ ProcessorSimulator >> popWord [
 	^ aByteArray integerAt: 1 size: self wordSize signed: false.
 ]
 
-{ #category : #'as yet unclassified' }
-ProcessorSimulator >> pushBytes: aByteArray [ 
+{ #category : #'helpers - stack' }
+ProcessorSimulator >> pushBytes: aByteArray [
 
 	| stackAddressIntegerValue |
 	self assert: aByteArray size = self wordSize.
@@ -533,7 +571,7 @@ ProcessorSimulator >> pushBytes: aByteArray [
 	"Updating SP"
 	stackAddressIntegerValue := stackAddressIntegerValue - self wordSize.
 	self stackPointerRegisterValue: stackAddressIntegerValue.
-	
+
 	"Putting the value in the stack memory"
 	self
 		memoryAt: stackAddressIntegerValue
@@ -542,8 +580,8 @@ ProcessorSimulator >> pushBytes: aByteArray [
 
 ]
 
-{ #category : #'as yet unclassified' }
-ProcessorSimulator >> pushWord: anInteger [ 
+{ #category : #'helpers - stack' }
+ProcessorSimulator >> pushWord: anInteger [
 
 	| aByteArray |
 	aByteArray := ByteArray new: self wordSize.
@@ -551,13 +589,13 @@ ProcessorSimulator >> pushWord: anInteger [
 	self pushBytes: aByteArray
 ]
 
-{ #category : #'as yet unclassified' }
-ProcessorSimulator >> readFloat64Register: aRegisterID [ 
+{ #category : #registers }
+ProcessorSimulator >> readFloat64Register: aRegisterID [
 
 	| registerValue |
 	registerValue := ByteArray new: 8.
 	simulator register: aRegisterID value readInto: registerValue.
-	
+
 	^ registerValue doubleAt: 1
 ]
 
@@ -572,8 +610,8 @@ ProcessorSimulator >> readRegister: aRegisterID [
 
 { #category : #registers }
 ProcessorSimulator >> receiverRegister [
-	
-	^ self subclassResponsibility 
+
+	^ self subclassResponsibility
 ]
 
 { #category : #registers }
@@ -583,56 +621,55 @@ ProcessorSimulator >> receiverRegisterValue [
 ]
 
 { #category : #registers }
-ProcessorSimulator >> receiverRegisterValue: anInteger [ 
+ProcessorSimulator >> receiverRegisterValue: anInteger [
 
 	self writeRegister: self receiverRegister value: anInteger
 ]
 
 { #category : #registers }
-ProcessorSimulator >> register: anIndex readInto: aByteArray [ 
+ProcessorSimulator >> register: anIndex readInto: aByteArray [
 
-	simulator register: anIndex readInto: aByteArray 
+	simulator register: anIndex readInto: aByteArray
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #registers }
 ProcessorSimulator >> register: aRegisterIndex write: aByteArray [
 
-	simulator register: aRegisterIndex readInto: aByteArray 
+	simulator register: aRegisterIndex readInto: aByteArray
 ]
 
-{ #category : #'reading memory' }
-ProcessorSimulator >> registerAliases [ 
+{ #category : #registers }
+ProcessorSimulator >> registerAliases [
 
 	^ registerAliases
 ]
 
-{ #category : #accessing }
+{ #category : #registers }
 ProcessorSimulator >> registerDescriptors [
-	
+
 	^ self registerList collect: [ :e |
-		RegisterDescriptor new
+		UnicornRegisterDescriptor new
 			simulator: self;
 			alias: (self aliasForRegister: e);
-			smalltalkAlias: (self aliasSmalltalkForRegister: e);
 			name: e;
 			yourself ]
 ]
 
 { #category : #registers }
-ProcessorSimulator >> registerList [ 
+ProcessorSimulator >> registerList [
 
-	self subclassResponsibility 
+	self subclassResponsibility
 ]
 
 { #category : #registers }
 ProcessorSimulator >> returnRegisterValue [
-	
+
 	^ self receiverRegisterValue
 ]
 
 { #category : #registers }
 ProcessorSimulator >> returnRegisterValue: aValue [
-	
+
 	^ self receiverRegisterValue: aValue
 ]
 
@@ -643,7 +680,7 @@ ProcessorSimulator >> sendNumberOfArgumentsRegister [
 ]
 
 { #category : #registers }
-ProcessorSimulator >> sendNumberOfArgumentsRegister: anInteger [ 
+ProcessorSimulator >> sendNumberOfArgumentsRegister: anInteger [
 	self shouldBeImplemented.
 ]
 
@@ -659,13 +696,13 @@ ProcessorSimulator >> sendNumberOfArgumentsRegisterValue: aValue [
 	^ self writeRegister: self sendNumberOfArgumentsRegister value: aValue
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #actions }
 ProcessorSimulator >> simulateLeafCallOf: address nextpc: nextpc memory: aMemory [
 
 	self subclassResponsibility
 ]
 
-{ #category : #accessing }
+{ #category : #registers }
 ProcessorSimulator >> smalltalkStackPointerRegister [
 	"By default they are the same"
 	^ self stackPointerRegister
@@ -679,19 +716,19 @@ ProcessorSimulator >> smalltalkStackPointerRegisterValue [
 
 { #category : #registers }
 ProcessorSimulator >> smalltalkStackPointerRegisterValue: aValue [
-	
+
 	self writeRegister: self smalltalkStackPointerRegister value: aValue
 ]
 
 { #category : #registers }
 ProcessorSimulator >> smashRegisterAccessors [
-	
-	^ self subclassResponsibility 
+
+	^ self subclassResponsibility
 ]
 
 { #category : #registers }
-ProcessorSimulator >> smashRegistersWithValuesFrom: base by: step [ 
-	
+ProcessorSimulator >> smashRegistersWithValuesFrom: base by: step [
+
 	self smashRegisterAccessors withIndexDo: [:accessor :index|
 		self perform: accessor with: index - 1 * step + base]
 ]
@@ -710,7 +747,7 @@ ProcessorSimulator >> sp: aValue [
 
 { #category : #registers }
 ProcessorSimulator >> stackPointerRegister [
-	
+
 	self subclassResponsibility
 ]
 
@@ -722,7 +759,7 @@ ProcessorSimulator >> stackPointerRegisterValue [
 
 { #category : #registers }
 ProcessorSimulator >> stackPointerRegisterValue: aValue [
-	
+
 	self writeRegister: self stackPointerRegister value: aValue
 ]
 
@@ -755,19 +792,19 @@ ProcessorSimulator >> stackValueBytesAt: position [
 
 { #category : #accessing }
 ProcessorSimulator >> stackValues [
-	
+
 	| initialValue |
 	initialValue := self smalltalkStackPointerRegisterValue.
-	
-	^ (1 to: 30) collect: [ :anIndex |  
-		VMMachineCodeDebuggerStackItem address: initialValue + (memory wordSize * (anIndex - 1)) on: self.	
-	] 
+
+	^ (1 to: 30) collect: [ :anIndex |
+		VMMachineCodeDebuggerStackItem address: initialValue + (memory wordSize * (anIndex - 1)) on: self.
+	]
 ]
 
 { #category : #actions }
 ProcessorSimulator >> startAt: begin until: until timeout: timeout count: count [
 
-	self subclassResponsibility 
+	self subclassResponsibility
 
 ]
 
@@ -787,7 +824,7 @@ ProcessorSimulator >> temporaryRegister [
 	^ self subclassResponsibility
 ]
 
-{ #category : #accessing }
+{ #category : #registers }
 ProcessorSimulator >> temporaryRegisterValue [
 
 	^ self readRegister: self temporaryRegister
@@ -800,8 +837,8 @@ ProcessorSimulator >> temporaryRegisterValue: anInteger [
 ]
 
 { #category : #accessing }
-ProcessorSimulator >> wordAt: anInteger [ 
-	
+ProcessorSimulator >> wordAt: anInteger [
+
 	^ memory longAt: anInteger
 ]
 
@@ -811,7 +848,7 @@ ProcessorSimulator >> wordSize [
 ]
 
 { #category : #registers }
-ProcessorSimulator >> writeFloat64Register: aRegister value: aDouble [ 
+ProcessorSimulator >> writeFloat64Register: aRegister value: aDouble [
 
 	| value |
 	value := ByteArray new: 8.
@@ -821,7 +858,7 @@ ProcessorSimulator >> writeFloat64Register: aRegister value: aDouble [
 ]
 
 { #category : #registers }
-ProcessorSimulator >> writeRegister: aRegister value: anInteger [ 
+ProcessorSimulator >> writeRegister: aRegister value: anInteger [
 
 	| value |
 	value := ByteArray new: self wordSize.

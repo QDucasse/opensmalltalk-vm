@@ -38,7 +38,7 @@ VMMachineCodeDebugger class >> defaultSpec [
 ]
 
 { #category : #'as yet unclassified' }
-VMMachineCodeDebugger class >> openOnCogit: aCogit [ 
+VMMachineCodeDebugger class >> openOnCogit: aCogit [
 
 	self openOnCogit: aCogit ip: aCogit processor machineSimulator pc
 ]
@@ -185,7 +185,7 @@ VMMachineCodeDebugger >> doInitialDisassemble [
 			copyFrom: self initialInstructionToDisassemble
 			to: self initialInstructionToDisassemble + 600)
 		startAddress: self initialInstructionToDisassemble
-		pc: machineSimulator instructionPointerRegisterValue 
+		pc: machineSimulator instructionPointerRegisterValue
 ]
 
 { #category : #actions }
@@ -248,7 +248,7 @@ VMMachineCodeDebugger >> highlightSelectedInstructionRegisters [
 { #category : #showing }
 VMMachineCodeDebugger >> initialDisassembly [
 
-	^ self doInitialDisassemble collect: [ :anInstruction | 
+	^ self doInitialDisassemble collect: [ :anInstruction |
 			VMMachineCodeDebuggerInstruction new
 				instruction: anInstruction;
 				bytes: (anInstruction codeBytes: cogit objectMemory memoryManager);
@@ -485,7 +485,7 @@ VMMachineCodeDebugger >> refreshStack [
 
 { #category : #'as yet unclassified' }
 VMMachineCodeDebugger >> runToSelectedInstruction [
-	
+
 	| selectedInstruction |
 
 	selectedInstruction := self selectedInstruction.
@@ -512,7 +512,7 @@ VMMachineCodeDebugger >> selectedInstruction [
 
 { #category : #actions }
 VMMachineCodeDebugger >> setInstructionPointerToSelectedInstruction [
-	
+
 	machineSimulator instructionPointerRegisterValue: instructions selection selectedItem address
 ]
 
