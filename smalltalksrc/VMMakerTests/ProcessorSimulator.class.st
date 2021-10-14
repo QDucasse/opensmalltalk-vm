@@ -48,7 +48,7 @@ ProcessorSimulator class >> riscv64 [
 	^ SpikeRISCVSimulator new
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #'instance creation' }
 ProcessorSimulator class >> simulatorFor: isa [
 
 	^ (self subclasses detect: [ :each | each supportsISA: isa ]) perform: isa asSymbol
@@ -648,7 +648,7 @@ ProcessorSimulator >> registerAliases [
 ProcessorSimulator >> registerDescriptors [
 
 	^ self registerList collect: [ :e |
-		UnicornRegisterDescriptor new
+		RegisterDescriptor new
 			simulator: self;
 			alias: (self aliasForRegister: e);
 			name: e;
