@@ -8103,24 +8103,33 @@ Cogit >> generateInstructionsAt: eventualAbsoluteAddress [
 	 Compute backward branches based on actual address.
 	 Reuse the fixups array to record the pc-dependent instructions that need to have
 	 their code generation postponed until after the others."
-	| absoluteAddress pcDependentIndex abstractInstruction fixup |
+	| absoluteAddress pcDependentIndex abstractInstruction fixup previousOperands previousOpcode |
 	<var: #abstractInstruction type: #'AbstractInstruction *'>
 	<var: #fixup type: #'BytecodeFixup *'>
 	absoluteAddress := eventualAbsoluteAddress.
 	pcDependentIndex := 0.
+	previousOperands := nil.
+	previousOpcode := 0.
 	0 to: opcodeIndex - 1 do:
 		[:i|
 		self maybeBreakGeneratingAt: absoluteAddress.
 		abstractInstruction := self abstractInstructionAt: i.
+		abstractInstruction previousOperands: previousOperands.
+		abstractInstruction previousOpcode: previousOpcode.
 		abstractInstruction isPCDependent
 			ifTrue:
 				[abstractInstruction sizePCDependentInstructionAt: absoluteAddress.
+
 				 fixup := self fixupAtIndex: pcDependentIndex.
 				 pcDependentIndex := pcDependentIndex + 1.
 				 fixup instructionIndex: i.
-				 absoluteAddress := absoluteAddress + abstractInstruction machineCodeSize]
+				 absoluteAddress := absoluteAddress + abstractInstruction machineCodeSize.
+				 ]
 			ifFalse:
-				[absoluteAddress := abstractInstruction concretizeAt: absoluteAddress]].
+				[absoluteAddress := abstractInstruction concretizeAt: absoluteAddress].
+			previousOperands := abstractInstruction operands.
+			previousOpcode := abstractInstruction opcode.
+			].
 	0 to: pcDependentIndex - 1 do:
 		[:j|
 		fixup := self fixupAtIndex: j.

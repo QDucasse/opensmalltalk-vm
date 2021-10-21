@@ -2,7 +2,9 @@ Class {
 	#name : #CogRiscV64Compiler,
 	#superclass : #CogAbstractInstruction,
 	#instVars : [
-		'conditionOrNil'
+		'conditionOrNil',
+		'previousOperands',
+		'previousOpcode'
 	],
 	#classVars : [
 		'AL',
@@ -1686,7 +1688,11 @@ CogRiscV64Compiler >> concretizeAt: actualAddress [
 	 setting machineCodeSize, and answer the following address."
 
 	self assert: actualAddress \\ 4 = 0.
-	^ super concretizeAt: actualAddress
+	address := actualAddress.
+	self dispatchConcretize.
+	self previousOperands: operands.
+	self assert: (maxSize isNil or: [maxSize >= machineCodeSize]).
+	^actualAddress + machineCodeSize
 ]
 
 { #category : #concretization }
@@ -1944,7 +1950,9 @@ CogRiscV64Compiler >> concretizeJumpAbove [
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: ConcreteFlagReg isGreaterThanRegisterValueUnsigned: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self branchTo: offset 
+	                                 ifRegisterValueUnsigned: self getTestReg 
+	                                 isGreaterThanRegisterValueUnsigned: ConcreteIPReg).
 	^ machineCodeSize := 4
 ]
 
@@ -1956,7 +1964,9 @@ CogRiscV64Compiler >> concretizeJumpAboveOrEqual [
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: ConcreteFlagReg isGreaterThanOrEqualRegisterValueUnsigned: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self branchTo: offset 
+	   				                     ifRegisterValueUnsigned: self getTestReg 
+	                                 isGreaterThanOrEqualRegisterValueUnsigned: ConcreteIPReg).
 	^ machineCodeSize := 4
 ]
 
@@ -1968,7 +1978,9 @@ CogRiscV64Compiler >> concretizeJumpBelow [
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: ConcreteFlagReg isLessThanRegisterValueUnsigned: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self branchTo: offset 
+	                                 ifRegisterValueUnsigned: self getTestReg 
+	                                 isLessThanRegisterValueUnsigned: ConcreteIPReg).
 	^ machineCodeSize := 4
 ]
 
@@ -1980,7 +1992,9 @@ CogRiscV64Compiler >> concretizeJumpBelowOrEqual [
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: ConcreteFlagReg isLessThanOrEqualRegisterValueUnsigned: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self branchTo: offset 
+	                                 ifRegisterValueUnsigned: self getTestReg 
+	      			                     isLessThanOrEqualRegisterValueUnsigned: ConcreteIPReg).
 	^ machineCodeSize := 4
 ]
 
@@ -1997,6 +2011,7 @@ CogRiscV64Compiler >> concretizeJumpFPEqual [
 	<inline:true>
 	| offset |
 	self flag: #TODO.
+	1halt.
 	"Registers are surely wrong, how to test them?"
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
@@ -2153,11 +2168,14 @@ CogRiscV64Compiler >> concretizeJumpFull [
 CogRiscV64Compiler >> concretizeJumpGreater [
 
 	<inline: true>
-	| offset |
+	| offset testReg |
 	self flag: #TODO.
+	testReg := self getTestReg.
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: ConcreteFlagReg isGreaterThanRegisterValue: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self branchTo: offset 
+	                                 ifRegisterValue: self getTestReg 
+	                                 isGreaterThanRegisterValue: ConcreteIPReg).
 	^ machineCodeSize := 4
 ]
 
@@ -2169,7 +2187,9 @@ CogRiscV64Compiler >> concretizeJumpGreaterOrEqual [
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: ConcreteFlagReg isGreaterThanOrEqualRegisterValue: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self branchTo: offset 
+											  ifRegisterValue: self getTestReg 
+											  isGreaterThanOrEqualRegisterValue: ConcreteIPReg).
 	^ machineCodeSize := 4
 ]
 
@@ -2181,7 +2201,9 @@ CogRiscV64Compiler >> concretizeJumpLess [
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: ConcreteFlagReg isLessThanRegisterValue: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self branchTo: offset 
+	 									     ifRegisterValue: self getTestReg 
+										     isLessThanRegisterValue: ConcreteIPReg).
 	^ machineCodeSize := 4
 ]
 
@@ -2193,7 +2215,9 @@ CogRiscV64Compiler >> concretizeJumpLessOrEqual [
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: ConcreteFlagReg isLessThanOrEqualRegisterValue: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self branchTo: offset 
+	  										  ifRegisterValue: self getTestReg 
+											  isLessThanOrEqualRegisterValue: ConcreteIPReg).
 	^ machineCodeSize := 4
 ]
 
@@ -2223,7 +2247,7 @@ CogRiscV64Compiler >> concretizeJumpNegative [
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNegative: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNegative: self getTestReg).
 	^ machineCodeSize := 4
 ]
 
@@ -2249,7 +2273,7 @@ CogRiscV64Compiler >> concretizeJumpNonNegative [
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNonNegative: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNonNegative: self getTestReg).
 	^ machineCodeSize := 4
 ]
 
@@ -2261,7 +2285,7 @@ CogRiscV64Compiler >> concretizeJumpNonZero [
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNotEqualToZero: ConcreteFlagReg).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNotEqualToZero: self getTestReg).
 	^ machineCodeSize := 4
 ]
 
@@ -2291,7 +2315,7 @@ CogRiscV64Compiler >> concretizeJumpZero [
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsEqualToZero: ConcreteFlagReg).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsEqualToZero: self getTestReg).
 	^ machineCodeSize := 4
 ]
 
@@ -3671,7 +3695,7 @@ CogRiscV64Compiler >> concretizeRotateLeftCqR [
 		"
 
 	<inline: true>
-	| cq destReg srcReg instrOffset |
+	| cq destReg srcReg instrOffset rotateOffset |
 	self flag: #TODO.
 	cq := operands at: 0.
 	srcReg := destReg := operands at: 1.
@@ -3679,22 +3703,23 @@ CogRiscV64Compiler >> concretizeRotateLeftCqR [
 		ifNil: [ 
 			self assertValue: cq isContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
-					self machineCodeAt: 0 put: (self
+					rotateOffset := self machineCodeWriteInstructions: (self
 							 rotateLeftValueInRegister: srcReg 
 							 byShiftAmount: cq 
 							 inRegister: destReg).
-					^ machineCodeSize := 12 ]
+					^ machineCodeSize := rotateOffset ]
 				ifFalse: [ "Move to a register before performing AND on the registers"	
 					"Load the immediate to a register"
 					instrOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ] 
 				]
 		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
 			instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
-	self machineCodeAt: instrOffset put: (self
-				rotateLeftValueInRegister: srcReg 
-				byShiftAmountInRegister: ConcreteIPReg 
-				inRegister: destReg).
-	^ machineCodeSize := instrOffset + 16
+	rotateOffset := self machineCodeWriteInstructions: (self
+			     	         		rotateLeftValueInRegister: srcReg 
+				            		byShiftAmountInRegister: ConcreteIPReg 
+			             		inRegister: destReg) 
+				           startingAtIndex: instrOffset.
+	^ machineCodeSize := instrOffset + rotateOffset
 ]
 
 { #category : #concretization }
@@ -3716,7 +3741,7 @@ CogRiscV64Compiler >> concretizeRotateRightCqR [
 		"
 
 	<inline: true>
-	| cq destReg srcReg instrOffset |
+	| cq destReg srcReg instrOffset rotateOffset |
 	self flag: #TODO.
 	cq := operands at: 0.
 	srcReg := destReg := operands at: 1.
@@ -3724,22 +3749,25 @@ CogRiscV64Compiler >> concretizeRotateRightCqR [
 		ifNil: [ 
 			self assertValue: cq isContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
-					self machineCodeAt: 0 put: (self
-							 rotateRightValueInRegister: srcReg 
-							 byShiftAmount: cq 
-							 inRegister: destReg).
-					^ machineCodeSize := 12 ]
+					rotateOffset := self machineCodeWriteInstructions: (self
+										      rotateRightValueInRegister: srcReg 
+							               byShiftAmount: cq 
+							               inRegister: destReg).
+					^ machineCodeSize := rotateOffset
+				 ]
 				ifFalse: [ "Move to a register before performing AND on the registers"	
 					"Load the immediate to a register"
 					instrOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ] 
-				]
+		]
 		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
-			instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
-	self machineCodeAt: instrOffset put: (self
-				rotateRightValueInRegister: srcReg 
-				byShiftAmountInRegister: ConcreteIPReg 
-				inRegister: destReg).	
-	^ machineCodeSize := instrOffset + 16
+			instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) 
+		].
+	rotateOffset := self machineCodeWriteInstructions: (self
+				            		rotateRightValueInRegister: srcReg 
+				            		byShiftAmountInRegister: ConcreteIPReg 
+				            		inRegister: destReg) 
+		                  startingAtIndex: instrOffset.
+	^ machineCodeSize := instrOffset + rotateOffset
 ]
 
 { #category : #concretization }
@@ -4928,6 +4956,17 @@ CogRiscV64Compiler >> generalPurposeRegisterMap [
 			#r12. X12	}
 ]
 
+{ #category : #concretization }
+CogRiscV64Compiler >> getTestReg [ 
+
+
+	self flag: #TODO.
+	({TstCqR . CmpC32R . CmpCqR . CmpCwR . CmpRR . CmpRdRd } includes: previousOpcode)
+		ifTrue: [ ^ ConcreteFlagReg ]
+		ifFalse: [ ^ previousOperands at: 1 ]
+	             
+]
+
 { #category : #testing }
 CogRiscV64Compiler >> hasConditionRegister [
 	"Answer if the receiver supports, e.g., JumpOverflow after a regular AddRR"
@@ -5814,6 +5853,30 @@ CogRiscV64Compiler >> prepareStackToCallCFunctionInSmalltalkStack: anObject [
 
 	cogit AndCq: ((1 << 64) - 16) R: Extra2Reg. 
 	cogit MoveR: Extra2Reg R: SP.
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> previousOpcode [
+
+	^ previousOpcode
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> previousOpcode: anOpcode [
+
+	previousOpcode := anOpcode
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> previousOperands [ 
+
+	^ previousOperands
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> previousOperands: aCArray [
+
+	previousOperands := aCArray 
 ]
 
 { #category : #concretization }
