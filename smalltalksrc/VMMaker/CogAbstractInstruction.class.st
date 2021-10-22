@@ -1363,6 +1363,12 @@ CogAbstractInstruction >> nameForRegister: reg [ "<Integer>"
 	^CogAbstractRegisters nameForRegister: reg
 ]
 
+{ #category : #accessing }
+CogAbstractInstruction >> needsPreviousInfo [ 
+	"Might be useful for some architectures (i.e. RISCV does not have a flag register)"
+	^ false
+]
+
 { #category : #'abstract instructions' }
 CogAbstractInstruction >> noteFollowingConditionalBranch: branch [
 	"Support for processors without condition codes, such as the MIPS.

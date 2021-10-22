@@ -260,8 +260,8 @@ CogRiscV64Compiler class >> initializeAbstractRegisters [
 	Extra0Reg := X18.  "These are callee saved registers"
 	Extra1Reg := X19.
 	Extra2Reg := X20.
-	VarBaseReg := X26. "Base address for calls from machine code. Must be callee saved"
-	self assert: ConcreteVarBaseReg = X26.
+	VarBaseReg := X26. self assert: ConcreteVarBaseReg = X26. "Base address for calls from machine code. Must be callee saved"
+	RISCTempReg := X5. self assert: ConcreteIPReg = X5.
 	LinkReg := X1. "X1 is ra"
 
 	NumRegisters := 14.
@@ -3116,8 +3116,8 @@ CogRiscV64Compiler >> concretizeMoveRR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeMoveRRd [
 
-	"fmv.x.d: Floating point move doubleword from integer,
-    copies the double-precision floating-point number in register x[rs1] to f[rd]"
+	"fmv.d.x: Floating point move doubleword from integer
+    Copies the double-precision floating-point number in x[rs1] to f[rd]"
 	<inline: true>
 	| srcReg destReg |
 	self flag: #TODO.
@@ -4478,7 +4478,7 @@ CogRiscV64Compiler >> fMoveDoubleWordInFRegister: fregister toXRegister: xregist
 	"Actual bit instruction"
 	^ (((2r1110001 << 25) 
 	  bitOr: (fregister bitAnd: 16r1f) << 15)
-	  bitOr: (xregister bitAnd: 16r1f) << 12)
+	  bitOr: (xregister bitAnd: 16r1f) << 7)
 	  bitOr: 2r1010011 
 
 ]
@@ -4498,7 +4498,7 @@ CogRiscV64Compiler >> fMoveDoubleWordInXRegister: xregister toFRegister: fregist
 	"Actual bit instruction"
 	^ (((2r1111001 << 25) 
 	  bitOr: (fregister bitAnd: 16r1f) << 15)
-	  bitOr: (xregister bitAnd: 16r1f) << 12)
+	  bitOr: (xregister bitAnd: 16r1f) << 7)
 	  bitOr: 2r1010011 
 
 ]
@@ -5112,8 +5112,8 @@ CogRiscV64Compiler >> instructionIsPush: instr [
 
 { #category : #disassembly }
 CogRiscV64Compiler >> instructionSizeAt: pc [
-	"Answer the instruction size at pc.Simple on ARM ;-)"
-	self flag: #TODO.
+	"Answer the instruction size at pc"
+	self flag: #DONE.
 	^4
 ]
 
@@ -5775,6 +5775,12 @@ CogRiscV64Compiler >> nameForRegister: reg [ "<Integer>"
 				ifNone: [default]]
 		ifFalse:
 			[default]
+]
+
+{ #category : #'machine code instruction' }
+CogRiscV64Compiler >> needsPreviousInfo [ 
+
+	^ true
 ]
 
 { #category : #'machine code instruction' }

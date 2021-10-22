@@ -8114,8 +8114,9 @@ Cogit >> generateInstructionsAt: eventualAbsoluteAddress [
 		[:i|
 		self maybeBreakGeneratingAt: absoluteAddress.
 		abstractInstruction := self abstractInstructionAt: i.
-		abstractInstruction previousOperands: previousOperands.
-		abstractInstruction previousOpcode: previousOpcode.
+		abstractInstruction needsPreviousInfo 
+			ifTrue: [ abstractInstruction previousOperands: previousOperands.
+						 abstractInstruction previousOpcode: previousOpcode ].
 		abstractInstruction isPCDependent
 			ifTrue:
 				[abstractInstruction sizePCDependentInstructionAt: absoluteAddress.
