@@ -22,9 +22,12 @@ Class {
 		'CS',
 		'CmpNotOpcode',
 		'CmpOpcode',
+		'ConcreteCarryReg',
 		'ConcreteFlagReg',
 		'ConcreteIPReg',
 		'ConcreteIPReg2',
+		'ConcreteOverflowReg',
+		'ConcreteOverflowReg2',
 		'ConcretePCReg',
 		'ConcreteVarBaseReg',
 		'EQ',
@@ -90,7 +93,11 @@ Class {
 		'X25',
 		'X26',
 		'X27',
+		'X28',
+		'X29',
 		'X3',
+		'X30',
+		'X31',
 		'X4',
 		'X5',
 		'X6',
@@ -181,6 +188,10 @@ CogRiscV64Compiler class >> initialize [
 	X25 := 25.
 	X26 := 26.
 	X27 := 27. "Flag register"
+	X28 := 28.
+	X29 := 29.
+	X30 := 30.
+	X31 := 31.
 
 	SP := X2. "Stack Pointer"
 	LR := X1. "Link Register"
@@ -202,12 +213,14 @@ CogRiscV64Compiler class >> initialize [
 	
 	"Base register that will serve as anchor to trampoline between stacks"
 	ConcreteVarBaseReg := X26.
-	"X5 and X6 are temporary registers used as the intra procedural scratch registers"
+	"X5 and X6 are temporary registers used as the intra procedural scratch registers, they are not preserved accross calls"
 	ConcreteIPReg := X5.
 	ConcreteIPReg2 := X6.
-
-	"Flag register for conditions"
-	ConcreteFlagReg := X27.
+	ConcreteFlagReg := X28.
+	ConcreteOverflowReg := X29.
+	ConcreteOverflowReg2 := X30.
+	ConcreteCarryReg := X31.
+	
 	
 	"Branch Condition Codes"
 	EQ  := 2r000. "Equal"
@@ -217,9 +230,6 @@ CogRiscV64Compiler class >> initialize [
 	LT  := 2r100. "Less Than"
 	LTU := 2r110. "Less Than Unsigned"
 	
-	
-
-
 ]
 
 { #category : #'class initialization' }
@@ -1065,7 +1075,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[OrCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
 		[SubCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
 		[XorCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
-		[AddRR]			   	-> [^4]. "DONE"
+		[AddRR]			   	-> [^16]. "DONE"
 		[AndRR]				-> [^4]. "DONE"
 		[CmpRR]				-> [^4]. "DONE"
 		[OrRR]					-> [^4]. "DONE"
@@ -1301,60 +1311,12 @@ CogRiscV64Compiler >> computeMaximumSize [
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: offset) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
 						]. "DONE"
-		[MoveXbrRR]			-> [
-						dependent 
-							ifNil:[ | index |
-								index := operands at: 0.
-								((self computeSignedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
-								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
-								   ifFalse: [ ^ (self immediateLoadInstructionBytes: index) + 8 ]. "immediate loaded in a register"
-                      ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
-						]. "DONE"
-		[MoveX32rRR]			-> [
-						dependent 
-							ifNil:[ | index |
-								index := operands at: 0.
-								((self computeSignedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
-								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
-								   ifFalse: [ ^ (self immediateLoadInstructionBytes: index) + 8 ]. "immediate loaded in a register"
-                      ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
-						]. "DONE"
-		[MoveRX32rR]			-> [
-						dependent 
-							ifNil:[ | index |
-								index := operands at: 1.
-								((self computeSignedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
-								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
-								   ifFalse: [ ^ (self immediateLoadInstructionBytes: index) + 8 ]. "immediate loaded in a register"
-                      ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
-						]. "DONE"
-		[MoveRXbrR]			-> [
-						dependent 
-							ifNil:[ | index |
-								index := operands at: 1.
-								((self computeSignedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
-								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
-								   ifFalse: [ ^ (self immediateLoadInstructionBytes: index) + 8 ]. "immediate loaded in a register"
-                      ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
-						]. "DONE"
-		[MoveXwrRR]			-> [
-						dependent 
-							ifNil:[ | index |
-								index := operands at: 0.
-								((self computeSignedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
-								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
-								   ifFalse: [ ^ (self immediateLoadInstructionBytes: index) + 8 ]. "immediate loaded in a register"
-                      ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
-						]. "DONE"
-		[MoveRXwrR]			-> [
-						dependent 
-							ifNil:[ | index |
-								index := operands at: 1.
-								((self computeSignedValueOf: index ofSize: 12) bitAnd: 16rfff) = index
-								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
-								   ifFalse: [ ^ (self immediateLoadInstructionBytes: index) + 8 ]. "immediate loaded in a register"
-                      ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
-						]. "DONE"
+		[MoveXbrRR]			-> [ ^ 8 ]. "DONE"
+		[MoveX32rRR]			-> [ ^ 8 ]. "DONE"
+		[MoveRX32rR]			-> [ ^ 8 ]. "DONE"
+		[MoveRXbrR]			-> [ ^ 8 ]. "DONE"
+		[MoveXwrRR]			-> [ ^ 8 ]. "DONE"
+		[MoveRXwrR]			-> [ ^ 8 ]. "DONE"
 		[PopR]					-> [^8]. "DONE"
 		[PushR]				-> [^8]. "DONE"
 		[PushCw]				-> [^ self literalLoadInstructionBytes + 8]. "DONE"
@@ -1457,11 +1419,36 @@ CogRiscV64Compiler >> concretizeAddRR [
 
 	<inline: true>
 	| srcReg1 srcReg2 destReg |
+	"This instruction performs an add operation and sets the eventual overflow registers"
 	self flag: #TODO.
 	srcReg1 := operands at: 0.
-	srcReg2 := destReg := operands at: 1.
+	srcReg2 := operands at: 1.
+	destReg := ConcreteIPReg.
+	"Perform the add operation"
 	self machineCodeAt: 0 put: (self addRegister: srcReg1 toRegister: srcReg2 inRegister: destReg).
-	^ machineCodeSize := 4
+	"Copy the result to the flag register (if a JUMP that tests this value is called just after)"
+	
+	
+	"Check for the overflow, as according to the example in the book: 
+	 add t0, t1, t2 
+    sltiu t3 t2 0       # t3 = (t2 < 0)
+    sltu t4, t0, t1     # t4 = (t1 + t2 < t1)
+    bne t3, t4, offset # overflow if (t2 < 0) && (t1 + t2 >= t1) 
+                                  || (t2 >= 0) && (t1 + t2 < t1)"
+
+	"1. Check if one operand is negative"
+	self machineCodeAt: 4 put: (self setOneIn: ConcreteOverflowReg 
+	                                 ifValueIn: srcReg2 
+	                                 isLessThanImmediate: 0).
+	"2. Check if the sum is smaller than one operand"
+	self machineCodeAt: 8 put: (self setOneIn: ConcreteOverflowReg2 
+												ifValueIn: destReg  
+												isLessThanValueIn: srcReg1).
+	"These two instructions check for the overflow in the case of a following jump overflow"
+	
+	"We copy the value stored in the temporary register in the actual destination"
+	self machineCodeAt: 12 put: (self moveRegister: destReg toRegister: srcReg2).
+	^ machineCodeSize := 16
 	
 
 ]
@@ -2011,13 +1998,12 @@ CogRiscV64Compiler >> concretizeJumpFPEqual [
 	<inline:true>
 	| offset |
 	self flag: #TODO.
-	1halt.
 	"Registers are surely wrong, how to test them?"
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	"If srcreg1 = srcreg2, 1 in flag reg, 0 otherwise"
 	self machineCodeAt: 0 put: (self 
-		fRegisterValue: ConcreteFlagReg 
+		fRegisterValue: self getTestReg 
 		isEqualToRegisterValue: ConcreteIPReg
 		into: ConcreteFlagReg ).
 	"Check reg is not equal to 0 (maybe check 1 is better?)"
@@ -2038,7 +2024,7 @@ CogRiscV64Compiler >> concretizeJumpFPGreater [
  	self assert: (self isInImmediateJumpRange: offset).
 	"If srcreg1 <= srcreg2, 1 in flag reg, 0 otherwise"
 	self machineCodeAt: 0 put: (self 
-		fRegisterValue: ConcreteFlagReg 
+		fRegisterValue: self getTestReg 
 		isLessThanOrEqualToRegisterValue: ConcreteIPReg 
 		into: ConcreteFlagReg ).
 	"Check reg = 0 (if !(r1 <= r2) => r1 > r2)"
@@ -2059,7 +2045,7 @@ CogRiscV64Compiler >> concretizeJumpFPGreaterOrEqual [
  	self assert: (self isInImmediateJumpRange: offset).
 	"If srcreg1 < srcreg2, 1 in flag reg, 0 otherwise"
 	self machineCodeAt: 0 put: (self 
-		fRegisterValue: ConcreteFlagReg 
+		fRegisterValue: self getTestReg  
 		isLessThanToRegisterValue: ConcreteIPReg 
 		into: ConcreteFlagReg ).
 	"Check reg = 0 (if !(r1 < r2) => r1 >= r2)"
@@ -2080,7 +2066,7 @@ CogRiscV64Compiler >> concretizeJumpFPLess [
  	self assert: (self isInImmediateJumpRange: offset).
 	"If srcreg1 < srcreg2, 1 in flag reg, 0 otherwise"
 	self machineCodeAt: 0 put: (self 
-		fRegisterValue: ConcreteFlagReg 
+		fRegisterValue: self getTestReg 
 		isLessThanToRegisterValue: ConcreteIPReg
 		into: ConcreteFlagReg ).
 	"Check reg = 1"
@@ -2101,7 +2087,7 @@ CogRiscV64Compiler >> concretizeJumpFPLessOrEqual [
  	self assert: (self isInImmediateJumpRange: offset).
 	"If srcreg1 <= srcreg2, 1 in flag reg, 0 otherwise"
 	self machineCodeAt: 0 put: (self 
-		fRegisterValue: ConcreteFlagReg 
+		fRegisterValue: self getTestReg 
 		isLessThanOrEqualToRegisterValue: ConcreteIPReg 
 		into: ConcreteFlagReg ).
 	"Check reg = 1"
@@ -2122,7 +2108,7 @@ CogRiscV64Compiler >> concretizeJumpFPNotEqual [
  	self assert: (self isInImmediateJumpRange: offset).
 	"If srcreg1 = srcreg2, 1 in flag reg, 0 otherwise"
 	self machineCodeAt: 0 put: (self 
-		fRegisterValue: ConcreteFlagReg 
+		fRegisterValue: self getTestReg 
 		isEqualToRegisterValue: ConcreteIPReg 
 		into: ConcreteFlagReg ).
 	"Check reg = 0"
@@ -2262,7 +2248,19 @@ CogRiscV64Compiler >> concretizeJumpNoCarry [
 CogRiscV64Compiler >> concretizeJumpNoOverflow [
 
 	<inline:true>
-	"1halt."
+	| offset |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+ 	self assert: (self isInImmediateJumpRange: offset).
+	"Jump Overflow expects the last instruction to setup the overflow registers as follows: 
+	 Software checking of overflow, consists of the following steps (with add as example): 
+	  add t0, t1, t2 
+     slti t3 t2 0   # t3 = (t2 < 0)
+     slt t4, t0, t1  # t4 = (t1 + t2 < t1)
+     be t3, t4, offset # overflow if (t2 < 0) && (t1 + t2 >= t1) 
+                                  || (t2 >= 0) && (t1 + t2 < t1)"
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: ConcreteOverflowReg isEqualToRegisterValue: ConcreteOverflowReg2).
+	^ machineCodeSize := 4	
 ]
 
 { #category : #concretization }
@@ -2293,7 +2291,19 @@ CogRiscV64Compiler >> concretizeJumpNonZero [
 CogRiscV64Compiler >> concretizeJumpOverflow [
 
 	<inline:true>
-	"1halt."
+	| offset |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+ 	self assert: (self isInImmediateJumpRange: offset).
+	"Jump Overflow expects the last instruction to setup the overflow registers as follows: 
+	 Software checking of overflow, consists of the following steps (with add as example): 
+	  add t0, t1, t2 
+     slti t3 t2 0   # t3 = (t2 < 0)
+     slt t4, t0, t1  # t4 = (t1 + t2 < t1)
+     bne t3, t4, offset # overflow if (t2 < 0) && (t1 + t2 >= t1) 
+                                  || (t2 >= 0) && (t1 + t2 < t1)"
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: ConcreteOverflowReg isNotEqualToRegisterValue: ConcreteOverflowReg2).
+	^ machineCodeSize := 4	
 ]
 
 { #category : #concretization }
@@ -3136,37 +3146,22 @@ CogRiscV64Compiler >> concretizeMoveRX32rR [
 	"Write the word in R(src) into memory at address (base+4*index)"
 
 	<inline: true>
-	| index baseReg srcReg instrOffset |
+	| indexReg baseReg srcReg |
 	self flag: #TODO.
 	srcReg := operands at: 0.
-	index := operands at: 1.	"index is number of *words* = 4* bytes"
+	indexReg := operands at: 1.	"index is number of *words* = 4* bytes"
 	baseReg := operands at: 2.	
-	dependent 
-		ifNil: [ 
-			self assertValue: index isContainedIn: 12 
-				ifTrue: [ self machineCodeAt: 0 put: (self
-								 storeWordFromRegister: srcReg
-			 					 toAddressInRegister: baseReg
-			 					 withOffset: index).
-							 ^ machineCodeSize := 4 ] 
-				ifFalse: [ "Load offset as an immediate in a register"
-					instrOffset := self machineCodeWriteInstructions: (self 
-						loadImmediate: index inRegister: ConcreteIPReg) ]
-			]
-		ifNotNil: [ "Load literal"
-			instrOffset := self machineCodeWriteInstructions: (self 
-				loadLiteralInRegister: ConcreteIPReg) ].
 	"Add the offset to the base address register"
-	self machineCodeAt: instrOffset put: (self 
-			addRegister: baseReg 
-			toRegister: ConcreteIPReg 
+	self machineCodeAt: 0 put: (self 
+			addRegister: indexReg 
+			toRegister: baseReg 
 			inRegister: ConcreteIPReg).
-	"Load the value"
-	self machineCodeAt: instrOffset + 4 put: (self 
+	"Store the value"
+	self machineCodeAt: 4 put: (self 
 		storeWordFromRegister: srcReg 
 		toAddressInRegister: ConcreteIPReg 
 		withOffset: 0).
-	^ machineCodeSize := instrOffset + 8
+	^ machineCodeSize := 8
 ]
 
 { #category : #concretization }
@@ -3175,33 +3170,18 @@ CogRiscV64Compiler >> concretizeMoveRXbrR [
 	"Write the byte in R(src) into memory at address (base+4*index)"
 
 	<inline: true>
-	| index baseReg srcReg instrOffset |
+	| indexReg baseReg srcReg |
 	self flag: #TODO.
 	srcReg := operands at: 0.
-	index := operands at: 1.	"index is number of *words* = 4* bytes"
+	indexReg := operands at: 1.	"index is number of *words* = 4* bytes"
 	baseReg := operands at: 2.	
-	dependent 
-		ifNil: [ 
-			self assertValue: index isContainedIn: 12 
-				ifTrue: [ self machineCodeAt: 0 put: (self
-								 storeByteFromRegister: srcReg
-			 					 toAddressInRegister: baseReg
-			 					 withOffset: index).
-							 ^ machineCodeSize := 4 ] 
-				ifFalse: [ "Load offset as an immediate in a register"
-					instrOffset := self machineCodeWriteInstructions: (self 
-						loadImmediate: index inRegister: ConcreteIPReg) ]
-			]
-		ifNotNil: [ "Load literal"
-			instrOffset := self machineCodeWriteInstructions: (self 
-				loadLiteralInRegister: ConcreteIPReg) ].
 	"Add the offset to the base address register"
-	self machineCodeAt: instrOffset put: (self 
-			addRegister: baseReg 
-			toRegister: ConcreteIPReg 
+	self machineCodeAt: 0 put: (self 
+			addRegister: indexReg 
+			toRegister: baseReg 
 			inRegister: ConcreteIPReg).
-	"Load the value"
-	self machineCodeAt: instrOffset + 4 put: (self 
+	"Store the value"
+	self machineCodeAt: 4 put: (self 
 		storeByteFromRegister: srcReg 
 		toAddressInRegister: ConcreteIPReg 
 		withOffset: 0).
@@ -3214,37 +3194,22 @@ CogRiscV64Compiler >> concretizeMoveRXwrR [
 	"Write the word in R(src) into memory at address (base+4*index)"
 
 		<inline: true>
-	| index baseReg srcReg instrOffset |
+	| indexReg baseReg srcReg |
 	self flag: #TODO.
 	srcReg := operands at: 0.
-	index := operands at: 1.	"index is number of *words* = 4* bytes"
+	indexReg := operands at: 1.	"index is number of *words* = 4* bytes"
 	baseReg := operands at: 2.	
-	dependent 
-		ifNil: [ 
-			self assertValue: index isContainedIn: 12 
-				ifTrue: [ self machineCodeAt: 0 put: (self
-								 storeWordFromRegister: srcReg
-			 					 toAddressInRegister: baseReg
-			 					 withOffset: index).
-							 ^ machineCodeSize := 4 ] 
-				ifFalse: [ "Load offset as an immediate in a register"
-					instrOffset := self machineCodeWriteInstructions: (self 
-						loadImmediate: index inRegister: ConcreteIPReg) ]
-			]
-		ifNotNil: [ "Load literal"
-			instrOffset := self machineCodeWriteInstructions: (self 
-				loadLiteralInRegister: ConcreteIPReg) ].
 	"Add the offset to the base address register"
-	self machineCodeAt: instrOffset put: (self 
-			addRegister: baseReg 
-			toRegister: ConcreteIPReg 
+	self machineCodeAt: 0 put: (self 
+			addRegister: indexReg 
+			toRegister: baseReg 
 			inRegister: ConcreteIPReg).
-	"Load the value"
-	self machineCodeAt: instrOffset + 4 put: (self 
+	"Store the value"
+	self machineCodeAt: 4 put: (self 
 		storeDoubleWordFromRegister: srcReg 
 		toAddressInRegister: ConcreteIPReg 
 		withOffset: 0).
-	^ machineCodeSize := instrOffset + 8	
+	^ machineCodeSize := 8
 ]
 
 { #category : #concretization }
@@ -3347,37 +3312,22 @@ CogRiscV64Compiler >> concretizeMoveX32rRR [
 	"Read a word in in memory at address (base+4*index) into R(dest)"
 
 	<inline: true>
-	| index baseReg destReg instrOffset |
+	| indexReg baseReg destReg |
 	self flag: #TODO.
-	index := operands at: 0. "index is number of *words* = 4* bytes"
+	indexReg := operands at: 0. "index is number of *words* = 4* bytes"
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
-	dependent 
-		ifNil: [ 
-			self assertValue: index isContainedIn: 12 
-				ifTrue: [ self machineCodeAt: 0 put: (self
-			 					loadWordFromAddressInRegister: baseReg 
-								withOffset: index 
-								toRegister: destReg). 
-							 ^ machineCodeSize := 4 ] 
-				ifFalse: [ "Load offset as an immediate in a register"
-					instrOffset := self machineCodeWriteInstructions: (self 
-						loadImmediate: index inRegister: ConcreteIPReg) ]
-			]
-		ifNotNil: [ "Load literal"
-			instrOffset := self machineCodeWriteInstructions: (self 
-				loadLiteralInRegister: ConcreteIPReg) ].
 	"Add the offset to the base address register"
-	self machineCodeAt: instrOffset put: (self 
-			addRegister: baseReg 
-			toRegister: ConcreteIPReg 
-			inRegister: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self 
+		addRegister: indexReg 
+		toRegister: baseReg 
+		inRegister: ConcreteIPReg). 
 	"Load the value"
-	self machineCodeAt: instrOffset + 4 put: (self 
+	self machineCodeAt: 4 put: (self 
 		loadWordFromAddressInRegister: ConcreteIPReg 
 		withOffset: 0 
 		toRegister: destReg).
-	^ machineCodeSize := instrOffset + 8
+	^ machineCodeSize := 8
 	
 ]
 
@@ -3387,37 +3337,22 @@ CogRiscV64Compiler >> concretizeMoveXbrRR [
 	"Read a byte in in memory at address (base+4*index) into R(dest)"
 
 	<inline: true>
-	| index baseReg destReg instrOffset |
+	| indexReg baseReg destReg |
 	self flag: #TODO.
-	index := operands at: 0. "index is number of *words* = 4* bytes"
+	indexReg := operands at: 0. "index is number of *words* = 4* bytes"
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
-	dependent 
-		ifNil: [ 
-			self assertValue: index isContainedIn: 12 
-				ifTrue: [ self machineCodeAt: 0 put: (self
-			 					loadByteFromAddressInRegister: baseReg 
-								withOffset: index 
-								toRegister: destReg). 
-							 ^ machineCodeSize := 4 ] 
-				ifFalse: [ "Load offset as an immediate in a register"
-					instrOffset := self machineCodeWriteInstructions: (self 
-						loadImmediate: index inRegister: ConcreteIPReg) ]
-			]
-		ifNotNil: [ "Load literal"
-			instrOffset := self machineCodeWriteInstructions: (self 
-				loadLiteralInRegister: ConcreteIPReg) ].
 	"Add the offset to the base address register"
-	self machineCodeAt: instrOffset put: (self 
-			addRegister: baseReg 
-			toRegister: ConcreteIPReg 
-			inRegister: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self 
+		addRegister: indexReg 
+		toRegister: baseReg 
+		inRegister: ConcreteIPReg). 
 	"Load the value"
-	self machineCodeAt: instrOffset + 4 put: (self 
+	self machineCodeAt: 4 put: (self 
 		loadByteFromAddressInRegister: ConcreteIPReg 
 		withOffset: 0 
 		toRegister: destReg).
-	^ machineCodeSize := instrOffset + 8
+	^ machineCodeSize := 8
 ]
 
 { #category : #concretization }
@@ -3426,37 +3361,23 @@ CogRiscV64Compiler >> concretizeMoveXwrRR [
 	"Read a double word in in memory at address (base+4*index) into R(dest)"
 
 	<inline: true>
-	| index baseReg destReg instrOffset |
+	| indexReg baseReg destReg |
 	self flag: #TODO.
-	index := operands at: 0. "index is number of *words* = 4* bytes"
+	1halt.
+	indexReg := operands at: 0. "index is number of *words* = 4* bytes"
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
-	dependent 
-		ifNil: [ 
-			self assertValue: index isContainedIn: 12 
-				ifTrue: [ self machineCodeAt: 0 put: (self
-			 					loadDoubleWordFromAddressInRegister: baseReg 
-								withOffset: index 
-								toRegister: destReg). 
-							 ^ machineCodeSize := 4 ] 
-				ifFalse: [ "Load offset as an immediate in a register"
-					instrOffset := self machineCodeWriteInstructions: (self 
-						loadImmediate: index inRegister: ConcreteIPReg) ]
-			]
-		ifNotNil: [ "Load literal"
-			instrOffset := self machineCodeWriteInstructions: (self 
-				loadLiteralInRegister: ConcreteIPReg) ].
 	"Add the offset to the base address register"
-	self machineCodeAt: instrOffset put: (self 
-			addRegister: baseReg 
-			toRegister: ConcreteIPReg 
-			inRegister: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self 
+		addRegister: indexReg 
+		toRegister: baseReg 
+		inRegister: ConcreteIPReg). 
 	"Load the value"
-	self machineCodeAt: instrOffset + 4 put: (self 
+	self machineCodeAt: 4 put: (self 
 		loadDoubleWordFromAddressInRegister: ConcreteIPReg 
 		withOffset: 0 
 		toRegister: destReg).
-	^ machineCodeSize := instrOffset + 8
+	^ machineCodeSize := 8
 ]
 
 { #category : #concretization }
@@ -4497,8 +4418,8 @@ CogRiscV64Compiler >> fMoveDoubleWordInXRegister: xregister toFRegister: fregist
 	self flag: #DONE.
 	"Actual bit instruction"
 	^ (((2r1111001 << 25) 
-	  bitOr: (fregister bitAnd: 16r1f) << 15)
-	  bitOr: (xregister bitAnd: 16r1f) << 7)
+	  bitOr: (xregister bitAnd: 16r1f) << 15)
+	  bitOr: (fregister bitAnd: 16r1f) << 7)
 	  bitOr: 2r1010011 
 
 ]
@@ -6313,6 +6234,78 @@ CogRiscV64Compiler >> saveAndRestoreLinkRegAround: aBlock [
 	aBlock value.
 	cogit PopR: LinkReg.
 	^inst
+]
+
+{ #category : #'machine code instruction' }
+CogRiscV64Compiler >> setOneIn: destReg ifUnsignedValueIn: srcReg isLessThanImmediate: anImmediate [
+
+	"sltiu: Compares x[rs1] and the sign-extended immediate as unsigned numbers, 
+	       and writes 1 to x[rd] if x[rs1] is smaller or 0 if not.
+ 	
+	 31               20 19   15 14  12 11    7 6        0
+	|  immediate[11:0]  |  rs1  |  011  |  rd  |  0010011  |
+	"
+
+	self flag: #TODO.	
+	^ (((((anImmediate bitAnd: 16rfff) << 20)
+	  bitOr: (srcReg bitAnd: 16r1f) << 15)
+	  bitOr: (2r011 << 12))
+	  bitOr: (destReg bitAnd: 16r1f) << 7)
+	  bitOr: 2r0010011 
+]
+
+{ #category : #'machine code instruction' }
+CogRiscV64Compiler >> setOneIn: destReg ifUnsignedValueIn: srcReg1 isLessThanUnsignedValueIn: srcReg2 [
+
+	"sltu: Compares x[rs1] and x[rs2] as two's complement numbers, and writes 1 to x[rd]
+	      if x[rs1] is smaller or 0 if not.
+ 	
+	 31       25 24   20 19   15 14  12 11    7 6        0
+	|  0000000  |  rs2  |  rs1  |  011  |  rd  |  0110011  |
+	"
+
+	self flag: #TODO.	
+	^ (((((srcReg2 bitAnd: 16r1f) << 20)
+	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
+	  bitOr: (2r011 << 12))
+	  bitOr: (destReg bitAnd: 16r1f) << 7)
+	  bitOr: 2r0110011 
+]
+
+{ #category : #'machine code instruction' }
+CogRiscV64Compiler >> setOneIn: destReg ifValueIn: srcReg isLessThanImmediate: anImmediate [
+
+	"slti: Compares x[rs1] and the sign-extended immediate as two's complement numbers, 
+	       and writes 1 to x[rd] if x[rs1] is smaller or 0 if not.
+ 	
+	 31               20 19   15 14  12 11    7 6        0
+	|  immediate[11:0]  |  rs1  |  010  |  rd  |  0010011  |
+	"
+
+	self flag: #TODO.	
+	^ (((((anImmediate bitAnd: 16rfff) << 20)
+	  bitOr: (srcReg bitAnd: 16r1f) << 15)
+	  bitOr: (2r010 << 12))
+	  bitOr: (destReg bitAnd: 16r1f) << 7)
+	  bitOr: 2r0010011 
+]
+
+{ #category : #'machine code instruction' }
+CogRiscV64Compiler >> setOneIn: destReg ifValueIn: srcReg1 isLessThanValueIn: srcReg2 [
+
+	"slt: Compares x[rs1] and x[rs2] as two's complement numbers, and writes 1 to x[rd]
+	      if x[rs1] is smaller or 0 if not.
+ 	
+	 31       25 24   20 19   15 14  12 11    7 6        0
+	|  0000000  |  rs2  |  rs1  |  010  |  rd  |  0110011  |
+	"
+
+	self flag: #TODO.	
+	^ (((((srcReg2 bitAnd: 16r1f) << 20)
+	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
+	  bitOr: (2r010 << 12))
+	  bitOr: (destReg bitAnd: 16r1f) << 7)
+	  bitOr: 2r0110011 
 ]
 
 { #category : #testing }

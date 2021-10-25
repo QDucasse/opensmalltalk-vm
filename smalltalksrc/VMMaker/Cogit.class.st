@@ -8114,7 +8114,7 @@ Cogit >> generateInstructionsAt: eventualAbsoluteAddress [
 		[:i|
 		self maybeBreakGeneratingAt: absoluteAddress.
 		abstractInstruction := self abstractInstructionAt: i.
-		abstractInstruction needsPreviousInfo 
+		abstractInstruction needsPreviousInfo
 			ifTrue: [ abstractInstruction previousOperands: previousOperands.
 						 abstractInstruction previousOpcode: previousOpcode ].
 		abstractInstruction isPCDependent
@@ -8128,9 +8128,12 @@ Cogit >> generateInstructionsAt: eventualAbsoluteAddress [
 				 ]
 			ifFalse:
 				[absoluteAddress := abstractInstruction concretizeAt: absoluteAddress].
-			previousOperands := abstractInstruction operands.
-			previousOpcode := abstractInstruction opcode.
-			].
+			"If the concretized instruction was not a pseudo operation, store it"
+			({Stop . Label . Literal . AlignmentNops . Nop} includes: abstractInstruction opcode)
+				ifFalse: [ 			
+					previousOperands := abstractInstruction operands.
+					previousOpcode := abstractInstruction opcode ].
+		].
 	0 to: pcDependentIndex - 1 do:
 		[:j|
 		fixup := self fixupAtIndex: j.
