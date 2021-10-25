@@ -939,6 +939,23 @@ CogRiscV64Compiler >> checkIfValue: aValue isContainedIn: aSize [
 
 ]
 
+{ #category : #concretization }
+CogRiscV64Compiler >> checkOverflowWithOperand1: srcReg1 operand2: srcReg2 andResult: destReg [
+	"Check for the overflow, as according to the example in the book: 
+	 add t0, t1, t2 
+    sltiu t3 t2 0       # t3 = (t2 < 0)
+    sltu t4, t0, t1     # t4 = (t1 + t2 < t1)
+    bne t3, t4, offset # overflow if (t2 < 0) && (t1 + t2 >= t1) 
+                                  || (t2 >= 0) && (t1 + t2 < t1)"
+	self flag: #TODO.
+	^ {  
+	   "1. Check if one operand is negative"
+		self setOneIn: ConcreteOverflowReg ifValueIn: srcReg2 isLessThanImmediate: 0 .
+		"2. Check if the sum is smaller than one operand"
+		self setOneIn: ConcreteOverflowReg2 ifValueIn: destReg isLessThanValueIn: srcReg1
+	}
+]
+
 { #category : #accessing }
 CogRiscV64Compiler >> codeGranularity [
 	"Answer the size in bytes of a unit of machine code."
@@ -1007,9 +1024,15 @@ CogRiscV64Compiler >> computeMaximumSize [
 							ifNil:[ | cq |
 								cq := operands at: 0.
 								((self computeSignedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
-								   ifTrue: [ ^ 4 ] "Immediate that can be encoded in addi"
-								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
-                      ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
+								   ifTrue: [ ^ self overflowCheckInstructionBytes + 8 
+									   ] "Immediate that can be encoded in addi"
+								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) 
+									            + self overflowCheckInstructionBytes + 8 
+									   ]. "immediate loaded in a register"
+                         ] 
+                      ifNotNil: [^ self literalLoadInstructionBytes + 
+	                                self overflowCheckInstructionBytes + 8 
+	                      ] "literal load"
 						]. "DONE"
 		[AndCqR]				-> [
 						dependent 
@@ -1069,13 +1092,13 @@ CogRiscV64Compiler >> computeMaximumSize [
 								   ifFalse: [ ^ (self immediateLoadInstructionBytes: (operands at: 0)) + 4 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 4 ] "literal load"
 						]. "DONE"
-		[AddCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
+		[AddCwR]				-> [^self literalLoadInstructionBytes + self overflowCheckInstructionBytes + 8]. "DONE"
 		[AndCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
 		[CmpCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
 		[OrCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
 		[SubCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
 		[XorCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
-		[AddRR]			   	-> [^16]. "DONE"
+		[AddRR]			   	-> [^ self overflowCheckInstructionBytes + 8]. "DONE"
 		[AndRR]				-> [^4]. "DONE"
 		[CmpRR]				-> [^4]. "DONE"
 		[OrRR]					-> [^4]. "DONE"
@@ -1143,7 +1166,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 	
 		"Floating point operations"
 	
-		[AddRdRd]					-> [^4]. "DONE"
+		[AddRdRd]					-> [^ self overflowCheckInstructionBytes + 8]. "DONE"
 		[CmpRdRd]					-> [^4]. "DONE"
 		[SubRdRd]					-> [^4]. "DONE"
 		[MulRdRd]					-> [^4]. "DONE"
@@ -1369,7 +1392,7 @@ CogRiscV64Compiler >> concretizeAddCqR [
 		
 	<inline: true>
 	<var: #cq type: #uint_64>
-	| cq destReg sourceReg instrOffset |
+	| cq destReg sourceReg loadOffset overflowOffset |
 	self flag: #DONE.
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
@@ -1384,15 +1407,25 @@ CogRiscV64Compiler >> concretizeAddCqR [
 					^ machineCodeSize := 4 ]
 				ifFalse: [ "Move to a register before performing ADD on the registers"	
 					"Load the immediate to a register"
-					instrOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ] 
-				]
+					loadOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ] 
+			]
 		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
-			instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
-	self machineCodeAt: instrOffset put: (self
+			loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) 
+			].
+	"Perform the actual ADD operation"
+	self machineCodeAt: loadOffset put: (self
 			addRegister: sourceReg
 			toRegister: ConcreteIPReg
-			inRegister: destReg).
-	^ machineCodeSize := instrOffset + 4
+			inRegister: ConcreteIPReg2).
+	"Check for the overflow by 1. checking the sign of an operand 2. checking if the result is smaller than the operand"
+	overflowOffset := self machineCodeWriteInstructions: (
+			self checkOverflowWithOperand1: sourceReg 
+			     operand2: ConcreteIPReg 
+			     andResult: ConcreteIPReg2 
+		) startingAtIndex: loadOffset + 4. 
+	"We copy the value stored in the temporary register in the actual destination"
+	self machineCodeAt: overflowOffset + loadOffset + 4 put: (self moveRegister: ConcreteIPReg toRegister: destReg).
+	^ machineCodeSize := loadOffset + overflowOffset + 8
 
 ]
 
@@ -1400,17 +1433,27 @@ CogRiscV64Compiler >> concretizeAddCqR [
 CogRiscV64Compiler >> concretizeAddCwR [
 	
 	<inline: true>
-	| sourceReg destReg instrOffset |
+	| sourceReg destReg loadOffset overflowOffset |
 	self flag: #TODO.
 	self assert: dependent notNil.
 	sourceReg := destReg := operands at: 1.	
 	"Load Cw in register then perform the add"
-	instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
-	self machineCodeAt: instrOffset put: (self
+	loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
+	"We need to store the result in an intermediate register to perform test on without overwriting the operand"
+	self machineCodeAt: loadOffset put: (self
 	      	 addRegister: sourceReg
 			 toRegister: ConcreteIPReg
-			 inRegister: destReg).
-	^ machineCodeSize := instrOffset + 4	
+			 inRegister: ConcreteIPReg2).
+	"Check for the overflow by 1. checking if an operand is negative 2. if the result is smaller than an operand"
+	overflowOffset := self machineCodeWriteInstructions: (
+			self checkOverflowWithOperand1: sourceReg 
+			     operand2: ConcreteIPReg
+			     andResult: ConcreteIPReg2 
+		) startingAtIndex: loadOffset + 4.
+	
+	"We copy the value stored in the temporary register in the actual destination"
+	self machineCodeAt: overflowOffset + loadOffset + 4 put: (self moveRegister: ConcreteIPReg toRegister: destReg).
+	^ machineCodeSize := loadOffset + overflowOffset + 8	
 			
 ]
 
@@ -1418,38 +1461,24 @@ CogRiscV64Compiler >> concretizeAddCwR [
 CogRiscV64Compiler >> concretizeAddRR [
 
 	<inline: true>
-	| srcReg1 srcReg2 destReg |
+	| srcReg1 srcReg2 destReg overflowOffset |
 	"This instruction performs an add operation and sets the eventual overflow registers"
 	self flag: #TODO.
 	srcReg1 := operands at: 0.
-	srcReg2 := operands at: 1.
-	destReg := ConcreteIPReg.
-	"Perform the add operation"
-	self machineCodeAt: 0 put: (self addRegister: srcReg1 toRegister: srcReg2 inRegister: destReg).
-	"Copy the result to the flag register (if a JUMP that tests this value is called just after)"
+	srcReg2 := destReg := operands at: 1.
+	"Perform the add operation, we store the result to an intermediate register so we dont overwrite the operands (2 address...)"
+	self machineCodeAt: 0 put: (self addRegister: srcReg1 toRegister: srcReg2 inRegister: ConcreteIPReg).
 	
-	
-	"Check for the overflow, as according to the example in the book: 
-	 add t0, t1, t2 
-    sltiu t3 t2 0       # t3 = (t2 < 0)
-    sltu t4, t0, t1     # t4 = (t1 + t2 < t1)
-    bne t3, t4, offset # overflow if (t2 < 0) && (t1 + t2 >= t1) 
-                                  || (t2 >= 0) && (t1 + t2 < t1)"
-
-	"1. Check if one operand is negative"
-	self machineCodeAt: 4 put: (self setOneIn: ConcreteOverflowReg 
-	                                 ifValueIn: srcReg2 
-	                                 isLessThanImmediate: 0).
-	"2. Check if the sum is smaller than one operand"
-	self machineCodeAt: 8 put: (self setOneIn: ConcreteOverflowReg2 
-												ifValueIn: destReg  
-												isLessThanValueIn: srcReg1).
-	"These two instructions check for the overflow in the case of a following jump overflow"
+	"Check for the overflow by 1. checking if an operand is negative 2. checking if the result is bigger than one operand"
+	overflowOffset := self machineCodeWriteInstructions: (
+			self checkOverflowWithOperand1: srcReg1 
+			     operand2: srcReg2 
+			     andResult: ConcreteIPReg   
+		) startingAtIndex: 4. 
 	
 	"We copy the value stored in the temporary register in the actual destination"
-	self machineCodeAt: 12 put: (self moveRegister: destReg toRegister: srcReg2).
-	^ machineCodeSize := 16
-	
+	self machineCodeAt: overflowOffset + 4 put: (self moveRegister: ConcreteIPReg toRegister: destReg).
+	^ machineCodeSize := overflowOffset + 8	
 
 ]
 
@@ -1459,15 +1488,28 @@ CogRiscV64Compiler >> concretizeAddRdRd [
 	"Add FP regRHS to FP regLHS and stick result in FP regLHS"
 
 	<inline: true>
-	| srcReg1 srcReg2 |
+	| srcReg1 srcReg2 destReg overflowOffset |
 	self flag: #TODO.
+	"ConcreteIPReg for floating points"
+	1halt. 
 	srcReg1 := operands at: 0.
-	srcReg2 := operands at: 1.
+	srcReg2 := destReg := operands at: 1.
+	"Perform the actual ADD operation, store the result to an intermediate checks for further "
 	self machineCodeAt: 0 put: (self
 		fAddRegister: srcReg1 
 		toRegister: srcReg2 
-		intoRegister: srcReg1).
-	^ machineCodeSize := 4
+		intoRegister: ConcreteIPReg).
+		
+	"Check for the overflow by 1. checking if an operand is negative 2. checking if the result is bigger than one operand"
+	overflowOffset := self machineCodeWriteInstructions: (
+			self checkOverflowWithOperand1: srcReg1 
+			     operand2: srcReg2 
+			     andResult: ConcreteIPReg   
+		) startingAtIndex: 4. 
+	
+	"We copy the value stored in the temporary register in the actual destination"
+	self machineCodeAt: overflowOffset + 4 put: (self moveRegister: ConcreteIPReg toRegister: destReg).
+	^ machineCodeSize := overflowOffset + 8	
 ]
 
 { #category : #concretization }
@@ -3363,7 +3405,6 @@ CogRiscV64Compiler >> concretizeMoveXwrRR [
 	<inline: true>
 	| indexReg baseReg destReg |
 	self flag: #TODO.
-	1halt.
 	indexReg := operands at: 0. "index is number of *words* = 4* bytes"
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
@@ -5744,6 +5785,13 @@ CogRiscV64Compiler >> outputMachineCodeAt: targetAddress [
 	0 to: machineCodeSize - 1 by: 4 do:
 		[:j|
 		objectMemory uint32AtPointer: targetAddress + j put: (machineCode at: j // 4)]
+]
+
+{ #category : #'concretization helpers' }
+CogRiscV64Compiler >> overflowCheckInstructionBytes [ 
+
+	self flag: #TODO.
+	^ 8
 ]
 
 { #category : #'concretization helpers' }
