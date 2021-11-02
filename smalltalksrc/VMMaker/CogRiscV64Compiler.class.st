@@ -7,21 +7,11 @@ Class {
 		'previousOpcode'
 	],
 	#classVars : [
-		'AL',
-		'AddOpcode',
-		'AndOpcode',
-		'BicOpcode',
 		'CArg0Reg',
 		'CArg1Reg',
 		'CArg2Reg',
 		'CArg3Reg',
-		'CC',
 		'CMPMULOverflow',
-		'CMPSMULL',
-		'CPSRReg',
-		'CS',
-		'CmpNotOpcode',
-		'CmpOpcode',
 		'ConcreteCarryReg',
 		'ConcreteIPReg',
 		'ConcreteIPReg2',
@@ -31,6 +21,7 @@ Class {
 		'ConcreteSignReg',
 		'ConcreteVarBaseReg',
 		'ConcreteZeroReg',
+		'DivRR',
 		'EQ',
 		'F0',
 		'F1',
@@ -42,37 +33,17 @@ Class {
 		'F7',
 		'GE',
 		'GEU',
-		'GT',
-		'HI',
-		'LDMFD',
-		'LE',
 		'LR',
-		'LS',
 		'LT',
 		'LTU',
-		'MI',
-		'MRS',
-		'MSR',
 		'MSUB',
 		'MUL',
-		'MoveNotOpcode',
-		'MoveOpcode',
+		'MulRR',
 		'NE',
-		'OrOpcode',
-		'OverflowFlag',
 		'PC',
-		'PL',
-		'RsbOpcode',
 		'SDIV',
-		'SMLALOpcode',
 		'SMULH',
-		'SMULL',
 		'SP',
-		'STMFD',
-		'SubOpcode',
-		'TstOpcode',
-		'VC',
-		'VS',
 		'X0',
 		'X1',
 		'X10',
@@ -104,8 +75,7 @@ Class {
 		'X6',
 		'X7',
 		'X8',
-		'X9',
-		'XorOpcode'
+		'X9'
 	],
 	#category : #'VMMaker-JIT'
 }
@@ -155,8 +125,9 @@ CogRiscV64Compiler class >> identifyingPredefinedMacros [
 CogRiscV64Compiler class >> initialize [
 
 	"Initialize various RISCV instruction-related constants."
+	"CogRTLOpcodes initialize"
 	"CogRiscV64Compiler initialize might be required to make changes effective"
-
+	
 	super initialize.
 	self ~~ CogRiscV64Compiler ifTrue: [^self].
 
@@ -233,6 +204,12 @@ CogRiscV64Compiler class >> initialize [
 	LT  := 2r100. "Less Than"
 	LTU := 2r110. "Less Than Unsigned"
 	
+	"Specific opcodes"
+	self initializeSpecificOpcodes: #(MulRR DivRR) 
+	     in: thisContext method 
+	
+	
+	
 ]
 
 { #category : #'class initialization' }
@@ -307,11 +284,6 @@ CogRiscV64Compiler class >> machineCodeDeclaration [
 	"Answer the declaration for the machineCode array.
 	 ARM instructions are 32-bits in length."
 	^{#'unsigned int'. '[', self basicNew machineCodeWords printString, ']'}
-]
-
-{ #category : #accessing }
-CogRiscV64Compiler class >> orOpcode [
-	^OrOpcode
 ]
 
 { #category : #'class initialization' }
@@ -1122,7 +1094,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[OrCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
 		[SubCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
 		[XorCwR]				-> [^self literalLoadInstructionBytes + 4]. "DONE"
-		[AddRR]			   	-> [^ self overflowCheckInstructionBytes + 8]. "DONE"
+		[AddRR]			   	-> [^ self flagArithmeticUpdateBytes + 4]. "DONE"
 		[AndRR]				-> [^8]. "DONE"
 		[CmpRR]				-> [ ^ self flagArithmeticUpdateBytes + 4]. "DONE"
 		[OrRR]					-> [^4]. "DONE"
@@ -1416,7 +1388,7 @@ CogRiscV64Compiler >> concretizeAddCqR [
 	<inline: true>
 	<var: #cq type: #uint_64>
 	| cq destReg sourceReg loadOffset flagOffset |
-	self flag: #TODO.
+	self flag: #DONE.
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
 	"Load cq if needed in a register (whether big immediate or literal) 
@@ -1455,7 +1427,7 @@ CogRiscV64Compiler >> concretizeAddCwR [
 	
 	<inline: true>
 	| sourceReg destReg loadOffset flagOffset |
-	self flag: #TODO.
+	self flag: #DONE.
 	self assert: dependent notNil.
 	sourceReg := destReg := operands at: 1.	
 	"Load Cw in register then perform the add"
@@ -1480,7 +1452,7 @@ CogRiscV64Compiler >> concretizeAddRR [
 	<inline: true>
 	| srcReg1 srcReg2 destReg flagOffset |
 	"This instruction performs an add operation and sets the eventual overflow registers"
-	self flag: #TODO.
+	self flag: #DONE.
 	srcReg1 := operands at: 0.
 	srcReg2 := destReg := operands at: 1.
 	"Perform the add operation"
@@ -1539,8 +1511,8 @@ CogRiscV64Compiler >> concretizeAndCqR [
 		"
 
 	<inline: true>
-	| cq sourceReg destReg loadOffset |
-	self flag: #TODO.
+	| cq sourceReg destReg loadOffset flagOffset |
+	self flag: #DONE.
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
 	"Load cq if needed in a register (whether big immediate or literal) 
@@ -1550,19 +1522,23 @@ CogRiscV64Compiler >> concretizeAndCqR [
 		ifNil: [ self assertValue: cq isContainedIn: 12
 				"Use the provided immediate instruction"
 				ifTrue: [ self machineCodeAt: 0 put: (self bitwiseAndBetweenRegister: sourceReg andImmediate: cq toRegister: destReg).
-					       ^ machineCodeSize := 4 ]
+					       flagOffset := self machineCodeWriteInstructions: (self 
+									updateFlagsLogicForResultReg: destReg) startingAtIndex: 4.
+					       ^ machineCodeSize := flagOffset + 4 ]
 				"Otherwise, load the value in the given register"
 				ifFalse: [ loadOffset  := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ] ]
 		"If the value is a literal, load it in a given register"
 		ifNotNil: [ loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].		
-				
+	"Perform the AND operation"
 	self machineCodeAt: loadOffset put: (self
 			bitwiseAndBetweenRegister: sourceReg
 			andRegister: ConcreteIPReg
 			toRegister: destReg).
-	"Copy the result to the flag res register"
-	self machineCodeAt: loadOffset + 4 put: (self moveRegister: destReg toRegister: ConcreteZeroReg).
-	^ machineCodeSize := loadOffset + 8
+	"Update the flag registers"
+	flagOffset := self machineCodeWriteInstructions: (self
+		updateFlagsLogicForResultReg: destReg
+		) startingAtIndex: loadOffset + 4.
+	^ machineCodeSize := loadOffset + flagOffset + 4
 ]
 
 { #category : #concretization }
@@ -1878,8 +1854,8 @@ CogRiscV64Compiler >> concretizeCmpRR [
 	srcReg1 := operands at: 0.
 	srcReg2 := operands at: 1.
 	self machineCodeAt: 0 put: (self
-			 subtractRegister: srcReg2
-			 fromRegister: srcReg1
+			 subtractRegister: srcReg1
+			 fromRegister: srcReg2
 			 intoRegister: ConcreteZeroReg).
 	flagOffset := self machineCodeWriteInstructions: (self 
 	       updateFlagsArithmeticForSourceReg1: srcReg1 
@@ -5119,12 +5095,6 @@ CogRiscV64Compiler >> instructionIsBX: instr [
 	^(self conditionIsNotNever: instr) and: [(instr bitAnd: 16r0FFFFFF0) = 16r12FFF10]
 ]
 
-{ #category : #testing }
-CogRiscV64Compiler >> instructionIsCMP: instr [
-	"is this a CMP instruction?"
-	^(self conditionIsNotNever: instr) and: [(instr >> 21 bitAnd: 16r7F) = CmpOpcode]
-]
-
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> instructionIsConditionalBranch: instruction [
 	
@@ -5136,12 +5106,6 @@ CogRiscV64Compiler >> instructionIsConditionalBranch: instruction [
 CogRiscV64Compiler >> instructionIsLDR: instr [
 
 	^ instr allMask: 2r01011000 << 24
-]
-
-{ #category : #testing }
-CogRiscV64Compiler >> instructionIsOR: instr [
-	"is this an ORR instruction?"
-	^(self conditionIsNotNever: instr)  and:[(instr >> 21 bitAnd: 16r7F) = (16r10 bitOr: OrOpcode)]
 ]
 
 { #category : #testing }
@@ -6798,20 +6762,16 @@ CogRiscV64Compiler >> updateFlagsArithmeticForSourceReg1: srcReg1 sourceReg2: sr
 	    checkOverflowWithSourceReg1: srcReg1
        sourceReg2: srcReg2
 		 andResultReg: ConcreteOverflowReg) asOrderedCollection.
-	"Zero flag: Replace the result of the subtraction with 1 if it is 0, 0 otherwise"
-	instructions add: (self
-			 setOneIn: ConcreteZeroReg
-			 ifValueInRegisterIsEqualToZero: resReg).
 	"Carry Flag: set 1 if A is smaller than B as unsigned numbers, 0 otherwise"
 	instructions add: (self
 			 setOneIn: ConcreteCarryReg
-			 ifUnsignedValueIn: srcReg1
-			 isLessThanUnsignedValueIn: srcReg2).
-	"Sign Flag: set 1 if A is smaller than B as unsigned numbers, 0 otherwise"
+			 ifUnsignedValueIn: srcReg2
+			 isLessThanUnsignedValueIn: srcReg1).
+	"Sign Flag: set 1 if the most significatn bit of the result is 1 (result negative)"
 	instructions add: (self
 			 setOneIn: ConcreteSignReg
-			 ifValueIn: srcReg1
-			 isLessThanValueIn: srcReg2).
+			 ifValueIn: resReg
+			 isLessThanImmediate: 0).
 	"Zero flag: Replace the result of the subtraction with 1 if it is 0, 0 otherwise"
 	instructions add: (self
 			 setOneIn: ConcreteZeroReg
@@ -6837,8 +6797,8 @@ CogRiscV64Compiler >> updateFlagsArithmeticForSourceReg: srcReg immediate: immed
 	"Sign Flag: set 1 if A is smaller than B as unsigned numbers, 0 otherwise"
 	instructions add: (self
 			 setOneIn: ConcreteSignReg
-			 ifValueIn: srcReg
-			 isLessThanImmediate: immediate).
+			 ifValueIn: resReg
+			 isLessThanImmediate: 0).
 	"Zero flag: Replace the result of the subtraction with 1 if it is 0, 0 otherwise"
 	instructions add: (self
 			 setOneIn: ConcreteZeroReg
