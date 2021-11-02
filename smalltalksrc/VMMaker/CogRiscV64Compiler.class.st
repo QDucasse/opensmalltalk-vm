@@ -928,8 +928,10 @@ CogRiscV64Compiler >> checkOverflowWithSourceReg1: srcReg1 sourceReg2: srcReg2 a
 		self setOneIn: ConcreteIPReg2 ifValueIn: srcReg2 isLessThanImmediate: 0 .
 		"2. Check if the sum is smaller than one operand"
 		self setOneIn: ConcreteIPReg3 ifValueIn: destReg isLessThanValueIn: srcReg1 .
-		"Perform an and of the two"
-		self bitwiseAndBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 toRegister: ConcreteOverflowReg
+		"Perform a xor of the two"
+		self bitwiseXorBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 intoRegister: ConcreteOverflowReg .
+		"Take the complement"
+		self setOneIn: ConcreteOverflowReg ifValueInRegisterIsEqualToZero: ConcreteOverflowReg 
 	}  
 ]
 
@@ -994,8 +996,8 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[JumpCarry]		      	-> [^4]. "DONE"
 		[JumpNoCarry]			-> [^4]. "DONE"
 		[JumpLess]				-> [^4]. "DONE"
-		[JumpGreaterOrEqual]	-> [^8]. "DONE"
-		[JumpGreater]			-> [^8]. "DONE"
+		[JumpGreaterOrEqual]	-> [^4]. "DONE"
+		[JumpGreater]			-> [^12]. "DONE"
 		[JumpLessOrEqual]		-> [^8]. "DONE"
 		[JumpBelow]			   -> [^4]. "DONE"
 		[JumpAboveOrEqual]   	-> [^4]. "DONE"
@@ -1846,7 +1848,8 @@ CogRiscV64Compiler >> concretizeCmpCwR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeCmpRR [
 
-	"CMP is a SUB operation where the result is discarded (here saved in the FLAG register)"
+	"CMP is a SUB operation where the result is discarded (here saved in the zero flag register)
+	 CMP o1 o2 means o2-o1"
 
 	<inline: true>
 	| srcReg1 srcReg2 flagOffset |
@@ -1980,9 +1983,10 @@ CogRiscV64Compiler >> concretizeJumpAbove [
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	"Jump Above means jump if 	CF=0 and ZF=0"
-	self machineCodeAt: 0 put: (self addRegister: ConcreteCarryReg 
-	                                 toRegister: ConcreteZeroReg 
-	                                 inRegister: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self bitwiseOrBetweenRegister: ConcreteCarryReg 
+	                                 andRegister: ConcreteZeroReg 
+	                                 toRegister: ConcreteIPReg).
+	"Or and check if the value is still 0"
 	self machineCodeAt: 4 put: (self branchTo: offset 
 	                                 ifRegisterValueIsEqualToZero: ConcreteIPReg).
 	^ machineCodeSize := 8
@@ -2024,10 +2028,10 @@ CogRiscV64Compiler >> concretizeJumpBelowOrEqual [
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	"Jump Below or Equal translates to jump if 	CF=1 or ZF=1"
-	self machineCodeAt: 0 put: (self addRegister: ConcreteCarryReg 
-	                                 toRegister: ConcreteZeroReg
-	                                 inRegister: ConcreteIPReg).
-	"We add both and check that the result is not 0 (i.e. at least one is set to one)"
+	self machineCodeAt: 0 put: (self bitwiseOrBetweenRegister: ConcreteCarryReg 
+	                                 andRegister: ConcreteZeroReg
+	                                 toRegister: ConcreteIPReg).
+	"Or the two registers and check that the result is not 0"
 	self machineCodeAt: 4 put: (self branchTo: offset 
 	                                 ifRegisterValueIsNotEqualToZero: ConcreteIPReg).
 	^ machineCodeSize := 8
@@ -2216,13 +2220,17 @@ CogRiscV64Compiler >> concretizeJumpGreater [
 	"Jump Greater means jump if ZF = 0 and SF = OF"
 	"Set 1 if SF = OF"
 	self machineCodeAt: 0 put: (self bitwiseAndBetweenRegister: ConcreteSignReg 
-	                                 andImmediate: ConcreteOverflowReg 
+	                                 andRegister: ConcreteOverflowReg 
 	                                 toRegister: ConcreteIPReg).
-	"Check that ZF is not equal to the result of last instruction, ie ZF = 0"
-	self machineCodeAt: 4 put: (self branchTo: offset 
+	"Set 1 if Zf = 0"
+	self machineCodeAt: 4 put: (self bitwiseAndBetweenRegister: X0 
+											  andRegister: ConcreteZeroReg 
+											  toRegister: ConcreteIPReg2).
+	"Check that both conditions hold, both registers set to 1"
+	self machineCodeAt: 8 put: (self branchTo: offset 
 	                                 ifRegisterValue: ConcreteIPReg
-	                                 isNotEqualToRegisterValue: ConcreteZeroReg).
-	^ machineCodeSize := 8
+	                                 isEqualToRegisterValue: ConcreteIPReg2).
+	^ machineCodeSize := 12
 ]
 
 { #category : #concretization }
@@ -2235,12 +2243,10 @@ CogRiscV64Compiler >> concretizeJumpGreaterOrEqual [
  	self assert: (self isInImmediateJumpRange: offset).
 	"Jump Greater or Equal means jump if SF = OF"
 	"Set 1 if SF = OF"
-	self machineCodeAt: 0 put: (self bitwiseAndBetweenRegister: ConcreteSignReg 
-	                                 andImmediate: ConcreteOverflowReg 
-	                                 toRegister: ConcreteIPReg).
-	self machineCodeAt: 4 put: (self branchTo: offset 
-	                                 ifRegisterValueIsNotEqualToZero: ConcreteIPReg).
-	^ machineCodeSize := 8
+	self machineCodeAt: 0 put: (self branchTo: offset 
+											  ifRegisterValue: ConcreteSignReg 
+	                                 isEqualToRegisterValue: ConcreteOverflowReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
@@ -2267,14 +2273,14 @@ CogRiscV64Compiler >> concretizeJumpLessOrEqual [
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	"Jump Less or Equal means jump if SF different from 	OF or 	ZF=1"
-	"Check if SF and OF are different -> should be 0 if true"
-	self machineCodeAt: 0 put: (self bitwiseAndBetweenRegister: ConcreteSignReg 
-	                                 andRegister: ConcreteOverflowReg 
-	                                 toRegister: ConcreteIPReg).
-	"Check that ZF is different from the result of the previous, ie SF and OF different (0) and ZF=1"
-	self machineCodeAt: 4 put: (self branchTo: offset 
-	                                 ifRegisterValue: ConcreteIPReg 
-	                                 isNotEqualToRegisterValue: ConcreteZeroReg).
+	"Check if SF and OF are different -> jump if different"
+	self machineCodeAt: 0 put: (self bitwiseAndBetweenRegister: ConcreteSignReg  
+											  andRegister: ConcreteOverflowReg 
+											  toRegister: ConcreteIPReg).
+	"Check if ZF is equal to 1"
+	self machineCodeAt: 4 put: (self branchTo: offset
+											  ifRegisterValue: ConcreteZeroReg
+											  isLessThanOrEqualRegisterValue: ConcreteIPReg).
 	^ machineCodeSize := 8
 ]
 
@@ -3834,37 +3840,43 @@ CogRiscV64Compiler >> concretizeSubCqR [
 		"
 
 	<inline: true>
-	| cq destReg sourceReg instrOffset |
+	| cq destReg sourceReg loadOffset flagOffset |
 	self flag: #TODO.
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
 	dependent
 		ifNil: [  "Immediate load in a register"
-			instrOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ]
+			loadOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ]
 		ifNotNil: [ "Literal -> compute the distance then load the actual value in a register"
-			instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
-	self machineCodeAt: instrOffset put: (self
+			loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
+	self machineCodeAt: loadOffset put: (self
 					 subtractRegister: ConcreteIPReg
 					 fromRegister: sourceReg
 					 intoRegister: destReg).
-	^ machineCodeSize := instrOffset + 4
+	"Update flag registers"
+	flagOffset := self machineCodeWriteInstructions: (self 
+			updateFlagsArithmeticForSourceReg1: sourceReg 
+			sourceReg2: ConcreteIPReg 
+			andResultReg: destReg) startingAtIndex: loadOffset + 4.
+	^ machineCodeSize := loadOffset + flagOffset + 4
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeSubCwR [
 	
 	<inline: true>
-	| sourceReg destReg instrOffset |
+	| sourceReg destReg loadOffset flagOffset |
 	self flag: #TODO.
 	self assert: dependent notNil.
 	sourceReg := destReg := operands at: 1.	
 	"Load Cw in register then perform the add"
-	instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
-	self machineCodeAt: instrOffset put: (self
-	      	 subtractRegister: ConcreteIPReg
-			 fromRegister: sourceReg
-			 intoRegister: destReg).
-	^ machineCodeSize := instrOffset + 4	
+	loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
+	"Update flag registers"
+	flagOffset := self machineCodeWriteInstructions: (self 
+			updateFlagsArithmeticForSourceReg1: sourceReg 
+			sourceReg2: ConcreteIPReg 
+			andResultReg: destReg) startingAtIndex: loadOffset + 4.
+	^ machineCodeSize := loadOffset + flagOffset + 4
 			
 ]
 
@@ -3874,12 +3886,17 @@ CogRiscV64Compiler >> concretizeSubRR [
 	"Perform a sub operation between the value of register and the value of another register.	"
 
 	<inline: true>
-	| destReg sourceReg1 sourceReg2 |
+	| destReg sourceReg1 sourceReg2 flagOffset |
 	self flag: #TODO.
 	sourceReg1 := operands at: 0.
 	sourceReg2 := destReg := operands at: 1.
 	self machineCodeAt: 0 put: (self subtractRegister: sourceReg2 fromRegister: sourceReg1 intoRegister: destReg).
-	^ machineCodeSize := 4
+		"Update flag registers"
+	flagOffset := self machineCodeWriteInstructions: (self 
+			updateFlagsArithmeticForSourceReg1: sourceReg1 
+			sourceReg2: sourceReg2 
+			andResultReg: destReg) startingAtIndex: 4.
+	^ machineCodeSize := flagOffset + 4
 ]
 
 { #category : #concretization }
@@ -5835,7 +5852,7 @@ CogRiscV64Compiler >> outputMachineCodeAt: targetAddress [
 CogRiscV64Compiler >> overflowCheckInstructionBytes [ 
 
 	self flag: #TODO.
-	^ 12
+	^ 16
 ]
 
 { #category : #'concretization helpers' }
