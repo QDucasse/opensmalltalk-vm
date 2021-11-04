@@ -13,6 +13,7 @@ Class {
 		'CArg3Reg',
 		'CMPMULOverflow',
 		'ConcreteCarryReg',
+		'ConcreteIPFPReg',
 		'ConcreteIPReg',
 		'ConcreteIPReg2',
 		'ConcreteIPReg3',
@@ -190,7 +191,9 @@ CogRiscV64Compiler class >> initialize [
 	ConcreteIPReg := X5.
 	ConcreteIPReg2 := X6.
 	ConcreteIPReg3 := X7.
+	ConcreteIPFPReg := F7.
 	
+	"Flag Register"		
 	ConcreteZeroReg := X28.
 	ConcreteSignReg := X29.
 	ConcreteOverflowReg := X30.
@@ -891,6 +894,29 @@ CogRiscV64Compiler >> canMulRR [
 	^true
 ]
 
+{ #category : #concretization }
+CogRiscV64Compiler >> checkFloatingPointOverflowWithSourceReg1: srcReg1 sourceReg2: srcReg2 andResultReg: destReg [
+	"Check for the overflow
+	 add f0, f1, f2 
+  	 fcvt tfp, x0, tfp    # put 0 in tfp  
+	 flt.d t2 f2 tfp      # t2 = (f2 < 0)
+    flt.d t3, f0, f1     # t3 = (f1 + f2 < f0)
+    bne t3, t4, offset # overflow if (f2 < 0) && (f1 + f2 >= f0)  case 1 1 (overflow)
+                                  || (f2 >= 0) && (f1 + f2 < f0)  case 0 0 (underflow) "
+	self flag: #TODO.
+	^ {  
+		"As there is no hardwire fp zero we need to get one by converting X0"
+		self fConvertLongSignedInRegister: X0 toDoublePrecisionInRegister: ConcreteIPFPReg .
+	   "1. Check if one operand is negative"
+		self fSetOneIn: ConcreteIPReg2 ifRegisterValue: srcReg2 isLessThanRegisterValue: ConcreteIPFPReg .
+		"2. Check if the sum is smaller than one operand"
+		self fSetOneIn: ConcreteIPReg3 ifRegisterValue: destReg isLessThanRegisterValue: srcReg1 .
+		"Check if both registers are equal -> xor and complement"
+		self bitwiseXorBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 intoRegister: ConcreteOverflowReg .
+		self setOneIn: ConcreteOverflowReg ifValueInRegisterIsEqualToZero: ConcreteOverflowReg 
+	}  
+]
+
 { #category : #'helpers - size sign' }
 CogRiscV64Compiler >> checkIfValue: aValue isContainedIn: aSize [ 
 
@@ -913,19 +939,18 @@ CogRiscV64Compiler >> checkIfValue: aValue isContainedIn: aSize [
 CogRiscV64Compiler >> checkOverflowWithSourceReg1: srcReg1 sourceReg2: srcReg2 andResultReg: destReg [
 	"Check for the overflow, as according to the example in the book: 
 	 add t0, t1, t2 
-    sltiu t3 t2 0       # t3 = (t2 < 0)
-    sltu t4, t0, t1     # t4 = (t1 + t2 < t1)
-    bne t3, t4, offset # overflow if (t2 < 0) && (t1 + t2 >= t1) 
-                                  || (t2 >= 0) && (t1 + t2 < t1)"
+    slti t3 t2 0       # t3 = (t2 < 0)
+    slt t4, t0, t1     # t4 = (t1 + t2 < t0)
+    bne t3, t4, offset # overflow if (t2 < 0) && (t1 + t2 >= t0)  case 1 1 (overflow)
+                                  || (t2 >= 0) && (t1 + t2 < t0)  case 0 0 (underflow) "
 	self flag: #TODO.
 	^ {  
 	   "1. Check if one operand is negative"
 		self setOneIn: ConcreteIPReg2 ifValueIn: srcReg2 isLessThanImmediate: 0 .
 		"2. Check if the sum is smaller than one operand"
 		self setOneIn: ConcreteIPReg3 ifValueIn: destReg isLessThanValueIn: srcReg1 .
-		"Perform a xor of the two"
+		"Put one if t2 = t3, xor and complement"
 		self bitwiseXorBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 intoRegister: ConcreteOverflowReg .
-		"Take the complement"
 		self setOneIn: ConcreteOverflowReg ifValueInRegisterIsEqualToZero: ConcreteOverflowReg 
 	}  
 ]
@@ -934,18 +959,19 @@ CogRiscV64Compiler >> checkOverflowWithSourceReg1: srcReg1 sourceReg2: srcReg2 a
 CogRiscV64Compiler >> checkOverflowWithSourceReg: srcReg immediate: immediate andResultReg: destReg [
 	"Check for the overflow, as according to the example in the book (example with add): 
 	 add t0, imm, t2 
-    slti t3 t2 0       # t3 = (t2 < 0)
-    slti t4, t0, imm     # t4 = (t1 + t2 < t1)
-    bne t3, t4, offset # overflow if (t2 < 0) && (t1 + t2 >= t1) 
-                                  || (t2 >= 0) && (t1 + t2 < t1)"
+    slti t3 t2 0         # t3 = (t2 < 0)
+    slti t4, t0, imm     # t4 = (imm + t2 < t0)
+    bne t3, t4, offset # overflow if (t2 < 0) && (imm + t2 >= t0)  case 1 1 (overflow)
+                                  || (t2 >= 0) && (imm + t2 < t0)  case 0 0 (underflow)"
 	self flag: #TODO.
 	^ {  
 	   "1. Check if one operand is negative"
 		self setOneIn: ConcreteIPReg2 ifValueIn: srcReg isLessThanImmediate: 0 .
 		"2. Check if the sum is smaller than one operand"
 		self setOneIn: ConcreteIPReg3 ifValueIn: destReg isLessThanImmediate: immediate  .
-		"Perform an and of the two"
-		self bitwiseAndBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 toRegister: ConcreteOverflowReg
+		"Put one if t2 = t3, xor and complement"
+		self bitwiseXorBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 intoRegister: ConcreteOverflowReg .
+		self setOneIn: ConcreteOverflowReg ifValueInRegisterIsEqualToZero: ConcreteOverflowReg 
 	}  
 ]
 
@@ -1000,12 +1026,12 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[JumpBelowOrEqual]	   -> [ ^ 8 ]. "DONE"
 		[JumpLongZero]			-> [ ^ self jumpLongConditionalByteSize ]. "TODO"
 		[JumpLongNonZero]		-> [ ^ self jumpLongConditionalByteSize ]. "TODO"
-		[JumpFPEqual]			 	-> [ ^ self notYetImplemented ]. "DONE"
-		[JumpFPNotEqual]		 	-> [ ^ self notYetImplemented ]. "DONE"
-		[JumpFPLess]			   	 	-> [ ^ self notYetImplemented ]. "DONE"
-		[JumpFPGreaterOrEqual] 	-> [ ^ self notYetImplemented ]. "DONE"
-		[JumpFPGreater]		    	-> [ ^ self notYetImplemented ]. "DONE"
-		[JumpFPLessOrEqual]	 	-> [ ^ self notYetImplemented ]. "TODO"
+		[JumpFPEqual]			 	-> [ ^ 4 ]. "DONE"
+		[JumpFPNotEqual]		 	-> [ ^ 4 ]. "DONE"
+		[JumpFPLess]			   	 	-> [ ^ 4 ]. "DONE"
+		[JumpFPGreaterOrEqual] 	-> [ ^ 4 ]. "DONE"
+		[JumpFPGreater]		    	-> [ ^ 12 ]. "DONE"
+		[JumpFPLessOrEqual]	 	-> [ ^ 12 ]. "TODO"
 		[JumpFPOrdered]		   		-> [ ^ self notYetImplemented ]. "TODO"
 		[JumpFPUnordered]			-> [ ^ self notYetImplemented ]. "TODO"
 		[RetN]					-> [ ^ (operands at: 0) = 0 ifTrue: [ 4 ] ifFalse: [ 8 ]]. "DONE"
@@ -1254,11 +1280,11 @@ CogRiscV64Compiler >> computeMaximumSize [
 						]. "DONE"
 	
 		"Floating point operations"
-		[AddRdRd]					-> [^ self overflowCheckInstructionBytes + 8]. "DONE"
-		[CmpRdRd]					-> [^8]. "DONE"
-		[SubRdRd]					-> [^4]. "DONE"
-		[MulRdRd]					-> [^4]. "DONE"
-		[DivRdRd]					-> [^4]. "DONE"
+		[AddRdRd]					-> [ ^ self flagArithmeticFloatingPointUpdateBytes + 4 ]. "DONE"
+		[CmpRdRd]					-> [ ^ self flagArithmeticFloatingPointUpdateBytes + 4 ]. "DONE"
+		[SubRdRd]					-> [ ^ self flagArithmeticFloatingPointUpdateBytes + 4 ]. "DONE"
+		[MulRdRd]					-> [ ^ self flagArithmeticFloatingPointUpdateBytes + 4 ]. "DONE"
+		[DivRdRd]					-> [ ^ self flagArithmeticFloatingPointUpdateBytes + 4 ]. "DONE"
 		[SqrtRd]					-> [^4]. "DONE"
 		[XorRdRd]					-> [^4]. "DONE"
 						
@@ -1563,16 +1589,22 @@ CogRiscV64Compiler >> concretizeAddRR [
 CogRiscV64Compiler >> concretizeAddRdRd [
 
 	<inline: true>
-	| srcReg1 srcReg2 destReg |
+	| srcReg1 srcReg2 destReg flagOffset |
 	self flag: #TODO.
 	srcReg1 := operands at: 0.
 	srcReg2 := destReg := operands at: 1.
-	"Perform the actual ADD operation"
+	"Perform the ADD operation"
 	self machineCodeAt: 0 put: (self
 		fAddRegister: srcReg1 
 		toRegister: srcReg2 
-		intoRegister: destReg).	
-	^ machineCodeSize := 4
+		intoRegister: destReg).
+	"Update the flags"
+	flagOffset := self machineCodeWriteInstructions: (self
+			updateFlagsFloatingPointArithmeticForSourceReg1: srcReg1 
+			sourceReg2: srcReg2 
+			andResultReg: destReg
+		) startingAtIndex: 4.
+	^ machineCodeSize := flagOffset + 4
 ]
 
 { #category : #concretization }
@@ -1978,20 +2010,22 @@ CogRiscV64Compiler >> concretizeCmpRdRd [
 	
 	"CMP is a SUB operation where the result is discarded (here saved in the FLAG register)"
 	<inline: true>
-	| srcReg1 srcReg2 |
+	| srcReg1 srcReg2 flagOffset |
 	self flag: #DONE.
 	srcReg1 := operands at: 0.
 	srcReg2 := operands at: 1.
-	"self machineCodeAt: 0 put: (self
-			 fSubtractRegister: srcReg2
-			 fromRegister: srcReg1
-			 intoRegister: ConcreteResReg)."
-	"Put 0 in ConcreteResReg"
-	self machineCodeAt: 0 put: (self 
-		fRegisterValue: self getTestReg 
-		isEqualToRegisterValue: ConcreteIPReg
-		into: ConcreteZeroReg ).
-	^ machineCodeSize := 4	
+	"Perform a SUB operation"
+	self machineCodeAt: 0 put: (self
+			 fSubtractRegister: srcReg1
+			 fromRegister: srcReg2
+			 intoRegister: ConcreteZeroReg).
+	"Update flags"
+	flagOffset := self machineCodeWriteInstructions: (self
+			updateFlagsFloatingPointArithmeticForSourceReg1: srcReg1 
+			sourceReg2: srcReg2 
+			andResultReg: ConcreteZeroReg
+		) startingAtIndex: 4.
+	^ machineCodeSize := flagOffset + 4	
 ]
 
 { #category : #concretization }
@@ -2048,15 +2082,19 @@ CogRiscV64Compiler >> concretizeDivRdRd [
 	"FP divide regLHS by regRHS and stick result in regLHS"
 
 	<inline: true>
-	| srcReg1 srcReg2 destReg |
+	| srcReg1 srcReg2 destReg flagOffset |
 	self flag: #TODO.
 	srcReg1 := destReg := operands at: 0.
 	srcReg2 := operands at: 1.
-	self machineCodeAt: 0 put: (self
-		fDivideRegister: srcReg1
-		byRegister: srcReg2
-		intoRegister: destReg).
-	^ machineCodeSize := 4
+	"Perform DIV operation"
+	self machineCodeAt: 0 put: (self fDivideRegister: srcReg1 byRegister: srcReg2 intoRegister: destReg).
+	"Update flags"
+	flagOffset := self machineCodeWriteInstructions: (self
+			updateFlagsFloatingPointArithmeticForSourceReg1: srcReg1 
+			sourceReg2: srcReg2 
+			andResultReg: destReg
+		) startingAtIndex: 4.
+	^ machineCodeSize := flagOffset + 4
 ]
 
 { #category : #concretization }
@@ -2164,43 +2202,34 @@ CogRiscV64Compiler >> concretizeJumpFPEqual [
 	<inline:true>
 	| offset |
 	self flag: #TODO.
-	1halt. 
-	"Use flags"
-	"Registers are surely wrong, how to test them?"
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	"If srcreg1 = srcreg2, 1 in flag reg, 0 otherwise"
-	self machineCodeAt: 0 put: (self 
-		fRegisterValue: self getTestReg 
-		isEqualToRegisterValue: ConcreteIPReg
-		into: ConcreteZeroReg ).
-	"Check reg is not equal to 0 (maybe check 1 is better?)"
-	self machineCodeAt: 4 put: (self 
-		branchTo: offset 
-		ifRegisterValueIsNotEqualToZero: ConcreteZeroReg).
-	^ machineCodeSize := 8
+	"Jump if the zero flag is set to 1"
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNotEqualToZero: ConcreteZeroReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpFPGreater [
 
 	<inline:true>
-	|  offset |
+	| offset |
 	self flag: #TODO.
-	1halt. "Use flags"
-	"Registers are surely wrong, how to test them?"
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	"If srcreg1 <= srcreg2, 1 in flag reg, 0 otherwise"
-	self machineCodeAt: 0 put: (self 
-		fRegisterValue: self getTestReg 
-		isLessThanOrEqualToRegisterValue: ConcreteIPReg 
-		into: ConcreteZeroReg ).
-	"Check reg = 0 (if !(r1 <= r2) => r1 > r2)"
-	self machineCodeAt: 4 put: (self 
-		branchTo: offset 
-		ifRegisterValueIsEqualToZero: ConcreteZeroReg).
-	^ machineCodeSize := 8
+	"Jump Greater means jump if ZF = 0 and SF = OF"
+	"Check if SF and OF are different with a XOR (1 if different)"
+	self machineCodeAt: 0 put: (self bitwiseXorBetweenRegister: ConcreteSignReg  
+											  andRegister: ConcreteOverflowReg 
+											  intoRegister: ConcreteIPReg).
+	"Or will set 1 if SF is different from OF or if ZF=1"
+	self machineCodeAt: 4 put: (self bitwiseOrBetweenRegister: ConcreteIPReg 
+											  andRegister: ConcreteZeroReg 
+											  toRegister: ConcreteIPReg).
+	"Jump if the result is 0"
+	self machineCodeAt: 8 put: (self branchTo: offset
+											  ifRegisterValueIsEqualToZero: ConcreteIPReg).
+	^ machineCodeSize := 12
 ]
 
 { #category : #concretization }
@@ -2209,64 +2238,51 @@ CogRiscV64Compiler >> concretizeJumpFPGreaterOrEqual [
 		<inline:true>
 	| offset |
 	self flag: #TODO.
-	1halt. "Use flags"	
-	"Registers are surely wrong, how to test them?"
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	"If srcreg1 < srcreg2, 1 in flag reg, 0 otherwise"
-	self machineCodeAt: 0 put: (self 
-		fRegisterValue: self getTestReg  
-		isLessThanToRegisterValue: ConcreteIPReg 
-		into: ConcreteZeroReg ).
-	"Check reg = 0 (if !(r1 < r2) => r1 >= r2)"
-	self machineCodeAt: 4 put: (self 
-		branchTo: offset 
-		ifRegisterValueIsEqualToZero: ConcreteZeroReg).
-	^ machineCodeSize := 8
+	"Jump Greater or Equal means jump if SF = OF"
+	self machineCodeAt: 0 put: (self branchTo: offset 
+											  ifRegisterValue: ConcreteSignReg 
+	                                 isEqualToRegisterValue: ConcreteOverflowReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpFPLess [
 
 	<inline:true>
-	| srcReg1 srcReg2 offset |
+	| offset |
 	self flag: #TODO.
-	1halt. "Use flags"	
-	"Registers are surely wrong, how to test them?"
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	"If srcreg1 < srcreg2, 1 in flag reg, 0 otherwise"
-	self machineCodeAt: 0 put: (self 
-		fRegisterValue: self getTestReg 
-		isLessThanToRegisterValue: ConcreteIPReg
-		into: ConcreteZeroReg ).
-	"Check reg = 1"
-	self machineCodeAt: 4 put: (self 
-		branchTo: offset 
-		ifRegisterValueIsNotEqualToZero: ConcreteZeroReg).
-	^ machineCodeSize := 8
+	"Jump Greater or Equal means jump if SF = OF"
+	self machineCodeAt: 0 put: (self branchTo: offset 
+											  ifRegisterValue: ConcreteSignReg 
+	                                 isEqualToRegisterValue: ConcreteOverflowReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpFPLessOrEqual [
 
-		<inline:true>
+	<inline:true>
 	| offset |
 	self flag: #TODO.
-	1halt. "Use flags"	
-	"Registers are surely wrong, how to test them?"
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	"If srcreg1 <= srcreg2, 1 in flag reg, 0 otherwise"
-	self machineCodeAt: 0 put: (self 
-		fRegisterValue: self getTestReg 
-		isLessThanOrEqualToRegisterValue: ConcreteIPReg 
-		into: ConcreteZeroReg ).
-	"Check reg = 1"
-	self machineCodeAt: 4 put: (self 
-		branchTo: offset 
-		ifRegisterValueIsNotEqualToZero: ConcreteZeroReg).
-	^ machineCodeSize := 8
+	"Jump Less or Equal means jump if SF different from 	OF or 	ZF=1"
+	"Check if SF and OF are different with a XOR"
+	self machineCodeAt: 0 put: (self bitwiseXorBetweenRegister: ConcreteSignReg  
+											  andRegister: ConcreteOverflowReg 
+											  intoRegister: ConcreteIPReg).
+	"Or to check if it is different or zf=1"
+	self machineCodeAt: 4 put: (self bitwiseOrBetweenRegister: ConcreteIPReg 
+											  andRegister: ConcreteZeroReg 
+											  toRegister: ConcreteIPReg).
+	"Jump if the result is One"
+	self machineCodeAt: 8 put: (self branchTo: offset
+											  ifRegisterValueIsNotEqualToZero: ConcreteIPReg).
+	^ machineCodeSize := 12
 ]
 
 { #category : #concretization }
@@ -2275,20 +2291,11 @@ CogRiscV64Compiler >> concretizeJumpFPNotEqual [
 	<inline:true>
 	| offset |
 	self flag: #TODO.
-	1halt. "Use flags"	
-	"Registers are surely wrong, how to test them?"	
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	"If srcreg1 = srcreg2, 1 in flag reg, 0 otherwise"
-	self machineCodeAt: 0 put: (self 
-		fRegisterValue: self getTestReg 
-		isEqualToRegisterValue: ConcreteIPReg 
-		into: ConcreteZeroReg ).
-	"Check reg = 0"
-	self machineCodeAt: 4 put: (self 
-		branchTo: offset 
-		ifRegisterValueIsEqualToZero: ConcreteZeroReg).
-	^ machineCodeSize := 8
+	"Jump if the zero flag register is set to 0"
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsEqualToZero: ConcreteZeroReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
@@ -3603,12 +3610,19 @@ CogRiscV64Compiler >> concretizeMulRdRd [
 	"Perform a floating-point double precision sub operation between the value of register and the value of another register"
 
 	<inline: true>
-	| destReg sourceReg1 sourceReg2 |
+	| destReg sourceReg1 sourceReg2 flagOffset |
 	self flag: #TODO.
 	sourceReg1 := operands at: 0.
 	sourceReg2 := destReg := operands at: 1.
+	"Perform MUL operation"
 	self machineCodeAt: 0 put: (self fMultiplyRegister: sourceReg2 fromRegister: sourceReg1 intoRegister: destReg).
-	^ machineCodeSize := 4
+	"Update flags"
+	flagOffset := self machineCodeWriteInstructions: (self
+			updateFlagsFloatingPointArithmeticForSourceReg1: sourceReg1 
+			sourceReg2: sourceReg2 
+			andResultReg: destReg
+		) startingAtIndex: 4.
+	^ machineCodeSize := flagOffset + 4
 ]
 
 { #category : #concretization }
@@ -3985,8 +3999,7 @@ CogRiscV64Compiler >> concretizeSMULH [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeSqrtRd [
 
-	"Square root of FP regLHS into regLHS"
-	"Perform a floating-point double precision sub operation between the value of register and the value of another register.	"
+	"Square root of FP"
 
 	<inline: true>
 	| srcReg destReg |
@@ -4089,12 +4102,19 @@ CogRiscV64Compiler >> concretizeSubRdRd [
 	"Perform a floating-point double precision sub operation between the value of register and the value of another register.	"
 
 	<inline: true>
-	| destReg sourceReg1 sourceReg2 |
+	| destReg sourceReg1 sourceReg2 flagOffset |
 	self flag: #TODO.
 	sourceReg1 := operands at: 0.
 	sourceReg2 := destReg := operands at: 1.
+	"Perform SUB operation"
 	self machineCodeAt: 0 put: (self fSubtractRegister: sourceReg2 fromRegister: sourceReg1 intoRegister: destReg).
-	^ machineCodeSize := 4
+	"Update flags"
+	flagOffset := self machineCodeWriteInstructions: (self
+			updateFlagsFloatingPointArithmeticForSourceReg1: sourceReg1 
+			sourceReg2: sourceReg2
+			andResultReg: destReg
+		) startingAtIndex: 4.
+	^ machineCodeSize := flagOffset + 4
 ]
 
 { #category : #concretization }
@@ -4255,9 +4275,17 @@ CogRiscV64Compiler >> concretizeXorRR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeXorRdRd [
 	
+	"This concretization is only used in the primitive small float to zero out a register. 
+	 Rather than using this, we will convert X0 (hardwired 0) to the corresponding register"
 	<inline: true>
+	| srcReg1 srcReg2 |
 	self flag: #TODO.
-	^ self concretizeXorRR
+	srcReg1 := operands at: 0.
+	srcReg2 := operands at: 1.
+	self assert: srcReg1 equals: srcReg2.
+	self machineCodeAt: 0 put: (self fConvertLongSignedInRegister: X0 toDoublePrecisionInRegister: srcReg1).
+	^ machineCodeSize := 4
+	
 ]
 
 { #category : #testing }
@@ -4781,7 +4809,7 @@ CogRiscV64Compiler >> fMultiplyRegister: srcReg1 fromRegister: srcReg2 intoRegis
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> fRegisterValue: srcReg1 isEqualToRegisterValue: srcReg2 into: destReg [
+CogRiscV64Compiler >> fSetOneIn: srcReg1 ifRegisterValue: srcReg2 isEqualToRegisterValue: destReg [
 
 	"feq.d: Writes one to x[rd] if the double-precision floating-point number
 	 in f[rs1] is equal tot he one in f[rs2], and 0 if not.
@@ -4801,7 +4829,7 @@ CogRiscV64Compiler >> fRegisterValue: srcReg1 isEqualToRegisterValue: srcReg2 in
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> fRegisterValue: srcReg1 isLessThanOrEqualToRegisterValue: srcReg2 into: destReg [
+CogRiscV64Compiler >> fSetOneIn: destReg ifRegisterValue: srcReg1 isLessThanOrEqualToRegisterValue: srcReg2 [
 
 	"fle.d: Writes one to x[rd] if the double-precision floating-point number
 	 in f[rs1] is less than or equal to the one in f[rs2], and 0 if not.
@@ -4821,7 +4849,7 @@ CogRiscV64Compiler >> fRegisterValue: srcReg1 isLessThanOrEqualToRegisterValue: 
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> fRegisterValue: srcReg1 isLessThanToRegisterValue: srcReg2 into: destReg [
+CogRiscV64Compiler >> fSetOneIn: destReg ifRegisterValue: srcReg1 isLessThanRegisterValue: srcReg2 [
 
 	"flt.d: Writes one to x[rd] if the double-precision floating-point number
 	 in f[rs1] is less than to the one in f[rs2], and 0 if not.
@@ -4924,6 +4952,17 @@ CogRiscV64Compiler >> fSubtractRegister: srcReg2 fromRegister: srcReg1 intoRegis
 	  bitOr: (2r111 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
 	  bitOr: 2r1010011
+]
+
+{ #category : #'private-bit-manipulation' }
+CogRiscV64Compiler >> flagArithmeticFloatingPointUpdateBytes [ 
+	"Return the number of bytes needed to update the flags, 
+    Number of bytes to check an overflow 
+     + zero flag setting 
+     + carry flag setting 
+     + sign flag setting"
+	self flag: #TODO.
+	^ self overflowCheckFloatingPointInstructionBytes + 16
 ]
 
 { #category : #'private-bit-manipulation' }
@@ -6086,6 +6125,13 @@ CogRiscV64Compiler >> outputMachineCodeAt: targetAddress [
 ]
 
 { #category : #'concretization helpers' }
+CogRiscV64Compiler >> overflowCheckFloatingPointInstructionBytes [ 
+
+	self flag: #TODO.
+	^ 20
+]
+
+{ #category : #'concretization helpers' }
 CogRiscV64Compiler >> overflowCheckInstructionBytes [ 
 
 	self flag: #TODO.
@@ -7049,6 +7095,33 @@ CogRiscV64Compiler >> updateFlagsArithmeticForSourceReg: srcReg immediate: immed
 			 ifUnsignedValueIn: srcReg
 			 isLessThanImmediate: immediate).
 	"Sign Flag: set 1 if A is smaller than B as unsigned numbers, 0 otherwise"
+	instructions add: (self
+			 setOneIn: ConcreteSignReg
+			 ifValueIn: resReg
+			 isLessThanImmediate: 0).
+	"Zero flag: Replace the result of the subtraction with 1 if it is 0, 0 otherwise"
+	instructions add: (self
+			 setOneIn: ConcreteZeroReg
+			 ifValueInRegisterIsEqualToZero: resReg).
+	^ instructions
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> updateFlagsFloatingPointArithmeticForSourceReg1: srcReg1 sourceReg2: srcReg2 andResultReg: resReg [
+
+	| instructions |
+	self flag: #TODO.
+	"Overflow Flag: run software check and set accordingly"
+	instructions := (self 
+	    checkFloatingPointOverflowWithSourceReg1: srcReg1
+       sourceReg2: srcReg2
+		 andResultReg: ConcreteOverflowReg) asOrderedCollection.
+	"Carry Flag: set 1 if A is smaller than B as unsigned numbers, 0 otherwise"
+	instructions add: (self
+			 setOneIn: ConcreteCarryReg
+			 ifUnsignedValueIn: srcReg2
+			 isLessThanUnsignedValueIn: srcReg1).
+	"Sign Flag: set 1 if the most significatn bit of the result is 1 (result negative)"
 	instructions add: (self
 			 setOneIn: ConcreteSignReg
 			 ifValueIn: resReg
