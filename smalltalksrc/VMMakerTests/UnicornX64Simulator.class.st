@@ -25,7 +25,7 @@ UnicornX64Simulator >> baseRegister [
 { #category : #'as yet unclassified' }
 UnicornX64Simulator >> cResultRegister [
 	
-	^ self rax
+	^ UcX86Registers rax
 ]
 
 { #category : #registers }

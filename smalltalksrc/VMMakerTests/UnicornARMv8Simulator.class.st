@@ -37,7 +37,7 @@ UnicornARMv8Simulator >> baseRegister [
 { #category : #accessing }
 UnicornARMv8Simulator >> cResultRegister [
 	
-	^ self x0
+	^ UcARM64Registers x0
 ]
 
 { #category : #registers }

@@ -29,7 +29,6 @@ UnicornSimulator >> doStartAt: startAddress until: until timeout: timeout count:
 	startTime := Time millisecondClockValue.
 	remainingTimeout := timeout.
 	remainingCount := count.
-	
 	[ true ]
 		whileTrue: [
 			[result :=  simulator
@@ -68,7 +67,6 @@ UnicornSimulator >> doStartAt: startAddress until: until timeout: timeout count:
 						UnicornTimeout new
 								target: until;
 								signal ]].
-
 			self instructionPointerRegisterValue = until
 				ifTrue: [ ^ result ]]
 ]

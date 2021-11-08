@@ -294,6 +294,14 @@ UnicornProcessor >> runUntil: anAddress [
 		count: 0
 ]
 
+{ #category : #'as yet unclassified' }
+UnicornProcessor >> s9: anInteger [ 
+	
+	1halt.
+	self flag: #TODO.
+	machineSimulator s9: anInteger
+]
+
 { #category : #initialization }
 UnicornProcessor >> setFramePointer: framePointer stackPointer: stackPointer [
 	

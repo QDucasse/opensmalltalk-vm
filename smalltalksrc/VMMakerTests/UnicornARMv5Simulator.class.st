@@ -25,7 +25,7 @@ UnicornARMv5Simulator >> baseRegister [
 { #category : #'c calling convention' }
 UnicornARMv5Simulator >> cResultRegister [
 	
-	^ self r0
+	^ UcARMRegisters r0
 ]
 
 { #category : #'c calling convention' }

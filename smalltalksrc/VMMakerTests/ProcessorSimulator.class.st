@@ -44,8 +44,8 @@ ProcessorSimulator class >> aarch64 [
 ProcessorSimulator class >> riscv64 [
 
 	"TODO: Add riscv32 and possibly two subclasses for the RISCV simulator"
-	"^ UnicornRISCVSimulator new"
-	^ SpikeRISCVSimulator new
+	^ UnicornRISCVSimulator new
+	"^ SpikeRISCVSimulator new"
 ]
 
 { #category : #'instance creation' }
@@ -316,7 +316,7 @@ ProcessorSimulator >> doublePrecisionFloatingPointRegister2Value [
 { #category : #disassembling }
 ProcessorSimulator >> extractDestinationRegisterFromAssembly: aLLVMInstruction [
 
-	self subclassResponsibility
+	^  (aLLVMInstruction assemblyCodeString substrings: String tab, ',') second trimBoth
 ]
 
 { #category : #memory }
@@ -375,6 +375,8 @@ ProcessorSimulator >> initialize [
 	super initialize.
 	registerAliases := Dictionary new.
 	registerSmalltalkAliases := Dictionary new.
+	self initializeRegisterAliases.
+	self initializeRegisterSmalltalkAliases.
 ]
 
 { #category : #initialization }
@@ -647,11 +649,12 @@ ProcessorSimulator >> registerAliases [
 { #category : #registers }
 ProcessorSimulator >> registerDescriptors [
 
-	^ self registerList collect: [ :e |
+	^ self registerList collect: [ :reg |
 		RegisterDescriptor new
 			simulator: self;
-			alias: (self aliasForRegister: e);
-			name: e;
+			alias: (self aliasForRegister: reg);
+			smalltalkAlias: (self aliasSmalltalkForRegister: reg);
+			name: reg;
 			yourself ]
 ]
 
