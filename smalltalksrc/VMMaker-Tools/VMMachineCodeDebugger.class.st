@@ -180,10 +180,10 @@ VMMachineCodeDebugger >> doInitialDisassemble [
 	^ machineSimulator disassembler
 		printImmediatesInHexa;
 		useAlternatePrinterVariant;
-		disassembleNext: 150
+		disassembleNext: 300
 		instructionsIn: (cogit objectMemory memoryManager
 			copyFrom: self initialInstructionToDisassemble
-			to: self initialInstructionToDisassemble + 600)
+			to: self initialInstructionToDisassemble + 1200)
 		startAddress: self initialInstructionToDisassemble
 		pc: machineSimulator instructionPointerRegisterValue
 ]
@@ -365,18 +365,27 @@ VMMachineCodeDebugger >> initializeMachineStatePresenter [
 	
 	machineState := self newTable. 
 	machineState
-		addColumn: (SpStringTableColumn 
-			title: 'Name' 
-			evaluated: #name);
-		addColumn:(SpStringTableColumn 
-			title: 'Machine Alias' 
-			evaluated: #alias);
-		addColumn: (SpStringTableColumn 
-			title: 'Smalltalk Alias'
-			evaluated: #smalltalkAlias);
-		addColumn: (SpStringTableColumn
-			title: 'Value'
-			evaluated: [ :register | register printString ])
+		isResizable: true;
+		addColumn: 
+			((SpStringTableColumn title: 'Name' evaluated: #name)
+				isSortable: false;
+				width: 40;
+				yourself);
+		addColumn:
+			((SpStringTableColumn title: 'Machine Alias' evaluated: #alias)
+				isSortable: false;
+				width: 80;
+				yourself);
+		addColumn: 			
+			((SpStringTableColumn title: 'Smalltalk Alias' evaluated: #smalltalkAlias)
+				isSortable: false;
+				width: 100;
+				yourself);
+		addColumn: 
+			((SpStringTableColumn title: 'Value' evaluated:  [ :register | register printString ])
+				isSortable: false;
+				width: 300;
+				yourself)
 ]
 
 { #category : #initialization }
@@ -394,17 +403,20 @@ VMMachineCodeDebugger >> initializeStackPresenter [
 
 	stack := self newTable.
 	stack
-		addColumn: (SpStringTableColumn
-				 title: 'Pointer'
-				 evaluated: [ :aPosition | aPosition specialRegister ]);
-		addColumn: (SpStringTableColumn
-				 title: 'Address'
-				 evaluated: [ :aPosition | aPosition address hex ]);
+		isResizable: true;
+		addColumn: 
+			((SpStringTableColumn title: 'Pointer' evaluated: [ :aPosition | aPosition specialRegister ])
+				isSortable: false;
+				width: 50;
+				yourself);
+		addColumn: ((SpStringTableColumn title: 'Address' evaluated: [ :aPosition | aPosition address hex ]) 
+				isSortable: false;
+				width: 100;
+				yourself);
 		addColumn:
-			(SpStringTableColumn title: 'Value' evaluated: [ :aPosition | 
-					 [ aPosition value hex ]
-						 on: Error
-						 do: [ 'Error' ] ])
+			((SpStringTableColumn title: 'Value' evaluated: [ :aPosition | [ aPosition value hex ] on: Error do: [ 'Error' ] ]) 
+				isSortable: false;
+				yourself)
 ]
 
 { #category : #actions }
