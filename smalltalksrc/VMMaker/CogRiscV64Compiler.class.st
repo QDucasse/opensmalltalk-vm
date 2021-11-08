@@ -849,6 +849,88 @@ CogRiscV64Compiler >> byteReadsZeroExtend [
 	^true
 ]
 
+{ #category : #'concretization helpers - mc size' }
+CogRiscV64Compiler >> bytesForArithmeticCqOperation [
+	
+	self flag: #TODO.
+	^ self bytesForArithmeticCqOperationOfSize: 4
+]
+
+{ #category : #'concretization helpers - mc size' }
+CogRiscV64Compiler >> bytesForArithmeticCqOperationOfSize: operationSize [
+	
+	"This method is used in the case of an operation where the OPRI and OPRR have different lengths"
+	self flag: #TODO.
+	dependent
+		ifNil: [ 
+			| cq |
+			cq := operands at: 0.
+			((self computeSignedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+				ifTrue: [ "Immediate that can be encoded in andi" 
+					^ self flagArithmeticUpdateBytes + operationSize ]
+				ifFalse: [ 
+					^ (self loadImmediateInstructionBytes: (operands at: 0))
+					  + self flagArithmeticUpdateBytes + operationSize ] "Immediate loaded in a register" ]
+		ifNotNil: [ "Literal load" 
+			^ self literalLoadInstructionBytes + self flagArithmeticUpdateBytes + operationSize ]
+]
+
+{ #category : #'concretization helpers - mc size' }
+CogRiscV64Compiler >> bytesForArithmeticCqOperationWithNoImmediate [
+	
+	"Used for SUB as there is no SUBI, defautl size is 4"
+	self flag: #TODO.
+	^ self bytesForArithmeticCqOperationWithNoImmediateOfSize: 4
+]
+
+{ #category : #'concretization helpers - mc size' }
+CogRiscV64Compiler >> bytesForArithmeticCqOperationWithNoImmediateOfSize: operationSize [
+	
+	"Used for SUB as there is no SUBI"
+	self flag: #TODO.
+	dependent
+		ifNil: [ ^ (self loadImmediateInstructionBytes: (operands at: 0))
+					  + self flagArithmeticUpdateBytes + operationSize ] "Immediate loaded in a register" 
+		ifNotNil: [ "Literal load" 
+			^ self literalLoadInstructionBytes + self flagArithmeticUpdateBytes + operationSize ]
+]
+
+{ #category : #'concretization helpers - mc size' }
+CogRiscV64Compiler >> bytesForLogicCqOperation [
+
+	"Use 4 as the default size"
+	self flag: #TODO.
+	^ self bytesForLogicCqOperationOfSize: 4
+]
+
+{ #category : #'concretization helpers - mc size' }
+CogRiscV64Compiler >> bytesForLogicCqOperationOfSize: operationSize [
+
+	"Immediate and register operations have the same size"
+	self flag: #TODO.
+	^ self bytesForLogicCqOperationOfSize: operationSize andImmediateOperationSize: operationSize
+]
+
+{ #category : #'concretization helpers - mc size' }
+CogRiscV64Compiler >> bytesForLogicCqOperationOfSize: operationSize andImmediateOperationSize: immOperationSize [
+	
+	"This method is used in the case of an operation where the OPRI and OPRR have different lengths 
+	 example: ROT"
+	self flag: #TODO.
+	dependent
+		ifNil: [ 
+			| cq |
+			cq := operands at: 0.
+			((self computeSignedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+				ifTrue: [ "Immediate that can be encoded in andi" 
+					^ self flagLogicUpdateBytes + immOperationSize ]
+				ifFalse: [ 
+					^ (self loadImmediateInstructionBytes: (operands at: 0))
+					  + self flagLogicUpdateBytes + operationSize ] "Immediate loaded in a register" ]
+		ifNotNil: [ "Literal load" 
+			^ self literalLoadInstructionBytes + self flagLogicUpdateBytes + operationSize ]
+]
+
 { #category : #abi }
 CogRiscV64Compiler >> cResultRegister [
 	"Answer the register through which C funcitons return integral results."
@@ -1043,14 +1125,14 @@ CogRiscV64Compiler >> computeMaximumSize [
 							ifNil:[ | cq |
 								cq := operands at: 0.
 								((self computeSignedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
-								   ifTrue: [ ^ self flagArithmeticUpdateBytes + 8 
+								   ifTrue: [ ^ self flagArithmeticUpdateBytes + 4 
 									   ] "Immediate that can be encoded in addi"
 								   ifFalse: [ ^ (self loadImmediateInstructionBytes: (operands at: 0)) 
-									            + self flagArithmeticUpdateBytes + 8 
+									            + self flagArithmeticUpdateBytes + 4 
 									   ]. "Immediate loaded in a register"
                          ] 
                       ifNotNil: [^ self literalLoadInstructionBytes + 
-	                                self flagArithmeticUpdateBytes + 8 
+	                                self flagArithmeticUpdateBytes + 4 
 	                      ] "Literal load"
 						]. "DONE"
 
@@ -3011,7 +3093,7 @@ CogRiscV64Compiler >> concretizeMoveM64rRd [
 	
 	"Load a double-precision float from srcReg+offset into FP destReg"
 	<inline: true>
-	| baseReg offset destReg instrOffset fpOffset |
+	| baseReg offset destReg instrOffset |
 	self flag: #TODO.
 	offset := operands at: 0.
 	baseReg := operands at: 1.
@@ -3019,12 +3101,11 @@ CogRiscV64Compiler >> concretizeMoveM64rRd [
 	dependent 
 		ifNil: [ 
 			self assertValue: offset isContainedIn: 12 
-				ifTrue: [ fpOffset := self machineCodeWriteInstructions: (self enableFloatingPoint).
-							self machineCodeAt: fpOffset put: (self
+				ifTrue: [ self machineCodeAt: 0 put: (self
 			 					fLoadDoubleWordFromAddressInRegister: baseReg 
 								withOffset: offset 
 								toRegister: destReg). 
-							 ^ machineCodeSize := fpOffset + 4 ] 
+							 ^ machineCodeSize := 4 ] 
 				ifFalse: [ "Load offset as an immediate in a register"
 					instrOffset := self machineCodeWriteInstructions: (self 
 						loadImmediate: offset inRegister: ConcreteIPReg) ]
@@ -3886,8 +3967,8 @@ CogRiscV64Compiler >> concretizeRotateLeftCqR [
 					"Update the flags"
 					flagOffset := self machineCodeWriteInstructions: (self
 							updateFlagsLogicForResultReg: destReg
-						) startingAtIndex: rotateOffset + 4.
-					^ machineCodeSize := rotateOffset + flagOffset + 4 ]
+						) startingAtIndex: rotateOffset.
+					^ machineCodeSize := rotateOffset + flagOffset ]
 				ifFalse: [ "Move to a register before performing AND on the registers"	
 					"Load the immediate to a register"
 					loadOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ] 
@@ -3941,8 +4022,8 @@ CogRiscV64Compiler >> concretizeRotateRightCqR [
 					"Update the flags"
 					flagOffset := self machineCodeWriteInstructions: (self
 							updateFlagsLogicForResultReg: destReg
-						) startingAtIndex: rotateOffset + 4.
-					^ machineCodeSize := rotateOffset + flagOffset + 4 ]
+						) startingAtIndex: rotateOffset.
+					^ machineCodeSize := rotateOffset + flagOffset ]
 				ifFalse: [ "Move to a register before performing AND on the registers"	
 					"Load the immediate to a register"
 					loadOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ] 
@@ -4954,7 +5035,7 @@ CogRiscV64Compiler >> fSubtractRegister: srcReg2 fromRegister: srcReg1 intoRegis
 	  bitOr: 2r1010011
 ]
 
-{ #category : #'private-bit-manipulation' }
+{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> flagArithmeticFloatingPointUpdateBytes [ 
 	"Return the number of bytes needed to update the flags, 
     Number of bytes to check an overflow 
@@ -4965,7 +5046,7 @@ CogRiscV64Compiler >> flagArithmeticFloatingPointUpdateBytes [
 	^ self overflowCheckFloatingPointInstructionBytes + 16
 ]
 
-{ #category : #'private-bit-manipulation' }
+{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> flagArithmeticUpdateBytes [ 
 	"Return the number of bytes needed to update the flags, 
     Number of bytes to check an overflow 
@@ -4976,7 +5057,7 @@ CogRiscV64Compiler >> flagArithmeticUpdateBytes [
 	^ self overflowCheckInstructionBytes + 16
 ]
 
-{ #category : #'private-bit-manipulation' }
+{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> flagLogicUpdateBytes [ 
 	"Return the number of bytes needed to update the flags, 
      overflow set to 0
@@ -5500,7 +5581,7 @@ CogRiscV64Compiler >> isShiftedMask: aMask [
 	^ aMask ~= 0 and: [ self is64bitMask64: ((aMask - 1) bitOr: aMask) ]
 ]
 
-{ #category : #'concretization helpers' }
+{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> jumpLongByteSize [
 "	Branch/Call ranges.  Jump[Cond] can be generated as short as possible.  Call/Jump[Cond]Long must be generated
 	in the same number of bytes irrespective of displacement since their targets may be updated, but they need only
@@ -5511,7 +5592,7 @@ CogRiscV64Compiler >> jumpLongByteSize [
 	^4
 ]
 
-{ #category : #'concretization helpers' }
+{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> jumpLongConditionalByteSize [
 	" AArch64 does not have conditional long jumps. Be a short conditional jump and a long jump "
 	^ 8
@@ -5645,7 +5726,7 @@ CogRiscV64Compiler >> leafCallStackPointerDelta [
 	^0
 ]
 
-{ #category : #'concretization helpers' }
+{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> literalLoadInstructionBytes [
 	"Answer the size of a literal load instruction (which may or may not include the size of the literal).
 	 This differs between in-line and out-of-line literal generation."
@@ -5759,7 +5840,7 @@ CogRiscV64Compiler >> loadImmediate: aSignedImmediate inRegister: destReg [
 	
 ]
 
-{ #category : #concretization }
+{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> loadImmediateInstructionBytes: anImmediate [ 
 
 	"Returns the number of bytes (instructions * 4) needed to generate"
@@ -5788,7 +5869,7 @@ CogRiscV64Compiler >> loadLiteralInRegister: destReg [
 
 ]
 
-{ #category : #'concretization helpers' }
+{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> loadPICLiteralByteSize [
 	"Answer the byte size of a MoveCwR opcode's corresponding machine code
 	 when the argument is a PIC.  This is for the self-reference at the end of a
@@ -5933,7 +6014,7 @@ CogRiscV64Compiler >> machineCodeAt: anOffset put: aWord [
 	machineCode at: anOffset // 4 put: aWord
 ]
 
-{ #category : #'concretization helpers' }
+{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> machineCodeBytes [
 	"Answer the maximum number of bytes of machine code generated for any abstract instruction.
 	 e.g. **CwR =>
@@ -6124,14 +6205,14 @@ CogRiscV64Compiler >> outputMachineCodeAt: targetAddress [
 		objectMemory uint32AtPointer: targetAddress + j put: (machineCode at: j // 4)]
 ]
 
-{ #category : #'concretization helpers' }
+{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> overflowCheckFloatingPointInstructionBytes [ 
 
 	self flag: #TODO.
 	^ 20
 ]
 
-{ #category : #'concretization helpers' }
+{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> overflowCheckInstructionBytes [ 
 
 	self flag: #TODO.
