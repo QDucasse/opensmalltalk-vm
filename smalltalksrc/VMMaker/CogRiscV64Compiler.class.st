@@ -2093,7 +2093,7 @@ CogRiscV64Compiler >> concretizeCmpRdRd [
 	
 	"For floating points, we only need to change the ZF and CF flags by comparing them
 	 The jumps then process along the table in
-	https://stackoverflow.com/questions/7057501/x86-assembler-floating-point-comparehttps://stackoverflow.com/questions/7057501/x86-assembler-floating-point-compare
+	https://stackoverflow.com/questions/7057501/x86-assembler-floating-point-compare
 	"
 	<inline: true>
 	| srcReg1 srcReg2 |
@@ -2211,7 +2211,7 @@ CogRiscV64Compiler >> concretizeJumpAbove [
 	<inline: true>
 	| offset |
 	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
+	offset := self computeJumpTargetOffsetPlus: 4.
  	self assert: (self isInImmediateJumpRange: offset).
 	"Jump Above means jump if 	CF=0 and ZF=0"
 	self machineCodeAt: 0 put: (self bitwiseOrBetweenRegister: ConcreteCarryReg 
@@ -2257,7 +2257,7 @@ CogRiscV64Compiler >> concretizeJumpBelowOrEqual [
 	<inline: true>
 	| offset |
 	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
+	offset := self computeJumpTargetOffsetPlus: 4.
  	self assert: (self isInImmediateJumpRange: offset).
 	"Jump Below or Equal translates to jump if 	CF=1 or ZF=1"
 	self machineCodeAt: 0 put: (self bitwiseOrBetweenRegister: ConcreteCarryReg 
@@ -2302,7 +2302,7 @@ CogRiscV64Compiler >> concretizeJumpFPGreater [
 	<inline:true>
 	| offset |
 	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
+	offset := self computeJumpTargetOffsetPlus: 4.
  	self assert: (self isInImmediateJumpRange: offset).
 	"Jump Greater for floating points means jump if ZF = 0 and CF = 0"
 	"Perform an OR operation between the two registers"
@@ -2349,7 +2349,7 @@ CogRiscV64Compiler >> concretizeJumpFPLessOrEqual [
 	<inline:true>
 	| offset |
 	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
+	offset := self computeJumpTargetOffsetPlus: 4.
  	self assert: (self isInImmediateJumpRange: offset).
 	"Jump Less or Equal for floating points means jump if ZF = 1 or CF = 1"
 	"Perform an OR operation between the two registers"
@@ -2413,7 +2413,7 @@ CogRiscV64Compiler >> concretizeJumpGreater [
 	<inline: true>
 	| offset |
 	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
+	offset := self computeJumpTargetOffsetPlus: 8.
  	self assert: (self isInImmediateJumpRange: offset).
 	"Jump Greater means jump if ZF = 0 and SF = OF"
 	"Check if SF and OF are different with a XOR (1 if different)"
@@ -2466,7 +2466,7 @@ CogRiscV64Compiler >> concretizeJumpLessOrEqual [
 	<inline: true>
 	| offset |
 	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
+	offset := self computeJumpTargetOffsetPlus: 8.
  	self assert: (self isInImmediateJumpRange: offset).
 	"Jump Less or Equal means jump if SF different from 	OF or 	ZF=1"
 	"Check if SF and OF are different with a XOR"
@@ -7199,8 +7199,8 @@ CogRiscV64Compiler >> updateFlagsFloatingPointArithmeticForSourceReg1: srcReg1 s
 	"Zero flag: Replace the result of the subtraction with 1 if it is 0, 0 otherwise"
 	instructions add: (self
 			 fSetOneIn: ConcreteZeroReg
-			 ifRegisterValue: srcReg1 
-			 isEqualToRegisterValue: srcReg2).
+			 ifRegisterValue: srcReg2 
+			 isEqualToRegisterValue: srcReg1).
 	^ instructions
 ]
 
