@@ -2035,8 +2035,8 @@ CogRiscV64Compiler >> concretizeCmpCqR [
 		    fromRegister: srcReg 
 			 intoRegister: ConcreteZeroReg). 	
 	flagOffset := self machineCodeWriteInstructions: (
-		self updateFlagsArithmeticForSourceReg1: srcReg 
-		     sourceReg2: ConcreteIPReg 
+		self updateFlagsArithmeticForSourceReg1: ConcreteIPReg 
+		     sourceReg2: srcReg 
 		     andResultReg: ConcreteZeroReg
 		) startingAtIndex: loadOffset + 4.
 	
@@ -2058,8 +2058,8 @@ CogRiscV64Compiler >> concretizeCmpCwR [
 			intoRegister: ConcreteZeroReg ). 
 	"Update the flags"
 	flagOffset := self machineCodeWriteInstructions: (self 
-			updateFlagsArithmeticForSourceReg1: srcReg 
-			sourceReg2: ConcreteIPReg 
+			updateFlagsArithmeticForSourceReg1: ConcreteIPReg 
+			sourceReg2: srcReg
 			andResultReg: ConcreteZeroReg) startingAtIndex: loadOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + 4
 ]
@@ -6576,15 +6576,15 @@ CogRiscV64Compiler >> rotateLeftValueInRegister: srcReg byShiftAmount: shamt inR
 	Note only the lowest 6 bits of the shamt are taken in consideration.
 	Note ConcreteIPReg2 is used because the concretization uses ConcreteIPReg to load the immediate/literal if needed.
 	"
-	| negatedShamt |
 	"https://stackoverflow.com/questions/55394123/how-do-i-write-rotation-operation-for-the-risc-vassembly-language-do-we-have-a"
 	self assert: shamt > 0.
-	negatedShamt := shamt twoComplementOfBitSize: 11. "11 because the sign extension is needed and will take the 1 bit left"
+	self assertValue: shamt isContainedIn: 6. "6 bits for RV64, 5 or RV32"
 	self flag: #TODO.
+	"Notice that srcReg is the same as destReg"
 	^ { 
-		self shiftLeftValueInRegister: srcReg byShiftAmount: shamt intoRegister: destReg .
-		self shiftRightValueInRegister: srcReg byShiftAmount: (negatedShamt bitAnd: 16r7FFFFFFFFFFFFFFF) intoRegister: ConcreteIPReg2 . "mask with 63 bits to take in account the truncation of the split amount"
-		self bitwiseOrBetweenRegister: destReg andRegister: ConcreteIPReg2 toRegister: destReg
+		self shiftLeftValueInRegister: srcReg byShiftAmount: shamt intoRegister: ConcreteIPReg2 .
+		self shiftRightValueInRegister: srcReg byShiftAmount: (shamt negated bitAnd: 16r3f) intoRegister: destReg . 
+		self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg
 	}
 ]
 
@@ -6603,10 +6603,10 @@ CogRiscV64Compiler >> rotateLeftValueInRegister: srcReg byShiftAmountInRegister:
 	
 	self flag: #TODO.
 	^ { 
-		self shiftLeftValueInRegister: srcReg byShiftAmountInRegister: shamtReg intoRegister: destReg    .
-		self subtractRegister: shamtReg fromRegister: X0 intoRegister: ConcreteIPReg2                    .
-		self shiftRightValueInRegister: srcReg byShiftAmount: ConcreteIPReg intoRegister: ConcreteIPReg2 .
-		self bitwiseOrBetweenRegister: destReg andRegister: ConcreteIPReg2 toRegister: destReg
+		self shiftLeftValueInRegister: srcReg byShiftAmountInRegister: shamtReg intoRegister: ConcreteIPReg2    .
+		self negateValueInRegister: shamtReg intoRegister: destReg                    .
+		self shiftRightValueInRegister: srcReg byShiftAmountInRegister: destReg intoRegister: destReg .
+		self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg
 	}
 ]
 
@@ -6624,12 +6624,12 @@ CogRiscV64Compiler >> rotateRightValueInRegister: srcReg byShiftAmount: shamt in
 	| negatedShamt |
 	"https://stackoverflow.com/questions/55394123/how-do-i-write-rotation-operation-for-the-risc-vassembly-language-do-we-have-a"
 	self assert: shamt > 0.
-	negatedShamt := shamt twoComplementOfBitSize: 11. "11 because the sign extension is needed and will take the 1 bit left"
+	self assertValue: shamt isContainedIn: 6. "6 bits for RV64, 5 or RV32"
 	self flag: #TODO.
 	^ { 
-		self shiftRightValueInRegister: srcReg byShiftAmount: shamt intoRegister: destReg .
-		self shiftLeftValueInRegister: srcReg byShiftAmount: (negatedShamt bitAnd: 16r7FFFFFFFFFFFFFFF) intoRegister: ConcreteIPReg2 . "mask with 63 bits to take in account the truncation of the split amount"
-		self bitwiseOrBetweenRegister: destReg andRegister: ConcreteIPReg2 toRegister: destReg
+		self shiftRightValueInRegister: srcReg byShiftAmount: shamt intoRegister: ConcreteIPReg2 .
+		self shiftLeftValueInRegister: srcReg byShiftAmount: (shamt negated bitAnd: 16r3f) intoRegister: destReg .
+		self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg
 	}
 ]
 
@@ -6648,10 +6648,10 @@ CogRiscV64Compiler >> rotateRightValueInRegister: srcReg byShiftAmountInRegister
 	
 	self flag: #TODO.
 	^ { 
-		self shiftRightValueInRegister: srcReg byShiftAmountInRegister: shamtReg intoRegister: destReg  .
-		self subtractRegister: shamtReg fromRegister: X0 intoRegister: ConcreteIPReg2                   .
-		self shiftLeftValueInRegister: srcReg byShiftAmount: ConcreteIPReg intoRegister: ConcreteIPReg2 .
-		self bitwiseOrBetweenRegister: destReg andRegister: ConcreteIPReg2 toRegister: destReg
+		self shiftRightValueInRegister: srcReg byShiftAmountInRegister: shamtReg intoRegister: ConcreteIPReg2  .
+		self negateValueInRegister: shamtReg intoRegister: destReg                   .
+		self shiftLeftValueInRegister: srcReg byShiftAmount: destReg intoRegister: destReg .
+		self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg
 	}
 ]
 
@@ -6852,10 +6852,12 @@ CogRiscV64Compiler >> shiftLeftValueInRegister: sourceReg byShiftAmount: shiftAm
 	 31     26 25     20 19   15 14   12 11   7 6         0
 	|  000000 |  shamt  |  rs1  |  001  |  rd  |  0010011  |
 	"
-
-	self flag: #DONE.
-	^ ((((2r000000 << 26
-	  bitOr: (shiftAmount bitAnd: 16r1f) << 20)
+	| signExtendedShamt |
+	self flag: #TODO.
+	"Check size and sign"
+	self assertValue: shiftAmount isContainedIn: 6.
+	signExtendedShamt := self computeSignedValueOf: shiftAmount ofSize: 6.
+	^ (((((signExtendedShamt bitAnd: 16r3f) << 20) 
 	  bitOr: (sourceReg bitAnd: 16r1f) << 15)
 	  bitOr: (2r001 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
@@ -6890,9 +6892,12 @@ CogRiscV64Compiler >> shiftRightValueInRegister: sourceReg byShiftAmount: shiftA
 	 31     26 25     20 19   15 14   12 11   7 6         0
 	|  000000 |  shamt  |  rs1  |  101  |  rd  |  0010011  |
 	"
-
+	| signExtendedShamt |
 	self flag: #DONE.
-	^ (((((shiftAmount bitAnd: 16r3f) << 20) 
+	"Check size and sign"
+	self assertValue: shiftAmount isContainedIn: 6.
+	signExtendedShamt := self computeSignedValueOf: shiftAmount ofSize: 6.
+	^ (((((signExtendedShamt bitAnd: 16r3f) << 20) 
 	  bitOr: (sourceReg bitAnd: 16r1f) << 15)
 	  bitOr: (2r101 << 12)) 
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
