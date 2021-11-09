@@ -1531,12 +1531,12 @@ CogRiscV64Compiler >> computeMaximumSize [
 								   ifFalse: [ ^ (self loadImmediateInstructionBytes: offset) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
 						]. "DONE"
-		[MoveXbrRR]			-> [ ^ 8 ]. "DONE"
-		[MoveX32rRR]			-> [ ^ 8 ]. "DONE"
-		[MoveRX32rR]			-> [ ^ 8 ]. "DONE"
-		[MoveRXbrR]			-> [ ^ 8 ]. "DONE"
-		[MoveXwrRR]			-> [ ^ 8 ]. "DONE"
-		[MoveRXwrR]			-> [ ^ 8 ]. "DONE"
+		[MoveXbrRR]			-> [ ^ 12 ]. "DONE"
+		[MoveX32rRR]			-> [ ^ 12 ]. "DONE"
+		[MoveRX32rR]			-> [ ^ 12 ]. "DONE"
+		[MoveRXbrR]			-> [ ^ 12 ]. "DONE"
+		[MoveXwrRR]			-> [ ^ 12 ]. "DONE"
+		[MoveRXwrR]			-> [ ^ 12 ]. "DONE"
 		[PopR]					-> [ ^ 8 ]. "DONE"
 		[PushR]				-> [ ^ 8 ]. "DONE"
 		[PushCw]				-> [^ self literalLoadInstructionBytes + 8 ]. "DONE"
@@ -3443,73 +3443,88 @@ CogRiscV64Compiler >> concretizeMoveRRd [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeMoveRX32rR [
 
-	"Write the word in R(src) into memory at address (base+4*index)"
-
-	<inline: true>
-	| indexReg baseReg srcReg |
-	self flag: #TODO.
-	srcReg := operands at: 0.
-	indexReg := operands at: 1.	"index is number of *words* = 4* bytes"
-	baseReg := operands at: 2.	
-	"Add the offset to the base address register"
-	self machineCodeAt: 0 put: (self 
-			addRegister: indexReg 
-			toRegister: baseReg 
-			inRegister: ConcreteIPReg).
-	"Store the value"
-	self machineCodeAt: 4 put: (self 
-		storeWordFromRegister: srcReg 
-		toAddressInRegister: ConcreteIPReg 
-		withOffset: 0).
-	^ machineCodeSize := 8
-]
-
-{ #category : #concretization }
-CogRiscV64Compiler >> concretizeMoveRXbrR [
-
-	"Write the byte in R(src) into memory at address (base+4*index)"
-
-	<inline: true>
-	| indexReg baseReg srcReg |
-	self flag: #TODO.
-	srcReg := operands at: 0.
-	indexReg := operands at: 1.	"index is number of *words* = 4* bytes"
-	baseReg := operands at: 2.	
-	"Add the offset to the base address register"
-	self machineCodeAt: 0 put: (self 
-			addRegister: indexReg 
-			toRegister: baseReg 
-			inRegister: ConcreteIPReg).
-	"Store the value"
-	self machineCodeAt: 4 put: (self 
-		storeByteFromRegister: srcReg 
-		toAddressInRegister: ConcreteIPReg 
-		withOffset: 0).
-	^ machineCodeSize := 8
-]
-
-{ #category : #concretization }
-CogRiscV64Compiler >> concretizeMoveRXwrR [
-
-	"Write the word in R(src) into memory at address (base+4*index)"
+	"Write the half word in R(src) into memory at address (base + word size * index)"
 
 		<inline: true>
 	| indexReg baseReg srcReg |
 	self flag: #TODO.
 	srcReg := operands at: 0.
-	indexReg := operands at: 1.	"index is number of *words* = 4* bytes"
+	indexReg := operands at: 1. "index is number of words = size of word * bytes, in 64 bits -> * 8"
 	baseReg := operands at: 2.	
-	"Add the offset to the base address register"
+	"Shift by 3 (*8) the index reg"
 	self machineCodeAt: 0 put: (self 
-			addRegister: indexReg 
-			toRegister: baseReg 
-			inRegister: ConcreteIPReg).
-	"Store the value"
+		shiftLeftValueInRegister: indexReg 
+		byShiftAmount: 3 
+		intoRegister: ConcreteIPReg).
+	"Add the offset to the base address register"
 	self machineCodeAt: 4 put: (self 
+		addRegister: ConcreteIPReg 
+		toRegister: baseReg 
+		inRegister: ConcreteIPReg). 
+	"Store the value"
+	self machineCodeAt: 8 put: (self 
+		storeWordFromRegister: srcReg 
+		toAddressInRegister: ConcreteIPReg 
+		withOffset: 0).
+	^ machineCodeSize := 12
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeMoveRXbrR [
+
+	"Write the byte in R(src) into memory at address (base + word size * index)"
+
+		<inline: true>
+	| indexReg baseReg srcReg |
+	self flag: #TODO.
+	srcReg := operands at: 0.
+	indexReg := operands at: 1. "index is number of words = size of word * bytes, in 64 bits -> * 8"
+	baseReg := operands at: 2.	
+	"Shift by 3 (*8) the index reg"
+	self machineCodeAt: 0 put: (self 
+		shiftLeftValueInRegister: indexReg 
+		byShiftAmount: 3 
+		intoRegister: ConcreteIPReg).
+	"Add the offset to the base address register"
+	self machineCodeAt: 4 put: (self 
+		addRegister: ConcreteIPReg 
+		toRegister: baseReg 
+		inRegister: ConcreteIPReg). 
+	"Store the value"
+	self machineCodeAt: 8 put: (self 
+		storeByteFromRegister: srcReg 
+		toAddressInRegister: ConcreteIPReg 
+		withOffset: 0).
+	^ machineCodeSize := 12
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeMoveRXwrR [
+
+	"Write the word in R(src) into memory at address (base + word size * index)"
+
+		<inline: true>
+	| indexReg baseReg srcReg |
+	self flag: #TODO.
+	srcReg := operands at: 0.
+	indexReg := operands at: 1. "index is number of words = size of word * bytes, in 64 bits -> * 8"
+	baseReg := operands at: 2.	
+	"Shift by 3 (*8) the index reg"
+	self machineCodeAt: 0 put: (self 
+		shiftLeftValueInRegister: indexReg 
+		byShiftAmount: 3 
+		intoRegister: ConcreteIPReg).
+	"Add the offset to the base address register"
+	self machineCodeAt: 4 put: (self 
+		addRegister: ConcreteIPReg 
+		toRegister: baseReg 
+		inRegister: ConcreteIPReg). 
+	"Store the value"
+	self machineCodeAt: 8 put: (self 
 		storeDoubleWordFromRegister: srcReg 
 		toAddressInRegister: ConcreteIPReg 
 		withOffset: 0).
-	^ machineCodeSize := 8
+	^ machineCodeSize := 12
 ]
 
 { #category : #concretization }
@@ -3609,74 +3624,89 @@ CogRiscV64Compiler >> concretizeMoveRsM32r [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeMoveX32rRR [
 
-	"Read a word in in memory at address (base+4*index) into R(dest)"
+	"Read a half word in in memory at address (base + word size *index) into R(dest)"
 
 	<inline: true>
 	| indexReg baseReg destReg |
 	self flag: #TODO.
-	indexReg := operands at: 0. "index is number of *words* = 4* bytes"
+	indexReg := operands at: 0. "index is number of words = size of word * bytes, in 64 bits -> * 8"
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
-	"Add the offset to the base address register"
+	"Shift by 3 (*8) the index reg"
 	self machineCodeAt: 0 put: (self 
-		addRegister: indexReg 
+		shiftLeftValueInRegister: indexReg 
+		byShiftAmount: 3 
+		intoRegister: ConcreteIPReg).
+	"Add the offset to the base address register"
+	self machineCodeAt: 4 put: (self 
+		addRegister: ConcreteIPReg 
 		toRegister: baseReg 
 		inRegister: ConcreteIPReg). 
 	"Load the value"
-	self machineCodeAt: 4 put: (self 
+	self machineCodeAt: 8 put: (self 
 		loadWordFromAddressInRegister: ConcreteIPReg 
 		withOffset: 0 
 		toRegister: destReg).
-	^ machineCodeSize := 8
+	^ machineCodeSize := 12
 	
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeMoveXbrRR [
 
-	"Read a byte in in memory at address (base+4*index) into R(dest)"
+	"Read a byte in in memory at address (base + word size *index) into R(dest)"
 
 	<inline: true>
 	| indexReg baseReg destReg |
 	self flag: #TODO.
-	indexReg := operands at: 0. "index is number of *words* = 4* bytes"
+	indexReg := operands at: 0. "index is number of words = size of word * bytes, in 64 bits -> * 8"
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
-	"Add the offset to the base address register"
+	"Shift by 3 (*8) the index reg"
 	self machineCodeAt: 0 put: (self 
-		addRegister: indexReg 
+		shiftLeftValueInRegister: indexReg 
+		byShiftAmount: 3 
+		intoRegister: ConcreteIPReg).
+	"Add the offset to the base address register"
+	self machineCodeAt: 4 put: (self 
+		addRegister: ConcreteIPReg 
 		toRegister: baseReg 
 		inRegister: ConcreteIPReg). 
 	"Load the value"
-	self machineCodeAt: 4 put: (self 
+	self machineCodeAt: 8 put: (self 
 		loadByteFromAddressInRegister: ConcreteIPReg 
 		withOffset: 0 
 		toRegister: destReg).
-	^ machineCodeSize := 8
+	^ machineCodeSize := 12
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeMoveXwrRR [
 	
-	"Read a double word in in memory at address (base+4*index) into R(dest)"
+	"Read a word in in memory at address (base + word size *index) into R(dest)"
 
 	<inline: true>
 	| indexReg baseReg destReg |
 	self flag: #TODO.
-	indexReg := operands at: 0. "index is number of *words* = 4* bytes"
+	indexReg := operands at: 0. "index is number of words = size of word * bytes, in 64 bits -> * 8"
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
-	"Add the offset to the base address register"
+	"Shift by 3 (*8) the index reg"
 	self machineCodeAt: 0 put: (self 
-		addRegister: indexReg 
+		shiftLeftValueInRegister: indexReg 
+		byShiftAmount: 3
+		intoRegister: ConcreteIPReg).
+	"Add the offset to the base address register"
+	self machineCodeAt: 4 put: (self 
+		addRegister: ConcreteIPReg 
 		toRegister: baseReg 
 		inRegister: ConcreteIPReg). 
 	"Load the value"
-	self machineCodeAt: 4 put: (self 
+	self machineCodeAt: 8 put: (self 
 		loadDoubleWordFromAddressInRegister: ConcreteIPReg 
 		withOffset: 0 
 		toRegister: destReg).
-	^ machineCodeSize := 8
+	^ machineCodeSize := 12
 ]
 
 { #category : #concretization }
@@ -6824,9 +6854,10 @@ CogRiscV64Compiler >> shiftLeftValueInRegister: sourceReg byShiftAmount: shiftAm
 	"
 
 	self flag: #DONE.
-	^ (((((shiftAmount bitAnd: 16r3f) << 20) 
+	^ ((((2r000000 << 26
+	  bitOr: (shiftAmount bitAnd: 16r1f) << 20)
 	  bitOr: (sourceReg bitAnd: 16r1f) << 15)
-	  bitOr: (2r001 << 12)) 
+	  bitOr: (2r001 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
 	  bitOr: 2r0010011
 ]
@@ -6842,7 +6873,8 @@ CogRiscV64Compiler >> shiftLeftValueInRegister: sourceReg1 byShiftAmountInRegist
 	"
 
 	self flag: #DONE.
-	^ (((((sourceReg2 bitAnd: 16r3f) << 20) 
+	^ ((((2r000000 << 25
+	  bitOr: (sourceReg2 bitAnd: 16r1f) << 20) 
 	  bitOr: (sourceReg1 bitAnd: 16r1f) << 15)
 	  bitOr: (2r001 << 12)) 
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
