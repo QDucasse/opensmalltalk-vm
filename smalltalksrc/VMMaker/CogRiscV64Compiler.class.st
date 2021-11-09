@@ -1467,7 +1467,15 @@ CogRiscV64Compiler >> computeMaximumSize [
 								   ifFalse: [ ^ (self loadImmediateInstructionBytes: offset) + 8 ]. "immediate loaded in a register"
                       ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
 						]. "DONE"
-		[MoveRM8r]			-> [^ self notYetImplemented ].
+		[MoveRM8r]			-> [
+						dependent 
+							ifNil:[ | offset |
+								offset := operands at: 0.
+								((self computeSignedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
+								   ifTrue: [ ^ 4 ] "offset that can be encoded directly"
+								   ifFalse: [ ^ (self loadImmediateInstructionBytes: offset) + 8 ]. "immediate loaded in a register"
+                      ] ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
+						].
 		[MoveRMbr]			-> [
 						dependent 
 							ifNil:[ | offset |
@@ -2711,12 +2719,12 @@ CogRiscV64Compiler >> concretizeLogicalShiftLeftCqR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeLogicalShiftLeftRR [
 	
-	| srcReg1 srcReg2 destReg flagOffset |
+	| shiftReg srcReg destReg flagOffset |
 	self flag: #TODO.
-	srcReg1 := operands at: 0.
-	destReg := srcReg2 := operands at: 1.
+	shiftReg := operands at: 0.
+	srcReg := destReg := operands at: 1.
 	"Perform the SLR operation"
-	self machineCodeAt: 0 put: (self shiftLeftValueInRegister: srcReg1 byShiftAmountInRegister: srcReg2 intoRegister: destReg).
+	self machineCodeAt: 0 put: (self shiftLeftValueInRegister: srcReg byShiftAmountInRegister: shiftReg intoRegister: destReg).
 	"Update the flags"
 	flagOffset := self machineCodeWriteInstructions: (self
 			updateFlagsLogicForResultReg: destReg
@@ -2782,12 +2790,12 @@ CogRiscV64Compiler >> concretizeLogicalShiftRightCqR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeLogicalShiftRightRR [
 	
-	| srcReg1 srcReg2 destReg flagOffset |
+	| srcReg shiftReg destReg flagOffset |
 	self flag: #TODO.
-	srcReg1 := operands at: 0.
-	destReg := srcReg2 := operands at: 1.
+	shiftReg := operands at: 0.
+	srcReg := destReg := operands at: 1.
 	"Perform the SRR operation"
-	self machineCodeAt: 0 put: (self shiftRightValueInRegister: srcReg1 byShiftAmountInRegister: srcReg2 intoRegister: destReg).
+	self machineCodeAt: 0 put: (self shiftRightValueInRegister: srcReg byShiftAmountInRegister: shiftReg intoRegister: destReg).
 	"Update the flags"
 	flagOffset := self machineCodeWriteInstructions: (self
 			updateFlagsLogicForResultReg: destReg
@@ -4384,10 +4392,11 @@ CogRiscV64Compiler >> concretizeXorRdRd [
 	 Rather than using this, we will convert X0 (hardwired 0) to the corresponding register"
 	<inline: true>
 	| srcReg1 srcReg2 |
+	1halt.
 	self flag: #TODO.
 	srcReg1 := operands at: 0.
 	srcReg2 := operands at: 1.
-	self assert: srcReg1 equals: srcReg2.
+	self assert: (srcReg1 = srcReg2).
 	self machineCodeAt: 0 put: (self fConvertLongSignedInRegister: X0 toDoublePrecisionInRegister: srcReg1).
 	^ machineCodeSize := 4
 	
@@ -4981,16 +4990,16 @@ CogRiscV64Compiler >> fSquareRootOfRegister: srcReg inRegister: destReg [
  	 rm is set to 111 (dynamic rounding mode by default)
 	
 	 31       25 24     20 19   15 14  12 11   7 6        0
-	|  	0101100  |  00000  |  rs1  |  rm  |  rd  |  1010011  |
+	|  	0101101  |  00000  |  rs1  |  rm  |  rd  |  1010011  |
 	"
 
 	self flag: #TODO.	
-	^ ((((
-	  2r0000100 << 25)
+	1halt.
+	^ ((((2r0101101 << 25)
 	  bitOr: (srcReg bitAnd: 16r1f) << 15)
 	  bitOr: (2r111 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
-	  bitOr: 2r0110011
+	  bitOr: 2r1010011
 ]
 
 { #category : #'machine code instruction' }
