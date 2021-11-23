@@ -34,6 +34,7 @@ VMJittedPrimitiveSizeTest >> testPrimitiveSize16bitIndexableShouldReturnNumberOf
 
 	self prepareStackForSendReceiver: integerArray.
 	machineSimulator baseRegisterValue: cogit varBaseAddress.
+	self openMachineDebugger. 1halt.
 	self runUntilReturn.
 
 	self

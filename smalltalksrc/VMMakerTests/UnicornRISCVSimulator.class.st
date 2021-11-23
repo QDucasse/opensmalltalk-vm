@@ -417,6 +417,30 @@ UnicornRISCVSimulator >> registerList [
 ]
 
 { #category : #'machine registers' }
+UnicornRISCVSimulator >> s7 [
+
+	^ self readRegister: UcRISCVRegisters s7
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> s7: aValue [
+
+	^ self writeRegister: UcRISCVRegisters s7 value: aValue
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> s8 [
+
+	^ self readRegister: UcRISCVRegisters s8
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> s8: aValue [
+
+	^ self writeRegister: UcRISCVRegisters s8 value: aValue
+]
+
+{ #category : #'machine registers' }
 UnicornRISCVSimulator >> s9 [
 
 	^ self readRegister: UcRISCVRegisters s9
@@ -452,6 +476,90 @@ UnicornRISCVSimulator >> smashRegisterAccessors [
 UnicornRISCVSimulator >> stackPointerRegister [
 	
 	^ UcRISCVRegisters x2
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> t0 [
+
+	^ self readRegister: UcRISCVRegisters t0
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> t0: aValue [
+
+	^ self writeRegister: UcRISCVRegisters t0 value: aValue
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> t1 [
+
+	^ self readRegister: UcRISCVRegisters t1
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> t1: aValue [
+
+	^ self writeRegister: UcRISCVRegisters t1 value: aValue
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> t2 [
+
+	^ self readRegister: UcRISCVRegisters t2
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> t2: aValue [
+
+	^ self writeRegister: UcRISCVRegisters t2 value: aValue
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> t3 [
+
+	^ self readRegister: UcRISCVRegisters t3
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> t3: aValue [
+
+	^ self writeRegister: UcRISCVRegisters t3 value: aValue
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> t4 [
+
+	^ self readRegister: UcRISCVRegisters t4
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> t4: aValue [
+
+	^ self writeRegister: UcRISCVRegisters t4 value: aValue
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> t5 [
+
+	^ self readRegister: UcRISCVRegisters t5
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> t5: aValue [
+
+	^ self writeRegister: UcRISCVRegisters t5 value: aValue
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> t6 [
+
+	^ self readRegister: UcRISCVRegisters t6
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> t6: aValue [
+
+	^ self writeRegister: UcRISCVRegisters t6 value: aValue
 ]
 
 { #category : #registers }

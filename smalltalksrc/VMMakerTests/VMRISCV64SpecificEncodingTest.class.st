@@ -82,8 +82,6 @@ VMRISCV64SpecificEncodingTest >> testEncode64BitImmediate800 [
 	self compile: [		 
 		cogit MoveCq: 16r8000800800800800 R: ReceiverResultReg ].
 
-	1halt.
-	self openMachineDebugger.
 	self runGeneratedCode.
 
 	self assert: machineSimulator receiverRegisterValue equals: 16r8000800800800800
