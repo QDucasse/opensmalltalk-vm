@@ -1275,7 +1275,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[SqrtRd]					-> [ ^ 4]. "DONE"
 		[XorRdRd]					-> [ ^ 4]. "DONE"
 				
-		"Data Movement"						
+		"Data Movement - Basic"						
 		[MoveCqR]				-> [ dependent 
 										ifNil:[ ^ (self bytesToLoadImmediate: (operands at: 0)) ]
 						   				ifNotNil: [^ self literalLoadInstructionBytes ] ]. "DONE"
@@ -1284,7 +1284,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[MoveRR]				-> [ ^ 4 ]. "DONE"
 		[MoveRdRd]			-> [ ^ 4 ]. "TODO"
 		
-		"Absolute addresses"
+		"Data movement - Absolute addresses"
 		[MoveAwR]				-> [
 				(self isAddressRelativeToVarBase: (operands at: 0))
 					ifTrue: [(operands at: 1) = SP
@@ -1319,21 +1319,26 @@ CogRiscV64Compiler >> computeMaximumSize [
 							ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 1)) + 4 ]
 							ifNotNil: [ ^ self literalLoadInstructionBytes + 4].
 				]. "TODO"	
-		"Stores"
+		
+		"Data Movement - Stores"
+		[MoveRM8r]        	-> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
 		[MoveRMbr]			-> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
 		[MoveRM16r]			-> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
 		[MoveRM32r]			-> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
 		[MoveRMwr]			-> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
 		[MoveRsM32r]			-> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
 		[MoveRdM64r]		   -> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
-		"Loads"
+			
+		"Data Movement - Loads"
+		[MoveM8rR]		 	-> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
 		[MoveMbrR]		 	-> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
 		[MoveM16rR]			-> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
 		[MoveM32rR]			-> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
 		[MoveMwrR]			-> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
 		[MoveM32rRs]			-> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
 		[MoveM64rRd]			-> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
-		"Relative addresses with multiply"
+				
+		"Data Movement - Relative addresses with multiply"
 		[MoveXbrRR]			-> [ ^ 12 ]. "DONE"
 		[MoveX32rRR]			-> [ ^ 12 ]. "DONE"
 		[MoveXwrRR]			-> [ ^ 12 ]. "DONE"
@@ -4286,136 +4291,153 @@ CogRiscV64Compiler >> dispatchConcretize [
 	self flag: #TODO.
 	opcode caseOf: {
 		"Noops & Pseudo Ops"
-		[Label]					-> [^self concretizeLabel].
-		[Literal]					-> [^self concretizeLiteral].
-		[AlignmentNops]		-> [^self concretizeAlignmentNops].
-		[Fill32]					-> [^self concretizeFill32].
-		[Nop]					-> [^self concretizeNop].
+		[Label]			 -> [ ^ self concretizeLabel ].
+		[Literal]		 	 -> [ ^ self concretizeLiteral ].
+		[AlignmentNops]	 -> [ ^ self concretizeAlignmentNops ].
+		[Fill32]			 -> [ ^ self concretizeFill32 ].
+		[Nop]				 -> [ ^ self concretizeNop ].
 		"Control"
-		[Call]						-> [^self concretizeCall]. "call code within code space"
-		[CallFull]					-> [^self concretizeCallFull]. "call code anywhere in address space"
-		[JumpR]						-> [^self concretizeJumpR].
-		[JumpFull]					-> [^self concretizeJumpFull]."jump within address space"
-		[JumpLong]					-> [^self concretizeJumpLong]."jumps witihn code space"
-		[JumpLongZero]			   -> [^self concretizeJumpLongZero].
-		[JumpLongNonZero]	     	-> [^self concretizeJumpLongNonZero].
-		[Jump]				     		-> [^self concretizeJump].
-		[JumpZero]					-> [^self concretizeJumpZero ].
-		[JumpNonZero]				-> [^self concretizeJumpNonZero ].
-		[JumpNegative]				-> [^self concretizeJumpNegative ].
-		[JumpNonNegative]			-> [^self concretizeJumpNonNegative ].
-		[JumpOverflow]				-> [^self concretizeJumpOverflow ].
-		[JumpNoOverflow]			-> [^self concretizeJumpNoOverflow ].
-		[JumpCarry]				-> [^self concretizeJumpCarry ].
-		[JumpNoCarry]				-> [^self concretizeJumpNoCarry ].
-		[JumpLess]					-> [^self concretizeJumpLess ].
-		[JumpGreaterOrEqual]		-> [^self concretizeJumpGreaterOrEqual ].
-		[JumpGreater]				-> [^self concretizeJumpGreater ].
-		[JumpLessOrEqual]			-> [^self concretizeJumpLessOrEqual ].
-		[JumpBelow]				-> [^self concretizeJumpBelow ]. "unsigned lower"
-		[JumpAboveOrEqual]		-> [^self concretizeJumpAboveOrEqual ]. "unsigned greater or equal"
-		[JumpAbove]				-> [^self concretizeJumpAbove ].
-		[JumpBelowOrEqual]		-> [^self concretizeJumpBelowOrEqual ].
-		[JumpFPEqual]				-> [^self concretizeJumpFPEqual ].
-		[JumpFPNotEqual]			-> [^self concretizeJumpFPNotEqual ].
-		[JumpFPLess]				-> [^self concretizeJumpFPLess ].
-		[JumpFPGreaterOrEqual]	-> [^self concretizeJumpFPGreaterOrEqual ].
-		[JumpFPGreater]			-> [^self concretizeJumpFPGreater ].
-		[JumpFPLessOrEqual]		-> [^self concretizeJumpFPLessOrEqual ].
-		[JumpFPOrdered]			-> [^self concretizeJumpFPOrdered ].
-		[JumpFPUnordered]			-> [^self concretizeJumpFPUnordered ].
-		[RetN]						-> [^self concretizeRetN].
-		[Stop]						-> [^self concretizeStop].
-		"Arithmetic"
-		[AddCqR]					-> [^self concretizeAddCqR].
-		[AndCqR]					-> [^self concretizeAndCqR].
-		[AndCqRR]					-> [^self concretizeAndCqRR].
-		[CmpCqR]					-> [^self concretizeCmpCqR].
-		[OrCqR]						-> [^self concretizeOrCqR].
-		[SubCqR]					-> [^self concretizeSubCqR].
-		[TstCqR]					-> [^self concretizeTstCqR].
-		[XorCqR]					-> [^self concretizeXorCqR].
-		[AddCwR]					-> [^self concretizeAddCwR ].
-		[AndCwR]					-> [^self concretizeAndCwR ].
-		[CmpCwR]					-> [^self concretizeCmpCwR ].
-		[CmpC32R]					-> [^self concretizeCmpC32R ].
-		[OrCwR]					-> [^self concretizeOrCwR ].
-		[SubCwR]					-> [^self concretizeSubCwR ].
-		[XorCwR]					-> [^self concretizeXorCwR].
-		[AddRR]						-> [^self concretizeAddRR].
-		[AndRR]						-> [^self concretizeAndRR].
-		[CmpRR]					-> [^self concretizeCmpRR].
-		[OrRR]						-> [^self concretizeOrRR].
-		[SubRR]						-> [^self concretizeSubRR].
-		[XorRR]						-> [^self concretizeXorRR].
-		[MulRR]              -> [ ^self concretizeMulRR].
-		[DivRR]              -> [ ^self concretizeDivRR].
+		[Call]					-> [ ^ self concretizeCall ]. "call code within code space"
+		[CallFull]			-> [ ^ self concretizeCallFull ]. "call code anywhere in address space"
+		[JumpR]				-> [ ^ self concretizeJumpR ].
+		[JumpFull]			-> [ ^ self concretizeJumpFull ]."jump within address space"
+		[JumpLong]			-> [ ^ self concretizeJumpLong ]."jumps witihn code space"
+		[JumpLongZero]	   -> [ ^ self concretizeJumpLongZero ].
+		[JumpLongNonZero]	-> [ ^ self concretizeJumpLongNonZero ].
+		[Jump]				   -> [ ^ self concretizeJump ].
+		[JumpZero]			-> [ ^ self concretizeJumpZero ].
+		[JumpNonZero]		-> [ ^ self concretizeJumpNonZero ].
+		[JumpNegative]		-> [ ^ self concretizeJumpNegative ].
+		[JumpNonNegative]	-> [ ^ self concretizeJumpNonNegative ].
+		[JumpOverflow]		-> [ ^ self concretizeJumpOverflow ].
+		[JumpNoOverflow]	-> [ ^ self concretizeJumpNoOverflow ].
+		[JumpCarry]			-> [ ^ self concretizeJumpCarry ].
+		[JumpNoCarry]		-> [ ^ self concretizeJumpNoCarry ].
+		[JumpLess]			-> [ ^ self concretizeJumpLess ].
+		[JumpGreaterOrEqual]	-> [ ^ self concretizeJumpGreaterOrEqual ].
+		[JumpGreater]			-> [ ^ self concretizeJumpGreater ].
+		[JumpLessOrEqual]		-> [ ^ self concretizeJumpLessOrEqual ].
+		[JumpBelow]				-> [ ^ self concretizeJumpBelow ]. "unsigned lower"
+		[JumpAboveOrEqual]		-> [ ^ self concretizeJumpAboveOrEqual ]. "unsigned greater or equal"
+		[JumpAbove]				-> [ ^ self concretizeJumpAbove ].
+		[JumpBelowOrEqual]		-> [ ^ self concretizeJumpBelowOrEqual ].
+		[JumpFPEqual]			-> [ ^ self concretizeJumpFPEqual ].
+		[JumpFPNotEqual]		-> [ ^ self concretizeJumpFPNotEqual ].
+		[JumpFPLess]				-> [ ^ self concretizeJumpFPLess ].
+		[JumpFPGreaterOrEqual]	-> [ ^ self concretizeJumpFPGreaterOrEqual ].
+		[JumpFPGreater]				-> [ ^ self concretizeJumpFPGreater ].
+		[JumpFPLessOrEqual]		-> [ ^ self concretizeJumpFPLessOrEqual ].
+		[JumpFPOrdered]				-> [ ^ self concretizeJumpFPOrdered ].
+		[JumpFPUnordered]			-> [ ^ self concretizeJumpFPUnordered ].
+		[RetN]	 -> [ ^ self concretizeRetN ].
+		[Stop]	 -> [ ^ self concretizeStop ].
+							
+		"Logic"						
+		[AndCqR]		-> [ ^ self concretizeAndCqR ].
+		[AndCqRR]		-> [ ^ self concretizeAndCqRR ].
+		[OrCqR]		-> [ ^ self concretizeOrCqR ].
+		[TstCqR]		-> [ ^ self concretizeTstCqR ].
+		[XorCqR]		-> [ ^ self concretizeXorCqR ].	
+		
+		"Arithmetic"				
+		[AddCqR]	 -> [ ^ self concretizeAddCqR ].
+		[CmpCqR]	 -> [ ^ self concretizeCmpCqR ].
+		[SubCqR]	 -> [ ^ self concretizeSubCqR ].
+		[CmpC32R]	 -> [ ^ self concretizeCmpC32R ].
+		[LoadEffectiveAddressMwrR]	-> [ ^ self concretizeLoadEffectiveAddressMwrR ].
+
+		"Arithmetic with an ensured literal load"
+		[AddCwR]	-> [^self concretizeAddCwR ].
+		[AndCwR]	-> [^self concretizeAndCwR ].
+		[CmpCwR]	-> [^self concretizeCmpCwR ].
+		[OrCwR]	-> [^self concretizeOrCwR ].
+		[SubCwR]	-> [^self concretizeSubCwR ].
+		[XorCwR]	-> [^self concretizeXorCwR].
+		
+		"Arithmetic Register-only"
+		[AddRR]	 -> [ ^ self concretizeAddRR ].
+		[AndRR]	 -> [ ^ self concretizeAndRR ].
+		[CmpRR]	 -> [ ^ self concretizeCmpRR ].
+		[OrRR]		 -> [ ^ self concretizeOrRR ].
+		[SubRR]	 -> [ ^ self concretizeSubRR ].
+		[XorRR]	 -> [ ^ self concretizeXorRR ].
+		[MulRR] 	 -> [ ^ self concretizeMulRR ].
+		[DivRR]	 -> [ ^ self concretizeDivRR ].
+		[RemRR]  	 -> [ ^ self concretizeRemRR ].
+		[NegateR]	 -> [ ^ self concretizeNegateR ].
+		
+		"Bit shifts"
+		[LogicalShiftRightCqR]   	-> [ ^ self concretizeLogicalShiftRightCqR ].
+		[LogicalShiftLeftCqR]			-> [ ^ self concretizeLogicalShiftLeftCqR ].
+		[LogicalShiftLeftRR]			-> [ ^ self concretizeLogicalShiftLeftRR ].
+		[LogicalShiftRightRR]			-> [ ^ self concretizeLogicalShiftRightRR ].
+		[ArithmeticShiftRightRR]		-> [ ^ self concretizeArithmeticShiftRightRR ].
+		[ArithmeticShiftRightCqR]	-> [ ^ self concretizeArithmeticShiftRightCqR ].
+
+		"Rotates"
+		[RotateLeftCqR]  ->	[ ^ self concretizeRotateLeftCqR ].
+		[RotateRightCqR] ->	[ ^ self concretizeRotateRightCqR ].
+		
 		"Floating point operations"
-	
-		[AddRdRd]					-> [^self concretizeAddRdRd].
-		[CmpRdRd]					-> [^self concretizeCmpRdRd].
-		[DivRdRd]					-> [^self concretizeDivRdRd].
-		[MulRdRd]					-> [^self concretizeMulRdRd].
-		[SubRdRd]					-> [^self concretizeSubRdRd].
-		[SqrtRd]					-> [^self concretizeSqrtRd].
-		[XorRdRd]					-> [^self concretizeXorRdRd].
+		[AddRdRd] -> [ ^ self concretizeAddRdRd ].
+		[CmpRdRd]	 -> [ ^ self concretizeCmpRdRd ].
+		[DivRdRd]	 -> [ ^ self concretizeDivRdRd ].
+		[MulRdRd]	 -> [ ^ self concretizeMulRdRd ].
+		[SubRdRd]	 -> [ ^ self concretizeSubRdRd ].
+		[SqrtRd]	 -> [ ^ self concretizeSqrtRd ].
+		[XorRdRd]	 -> [ ^ self concretizeXorRdRd ].
 
-		[NegateR]						-> [^self concretizeNegateR].
-		[LoadEffectiveAddressMwrR]	-> [^self concretizeLoadEffectiveAddressMwrR].
-		[ArithmeticShiftRightCqR]		-> [^self concretizeArithmeticShiftRightCqR].
-		[LogicalShiftRightCqR]			-> [^self concretizeLogicalShiftRightCqR].
-		[LogicalShiftLeftCqR]			-> [^self concretizeLogicalShiftLeftCqR].
-		[ArithmeticShiftRightRR]			-> [^self concretizeArithmeticShiftRightRR].
-		[LogicalShiftLeftRR]				-> [^self concretizeLogicalShiftLeftRR].
-		[LogicalShiftRightRR]			-> [^self concretizeLogicalShiftRightRR].
-		[RotateLeftCqR]					->	[^self concretizeRotateLeftCqR].
-		[RotateRightCqR]				->	[^self concretizeRotateRightCqR].
-
-		"ARM Specific Arithmetic" 
-		"[MUL]			     	-> [^self concretizeMUL].
-		[SMULH]			  	-> [^self concretizeSMULH].
-		[CMPMULOverflow]	-> [^self concretizeCMPMULOverflow].
-		[SDIV]					-> [^self concretizeSDIV].
-		[MSUB]					-> [^self concretizeMSUB]."
-		"Data Movement"
+		"Data Movement - basic"
 		[MoveCqR]			-> [^self concretizeMoveCqR].
 		[MoveCwR]			-> [^self concretizeMoveCwR].
 		[MoveC32R]		-> [^self concretizeMoveC32R].
 		[MoveRR]			-> [^self concretizeMoveRR].
-		[MoveAwR]			-> [^self concretizeMoveAwR].
-		[MoveRAw]			-> [^self concretizeMoveRAw].
-		[MoveAbR] 			 -> [^self concretizeMoveAbR].
- 		[MoveRAb]			-> [^self concretizeMoveRAb].
-		[MoveMbrR]			-> [^self concretizeMoveMbrR].
-		[MoveRMbr]			-> [^self concretizeMoveRMbr].
-		[MoveRM8r]			-> [^self concretizeMoveRMbr].
-		[MoveRM16r]		-> [^self concretizeMoveRM16r].
-		[MoveM16rR]		-> [^self concretizeMoveM16rR].
-		[MoveM32rRs]		-> [^self concretizeMoveM32rRs].
-		[MoveM64rRd]		-> [^self concretizeMoveM64rRd].
-		[MoveM32rR]		-> [^self concretizeMoveM32rR].
-		[MoveMwrR]		-> [^self concretizeMoveMwrR].
-		[MoveXbrRR]		-> [^self concretizeMoveXbrRR].
-		[MoveRXbrR]		-> [^self concretizeMoveRXbrR].
-		[MoveX32rRR]		-> [^self concretizeMoveX32rRR].
-		[MoveRX32rR]		-> [^self concretizeMoveRX32rR].
-		[MoveXwrRR]		-> [^self concretizeMoveXwrRR].
-		[MoveRXwrR]		-> [^self concretizeMoveRXwrR].
-		[MoveRM32r]		-> [^self concretizeMoveRM32r].
-		[MoveRMwr]		-> [^self concretizeMoveRMwr].
-		[MoveRsM32r]		-> [^self concretizeMoveRsM32r].
-		[MoveRdM64r]		-> [^self concretizeMoveRdM64r].
-		[PopR]				-> [^self concretizePopR].
-		[PushR]				-> [^self concretizePushR].
-		[PushCq]			-> [^self concretizePushCq].
-		[PushCw]			-> [^self concretizePushCw].
-		[PrefetchAw]		-> [^self concretizePrefetchAw].
+		
+		"Data Movement - Absolute addresses"
+		[MoveAwR]			-> [ ^ self concretizeMoveAwR ].
+		[MoveRAw]			-> [ ^ self concretizeMoveRAw ].
+		[MoveAbR] 		-> [ ^ self concretizeMoveAbR ].
+ 		[MoveRAb]			-> [ ^ self concretizeMoveRAb ].
+			
+		"Data Movement - Stores"
+		[MoveRM8r]		-> [ ^ self concretizeMoveRMbr ].
+		[MoveRMbr]		-> [ ^ self concretizeMoveRMbr ].
+		[MoveRM16r]		-> [ ^ self concretizeMoveRM16r ].
+		[MoveRM32r]		-> [ ^ self concretizeMoveRM32r ].
+		[MoveRMwr]		-> [ ^ self concretizeMoveRMwr ].
+		[MoveRsM32r]		-> [ ^ self concretizeMoveRsM32r ].
+		[MoveRdM64r]		-> [ ^ self concretizeMoveRdM64r ].
+	
+		"Data Movement - Loads"
+		[MoveM8rR]    	-> [ ^ self concretizeMoveMbrR ].
+		[MoveMbrR]		-> [ ^ self concretizeMoveMbrR ].		
+		[MoveM16rR]		-> [ ^ self concretizeMoveM16rR ].
+		[MoveM32rR]		-> [ ^ self concretizeMoveM32rR ].
+		[MoveMwrR]		-> [ ^ self concretizeMoveMwrR ].
+		[MoveM32rRs]		-> [ ^ self concretizeMoveM32rRs ].
+		[MoveM64rRd]		-> [ ^ self concretizeMoveM64rRd ].
+		
+		"Data Movement - Relative Addresses with multiply"
+		[MoveXbrRR]		-> [ ^ self concretizeMoveXbrRR].
+		[MoveX32rRR]		-> [ ^ self concretizeMoveX32rRR].
+		[MoveXwrRR]		-> [ ^ self concretizeMoveXwrRR].	
+		[MoveRXbrR]		-> [ ^ self concretizeMoveRXbrR].
+		[MoveRX32rR]		-> [ ^ self concretizeMoveRX32rR].
+		[MoveRXwrR]		-> [ ^ self concretizeMoveRXwrR].
+			
+		"Pop/Push"
+		[PopR]				-> [ ^ self concretizePopR ].
+		[PushR]		 	-> [ ^ self concretizePushR ].
+		[PushCq]			-> [ ^ self concretizePushCq ].
+		[PushCw]			-> [ ^ self concretizePushCw ].
+		[PrefetchAw]		-> [ ^ self concretizePrefetchAw ].
+			
 		"Conversion"
-		[ConvertRdRs]		-> [^self concretizeConvertRdRs].
-		[ConvertRsRd]		-> [^self concretizeConvertRsRd].
-		[ConvertRRd]		-> [^self concretizeConvertRRd].
-		[MoveRdR]			-> [^self concretizeMoveRdR].
-		[MoveRRd]			-> [^self concretizeMoveRRd].
+		[ConvertRdRs]	-> [ ^ self concretizeConvertRdRs ].
+		[ConvertRsRd]	-> [ ^ self concretizeConvertRsRd ].
+		[ConvertRRd]		-> [ ^ self concretizeConvertRRd ].
+		[MoveRdR]			-> [ ^ self concretizeMoveRdR ].
+		[MoveRRd]			-> [ ^ self concretizeMoveRRd ].
 		
 		"Patcheable literal instruction"
 		[ MovePatcheableC32R ] -> [ ^ self concretizeMovePatcheableC32R ]
@@ -6090,6 +6112,12 @@ CogRiscV64Compiler >> recursiveLoadImmediate: anImmediate inRegister: aRegister 
 	"Check if the immediate can be contained in 32 bits"
 	| hi20 lo12 hi52 shiftAmount |
 	self flag: #TODO.
+	"Special case if the value is 16rFFFFFFFFFFFFFFFF (max)"
+	(anImmediate = 16rFFFFFFFFFFFFFFFF)
+		ifTrue: [ aCollection add: (self addImmediate: -1 toRegister: X0 inRegister: aRegister).
+					 "End the recursion!"
+					 ^ 0 ].
+	
 	self assertValue: anImmediate isContainedIn: 31 
 		ifTrue: [ 
 			"Depending on the value of the immediate, the following instructions are emitted:
