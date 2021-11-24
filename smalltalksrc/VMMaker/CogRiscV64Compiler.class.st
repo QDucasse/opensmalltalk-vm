@@ -1763,15 +1763,23 @@ CogRiscV64Compiler >> concretizeCall [
 	self assert: (operands at: 0) \\ 4 = 0.
 	"Compute the offset from the PC"
    offset := (operands at: 0) signedIntFromLong - address signedIntFromLong.
-   offset abs >= (1 << 19) ifTrue: [ 
-		"In the case the offset is larger than 20bits, more operations need to be done to handle it
+
+   offset abs >= (1 << 31) ifTrue: [ 
+		"In the case the offset is larger than 32 bits, more operations need to be done to handle it
 		and add (or substract) it to the PC"
 	  ^ self concretizeCallFull.
 	].
-	"This mangling avoid having to bias the 11th bit in case of a negative value"
-	"https://forums.sifive.com/t/bit-11-of-jalr-sign-extened-for-call-auipc-jalr/1950"
-	offsetLow := ((offset << 20) bitAnd: 16rFFFFFFFF) >> 20. 
-	offsetHigh := (offset - offsetLow signedIntFromChar) >> 12.
+	
+	offset abs >= (1 << 11) 
+		ifTrue: [ 
+			"This mangling avoid having to bias the 11th bit in case of a negative value"
+			"https://forums.sifive.com/t/bit-11-of-jalr-sign-extened-for-call-auipc-jalr/1950"
+			offsetLow := ((offset << 20) bitAnd: 16rFFFFFFFF) >> 20. 
+			offsetHigh := (offset - offsetLow signedIntFromChar) >> 12.
+		] ifFalse: [  
+			offsetLow := offset.
+			offsetHigh := 0.
+		].
 	
 	self machineCodeAt: 0 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
 	self machineCodeAt: 4 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: LR).
@@ -5391,6 +5399,7 @@ CogRiscV64Compiler >> isCallPrecedingReturnPC: mcpc [
 CogRiscV64Compiler >> isInImmediateJumpRange: operand [
 	"ARM calls and jumps span +/- 32 mb, more than enough for intra-zone calls and jumps."
 	<var: #operand type: #'usqIntptr_t'>
+	self flag: #TODO.
 	^operand signedIntFromLong between: -16r2000000 and: 16r1FFFFFC
 ]
 
@@ -6108,8 +6117,10 @@ CogRiscV64Compiler >> pushLinkRegisterByteSize [
 { #category : #'machine code instruction' }
 CogRiscV64Compiler >> recursiveLoadImmediate: anImmediate inRegister: aRegister andEmitInstructionsIn: aCollection [
 
-
-	"Check if the immediate can be contained in 32 bits"
+	"LLVM uses a clever recursive way to determine the best combination of instructions that
+	 are needed by the pseudo instruction li.
+	https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
+	
 	| hi20 lo12 hi52 shiftAmount |
 	self flag: #TODO.
 	"Special case if the value is 16rFFFFFFFFFFFFFFFF (max)"
@@ -6117,7 +6128,7 @@ CogRiscV64Compiler >> recursiveLoadImmediate: anImmediate inRegister: aRegister 
 		ifTrue: [ aCollection add: (self addImmediate: -1 toRegister: X0 inRegister: aRegister).
 					 "End the recursion!"
 					 ^ 0 ].
-	
+	"Check if the immediate can be contained in 32 bits"		
 	self assertValue: anImmediate isContainedIn: 31 
 		ifTrue: [ 
 			"Depending on the value of the immediate, the following instructions are emitted:
