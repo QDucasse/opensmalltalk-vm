@@ -4018,6 +4018,11 @@ CogRiscV64Compiler >> concretizeSubCwR [
 	sourceReg := destReg := operands at: 1.	
 	"Load Cw in register then perform the add"
 	loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
+	"Perform the SUB operation"
+	self machineCodeAt: loadOffset put: (self
+				 subtractRegister: ConcreteIPReg
+				 fromRegister: sourceReg
+				 intoRegister: destReg).
 	"Update flag registers"
 	flagOffset := self machineCodeWriteInstructions: (self 
 			updateFlagsArithmeticForSourceReg1: sourceReg 
