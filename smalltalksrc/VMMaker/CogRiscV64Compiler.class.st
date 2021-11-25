@@ -4593,12 +4593,12 @@ CogRiscV64Compiler >> fConvertDoublePrecisionInRegister: srcReg toSinglePrecisio
  	 rm is set to 111 (dynamic rounding mode by default)
 	
 	 31       25 24     20 19   15 14  12 11   7 6        0
-	|  	0100001  |  00001  |  rs1  |  rm  |  rd  |  1010011  |
+	|  	0100001  |  00000  |  rs1  |  rm  |  rd  |  1010011  |
 	"
 
 	self flag: #TODO.	
 	^ (((((2r0100001  << 25)
-	  bitOr: 00001 << 20)
+	  bitOr: 2r00000 << 20)
 	  bitOr: (srcReg bitAnd: 16r1f) << 15)
 	  bitOr: (2r111 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
@@ -4638,7 +4638,7 @@ CogRiscV64Compiler >> fConvertSinglePrecisionInRegister: srcReg toDoublePrecisio
 
 	self flag: #TODO.	
 	^ (((((2r0100000  << 25)
-	  bitOr: 00001 << 20)
+	  bitOr: 2r00001 << 20)
 	  bitOr: (srcReg bitAnd: 16r1f) << 15)
 	  bitOr: (2r111 << 12))
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
