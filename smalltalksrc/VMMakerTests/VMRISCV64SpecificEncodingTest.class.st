@@ -5,6 +5,14 @@ Class {
 }
 
 { #category : #tests }
+VMRISCV64SpecificEncodingTest class >> testParameters [
+
+	^ ParametrizedTestMatrix new
+		addCase: { #ISA -> #'riscv64' . #wordSize -> 8 };
+		yourself
+]
+
+{ #category : #tests }
 VMRISCV64SpecificEncodingTest >> testEncode12BitImmediate [
 
 	self compile: [		 
@@ -94,8 +102,8 @@ VMRISCV64SpecificEncodingTest >> testEncode64BitImmediateF [
 	self compile: [		 
 		cogit MoveCq: 16rFFFFFFFFFFFFFFFF R: ReceiverResultReg ].
 
-	1halt.
-	self openMachineDebugger.
+	"1halt.
+	self openMachineDebugger."
 	self runGeneratedCode.
 
 	self assert: machineSimulator receiverRegisterValue equals: 16rFFFFFFFFFFFFFFFF
