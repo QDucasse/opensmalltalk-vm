@@ -949,6 +949,13 @@ CogRiscV64Compiler >> bytesForFloatingPointOverflowCheck [
 ]
 
 { #category : #'concretization helpers - mc size' }
+CogRiscV64Compiler >> bytesForFloatingPointSUBOverflowCheck [ 
+
+	self flag: #TODO.
+	^ 16
+]
+
+{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> bytesForLogicCqOperation [
 
 	"Use 4 as the default size"
@@ -4245,19 +4252,32 @@ CogRiscV64Compiler >> concretizeSubRdRd [
 	"Perform a floating-point double precision sub operation between the value of register and the value of another register.	"
 
 	<inline: true>
-	| destReg rightReg leftReg flagOffset |
+	| destReg rightReg leftReg flagOffset overflowOffset |
 	self flag: #TODO.
 	rightReg := operands at: 0.
 	leftReg := destReg := operands at: 1.
 	"Perform SUB operation"
-	self machineCodeAt: 0 put: (self fSubtractRegister: rightReg fromRegister: leftReg intoRegister: destReg).
-	"Update flags"
-	flagOffset := self machineCodeWriteInstructions: (self
-			updateFlagsFloatingPointArithmeticForSourceReg1: rightReg 
-			sourceReg2: leftReg
-			andResultReg: destReg
-		) startingAtIndex: 4.
-	^ machineCodeSize := flagOffset + 4
+	self machineCodeAt: 0 put: (self fSubtractRegister: rightReg fromRegister: leftReg intoRegister: ConcreteIPFPReg2).
+
+	"Check for overflow"
+	overflowOffset := self machineCodeWriteInstructions: (self
+		checkSUBFloatingPointOverflowWithSourceReg1: leftReg 
+		sourceReg2: rightReg 
+		andResultReg: ConcreteIPFPReg2
+	) startingAtIndex: 4.
+
+	"Move the result to its destination"
+	self machineCodeAt: overflowOffset + 4 put: (self 
+		fMoveDoubleWordInFRegister: ConcreteIPFPReg2
+		toFRegister: destReg
+	).
+
+	"Update flag registers"
+	flagOffset := self machineCodeWriteInstructions: (self 
+			updateFlagsFloatingPointArithmeticForSourceReg1: leftReg 
+			sourceReg2: rightReg
+			andResultReg: destReg) startingAtIndex: overflowOffset + 8.
+	^ machineCodeSize := flagOffset + overflowOffset + 8
 ]
 
 { #category : #concretization }
