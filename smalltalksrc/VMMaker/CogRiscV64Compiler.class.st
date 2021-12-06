@@ -3398,10 +3398,10 @@ CogRiscV64Compiler >> concretizeMoveRX32rR [
 	srcReg := operands at: 0.
 	indexReg := operands at: 1. "index is number of words = size of word * bytes, in 64 bits -> * 8"
 	baseReg := operands at: 2.	
-	"Shift by 3 (*8) the index reg"
+	"Shift by 2 (*4) the index reg"
 	self machineCodeAt: 0 put: (self 
 		shiftLeftValueInRegister: indexReg 
-		byShiftAmount: 3 
+		byShiftAmount: 2
 		intoRegister: ConcreteIPReg).
 	"Add the offset to the base address register"
 	self machineCodeAt: 4 put: (self 
@@ -3427,11 +3427,7 @@ CogRiscV64Compiler >> concretizeMoveRXbrR [
 	srcReg := operands at: 0.
 	indexReg := operands at: 1. "index is number of words = size of word * bytes, in 64 bits -> * 8"
 	baseReg := operands at: 2.	
-	"Shift by 3 (*8) the index reg"
-	self machineCodeAt: 0 put: (self 
-		shiftLeftValueInRegister: indexReg 
-		byShiftAmount: 3 
-		intoRegister: ConcreteIPReg).
+	"No need to shift for a byte!"
 	"Add the offset to the base address register"
 	self machineCodeAt: 4 put: (self 
 		addRegister: ConcreteIPReg 
@@ -3579,10 +3575,10 @@ CogRiscV64Compiler >> concretizeMoveX32rRR [
 	indexReg := operands at: 0. "index is number of words = size of word * bytes, in 64 bits -> * 8"
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
-	"Shift by 3 (*8) the index reg"
+	"Shift by 2 (*4) the index reg"
 	self machineCodeAt: 0 put: (self 
 		shiftLeftValueInRegister: indexReg 
-		byShiftAmount: 3 
+		byShiftAmount: 2 
 		intoRegister: ConcreteIPReg).
 	"Add the offset to the base address register"
 	self machineCodeAt: 4 put: (self 
@@ -3609,22 +3605,18 @@ CogRiscV64Compiler >> concretizeMoveXbrRR [
 	indexReg := operands at: 0. "index is number of words = size of word * bytes, in 64 bits -> * 8"
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
-	"Shift by 3 (*8) the index reg"
-	self machineCodeAt: 0 put: (self 
-		shiftLeftValueInRegister: indexReg 
-		byShiftAmount: 3 
-		intoRegister: ConcreteIPReg).
+	"No need to shift for a byte!"
 	"Add the offset to the base address register"
-	self machineCodeAt: 4 put: (self 
+	self machineCodeAt: 0 put: (self 
 		addRegister: ConcreteIPReg 
 		toRegister: baseReg 
 		inRegister: ConcreteIPReg). 
 	"Load the value"
-	self machineCodeAt: 8 put: (self 
+	self machineCodeAt: 4 put: (self 
 		loadByteFromAddressInRegister: ConcreteIPReg 
 		withOffset: 0 
 		toRegister: destReg).
-	^ machineCodeSize := 12
+	^ machineCodeSize := 8
 ]
 
 { #category : #concretization }
