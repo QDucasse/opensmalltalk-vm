@@ -1317,7 +1317,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 		"Arithmetic with an ensured literal load"
 		[AddCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForADDOverflowCheck + self bytesForArithmeticFlagUpdate + 8 ]. "DONE"
 		[AndCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate + 4 ].      "DONE"
-		[CmpCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdate + 8 ]. "DONE"
+		[CmpCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdate + 4 ]. "DONE"
 		[OrCwR]  -> [ ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate + 4 ].      "DONE"
 		[SubCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdate + 8 ]. "DONE"
 		[XorCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate + 4 ].      "DONE"
@@ -1348,11 +1348,11 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[RotateRightCqR]			 -> [ ^ self bytesForLogicCqOperationOfSize: 16 andImmediateOperationSize: 12 ]. "DONE"
 	
 		"Floating point operations"
-		[AddRdRd]					-> [ ^ self bytesForFloatingPointADDOverflowCheck + 16]. "DONE"
-		[CmpRdRd]					-> [ ^ 4 ]. "DONE"
-		[SubRdRd]					-> [ ^ self bytesForFloatingPointSUBOverflowCheck + 16 ]. "DONE"
-		[MulRdRd]					-> [ ^ 12 ]. "DONE"
-		[DivRdRd]					-> [ ^ 4 ]. "DONE"
+		[AddRdRd]					-> [ ^ self bytesForFloatingPointADDOverflowCheck + self bytesForFloatingPointArithmeticFlagUpdate + 8 ]. "DONE"
+		[CmpRdRd]					-> [ ^ self bytesForFloatingPointArithmeticFlagUpdate ]. "DONE"
+		[SubRdRd]					-> [ ^ self bytesForFloatingPointSUBOverflowCheck + self bytesForFloatingPointArithmeticFlagUpdate + 8 ]. "DONE"
+		[MulRdRd]					-> [ ^ self bytesForFloatingPointArithmeticFlagUpdate + 4 ]. "DONE"
+		[DivRdRd]					-> [ ^ self bytesForFloatingPointArithmeticFlagUpdate + 4 ]. "DONE"
 		[SqrtRd]					-> [ ^ 4]. "DONE"
 		[XorRdRd]					-> [ ^ 4]. "DONE"
 				
@@ -1420,11 +1420,11 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[MoveM64rRd]			-> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
 				
 		"Data Movement - Relative addresses with multiply"
-		[MoveXbrRR]			-> [ ^ 12 ]. "DONE"
+		[MoveXbrRR]			-> [ ^ 8 ]. "DONE"
 		[MoveX32rRR]			-> [ ^ 12 ]. "DONE"
 		[MoveXwrRR]			-> [ ^ 12 ]. "DONE"
 		[MoveRX32rR]			-> [ ^ 12 ]. "DONE"
-		[MoveRXbrR]			-> [ ^ 12 ]. "DONE"
+		[MoveRXbrR]			-> [ ^ 8 ]. "DONE"
 		[MoveRXwrR]			-> [ ^ 12 ]. "DONE"
 		
 		"Pop/Push"
@@ -2161,18 +2161,18 @@ CogRiscV64Compiler >> concretizeDivRdRd [
 	"FP divide regLHS by regRHS and stick result in regLHS"
 
 	<inline: true>
-	| srcReg1 srcReg2 destReg |
+	| srcReg1 srcReg2 destReg flagOffset |
 	self flag: #TODO.
 	srcReg1 := operands at: 0.
 	srcReg2 := destReg := operands at: 1.
+	"Update flags"
+	flagOffset := self machineCodeWriteInstructions: (self
+		updateFlagsFPForSourceReg1: srcReg1 
+      andSourceReg2: srcReg2
+	). 
 	"Perform DIV operation"
-	self machineCodeAt: 0 put: (self fDivideRegister: srcReg2 byRegister: srcReg1 intoRegister: destReg).
-	"flagOffset := self machineCodeWriteInstructions: (self
-			updateFlagsFloatingPointArithmeticForSourceReg1: srcReg1 
-			sourceReg2: srcReg2 
-			andResultReg: destReg
-		) startingAtIndex: 4."
-	^ machineCodeSize := 4
+	self machineCodeAt: flagOffset put: (self fDivideRegister: srcReg2 byRegister: srcReg1 intoRegister: destReg).
+	^ machineCodeSize := flagOffset + 4
 ]
 
 { #category : #concretization }
