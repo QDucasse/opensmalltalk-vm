@@ -3429,16 +3429,16 @@ CogRiscV64Compiler >> concretizeMoveRXbrR [
 	baseReg := operands at: 2.	
 	"No need to shift for a byte!"
 	"Add the offset to the base address register"
-	self machineCodeAt: 4 put: (self 
-		addRegister: ConcreteIPReg 
+	self machineCodeAt: 0 put: (self 
+		addRegister: indexReg 
 		toRegister: baseReg 
 		inRegister: ConcreteIPReg). 
 	"Store the value"
-	self machineCodeAt: 8 put: (self 
+	self machineCodeAt: 4 put: (self 
 		storeByteFromRegister: srcReg 
 		toAddressInRegister: ConcreteIPReg 
 		withOffset: 0).
-	^ machineCodeSize := 12
+	^ machineCodeSize := 8
 ]
 
 { #category : #concretization }
@@ -3587,7 +3587,7 @@ CogRiscV64Compiler >> concretizeMoveX32rRR [
 		inRegister: ConcreteIPReg). 
 	"Load the value"
 	self machineCodeAt: 8 put: (self 
-		loadWordFromAddressInRegister: ConcreteIPReg 
+		loadUnsignedWordFromAddressInRegister: ConcreteIPReg 
 		withOffset: 0 
 		toRegister: destReg).
 	^ machineCodeSize := 12
@@ -3608,12 +3608,12 @@ CogRiscV64Compiler >> concretizeMoveXbrRR [
 	"No need to shift for a byte!"
 	"Add the offset to the base address register"
 	self machineCodeAt: 0 put: (self 
-		addRegister: ConcreteIPReg 
+		addRegister: indexReg 
 		toRegister: baseReg 
 		inRegister: ConcreteIPReg). 
 	"Load the value"
 	self machineCodeAt: 4 put: (self 
-		loadByteFromAddressInRegister: ConcreteIPReg 
+		loadUnsignedByteFromAddressInRegister: ConcreteIPReg 
 		withOffset: 0 
 		toRegister: destReg).
 	^ machineCodeSize := 8
@@ -5975,7 +5975,7 @@ CogRiscV64Compiler >> loadUnsignedWordFromAddressInRegister: baseRegister withOf
 	"lwu: Loads four bytes from memory at address x[rs1] + sign-extend(offset) and writes them to x[rd], zero-extending the result
 	
 	 31            20 19     15 14    12 11     7 6          0
-	|  	offset[11:0]  |   rs1   |  010   |   rd   |   0000011  |
+	|  	offset[11:0]  |   rs1   |  110   |   rd   |   0000011  |
 	"
 
 	| signExtendedOffset |
@@ -5986,7 +5986,7 @@ CogRiscV64Compiler >> loadUnsignedWordFromAddressInRegister: baseRegister withOf
 	"Actual bit instruction"
 	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
-	  bitOr: 2r010 << 	12)
+	  bitOr: 2r110 << 	12)
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7)
 	  bitOr: 2r0000011) 
 

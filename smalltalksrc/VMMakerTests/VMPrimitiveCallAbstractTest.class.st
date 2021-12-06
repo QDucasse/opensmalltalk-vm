@@ -188,7 +188,6 @@ VMPrimitiveCallAbstractTest >> methodWithSend: arg [
 VMPrimitiveCallAbstractTest >> setUp [
 
 	| primitiveAccessorDepthTable |
-	
 	super setUp.
 	
 	self setUpCogMethodEntry.

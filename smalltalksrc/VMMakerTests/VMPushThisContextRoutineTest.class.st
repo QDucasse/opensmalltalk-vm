@@ -92,7 +92,7 @@ VMPushThisContextRoutineTest >> testNewMarriedContextHasLargeSize [
 	self prepareCall.
 	machineSimulator baseRegisterValue: cogit varBaseAddress.
 	machineSimulator sendNumberOfArgumentsRegisterValue: numberOfArguments.
-
+	"self openMachineDebugger. 1halt."
 	self runFrom: routine until: callerAddress.	
 
 	self assert: (memory numSlotsOf: machineSimulator receiverRegisterValue) equals: LargeContextSlots.
