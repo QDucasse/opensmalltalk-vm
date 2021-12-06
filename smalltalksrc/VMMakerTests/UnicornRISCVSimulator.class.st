@@ -283,6 +283,54 @@ UnicornRISCVSimulator >> f9 [
 	^ self readRegister: UcRISCVRegisters f9
 ]
 
+{ #category : #'c calling convention' }
+UnicornRISCVSimulator >> flagCarryRegister [
+
+	^ UcRISCVRegisters x31
+]
+
+{ #category : #'c calling convention' }
+UnicornRISCVSimulator >> flagCarryRegisterValue [
+
+	^ self readRegister: self flagCarryRegister
+]
+
+{ #category : #'c calling convention' }
+UnicornRISCVSimulator >> flagOverflowRegister [
+
+	^ UcRISCVRegisters x30
+]
+
+{ #category : #'c calling convention' }
+UnicornRISCVSimulator >> flagOverflowRegisterValue [
+
+	^ self readRegister: self flagOverflowRegister
+]
+
+{ #category : #'c calling convention' }
+UnicornRISCVSimulator >> flagSignRegister [
+
+	^ UcRISCVRegisters x29
+]
+
+{ #category : #'c calling convention' }
+UnicornRISCVSimulator >> flagSignRegisterValue [
+
+	^ self readRegister: self flagSignRegister
+]
+
+{ #category : #'c calling convention' }
+UnicornRISCVSimulator >> flagZeroRegister [
+
+	^ UcRISCVRegisters x28
+]
+
+{ #category : #'c calling convention' }
+UnicornRISCVSimulator >> flagZeroRegisterValue [
+
+	^ self readRegister: self flagZeroRegister
+]
+
 { #category : #registers }
 UnicornRISCVSimulator >> framePointerRegister [
 	
