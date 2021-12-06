@@ -2926,7 +2926,7 @@ CogRiscV64Compiler >> concretizeMoveM16rR [
 		ifNil: [ 
 			self assertValue: offset isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
-			 					loadHalfWordFromAddressInRegister: baseReg 
+			 					loadUnsignedHalfWordFromAddressInRegister: baseReg 
 								withOffset: offset 
 								toRegister: destReg). 
 							 ^ machineCodeSize := 4 ] 
@@ -2944,7 +2944,7 @@ CogRiscV64Compiler >> concretizeMoveM16rR [
 			inRegister: ConcreteIPReg).
 	"Load the value"
 	self machineCodeAt: instrOffset + 4 put: (self
-			loadHalfWordFromAddressInRegister: ConcreteIPReg  
+			loadUnsignedHalfWordFromAddressInRegister: ConcreteIPReg  
 			withOffset: 0 
 			toRegister: destReg).
 	^ machineCodeSize := instrOffset + 8
@@ -2966,7 +2966,7 @@ CogRiscV64Compiler >> concretizeMoveM32rR [
 		ifNil: [ 
 			self assertValue: offset isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
-			 					loadWordFromAddressInRegister: baseReg 
+			 					loadUnsignedWordFromAddressInRegister: baseReg 
 								withOffset: offset 
 								toRegister: destReg). 
 							 ^ machineCodeSize := 4 ] 
@@ -2984,7 +2984,7 @@ CogRiscV64Compiler >> concretizeMoveM32rR [
 			inRegister: ConcreteIPReg).
 	"Load the value"
 	self machineCodeAt: instrOffset + 4 put: (self
-			 loadWordFromAddressInRegister: ConcreteIPReg 
+			 loadUnsignedWordFromAddressInRegister: ConcreteIPReg 
 			 withOffset: 0 
 			 toRegister: destReg).
 	^ machineCodeSize := instrOffset + 8
@@ -3083,7 +3083,7 @@ CogRiscV64Compiler >> concretizeMoveMbrR [
 		ifNil: [ 
 			self assertValue: offset isContainedIn: 12 
 				ifTrue: [ self machineCodeAt: 0 put: (self
-			 					loadByteFromAddressInRegister: baseReg 
+			 					loadUnsignedByteFromAddressInRegister: baseReg 
 								withOffset: offset 
 								toRegister: destReg). 
 							 ^ machineCodeSize := 4 ] 
@@ -3101,7 +3101,7 @@ CogRiscV64Compiler >> concretizeMoveMbrR [
 			inRegister: ConcreteIPReg).
 	"Load the value"
 	self machineCodeAt: instrOffset + 4 put: (self
-			 loadByteFromAddressInRegister: ConcreteIPReg
+			 loadUnsignedByteFromAddressInRegister: ConcreteIPReg
 			 withOffset: 0
 			 toRegister: destReg).
 	^ machineCodeSize := instrOffset + 8	
