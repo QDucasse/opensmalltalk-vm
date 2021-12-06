@@ -1228,8 +1228,8 @@ CogRiscV64Compiler >> checkSUBOverflowWithSourceReg1: srcReg1 sourceReg2: srcReg
 	and set the overflow flag acordingly: different => no overflow"
 	self flag: #TODO.
 	^ {  
-	   "1. Check if one operand is negative"
-		self setOneIn: ConcreteIPReg2 ifValueIn: srcReg2 isLessThanImmediate: 0 .
+	   "1. Check if one operand is negative, OR EQUAL TO ZERO"
+		self setOneIn: ConcreteIPReg2 ifValueIn: srcReg2 isLessThanImmediate: 1 . 
 		"2. Check if the sum is smaller than one operand"
 		self setOneIn: ConcreteIPReg3 ifValueIn: destReg isLessThanValueIn: srcReg1 .
 		"Put one if t2 = t3, xor and complement"
