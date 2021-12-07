@@ -447,39 +447,18 @@ CogRiscV64Compiler >> arithmeticShiftRightValueInRegister: sourceReg1 byShiftAmo
 CogRiscV64Compiler >> assertValue: aValue isContainedIn: aSize [ 
 
 	"Checks that the given value is contained in a certain number of bits"
-	| mask twosComplement |
 	self flag: #TODO.
-	mask := (1 << aSize) - 1.
-	aValue >= 0
-		ifTrue: [ "Compare the value with the mask"
-			self assert: (aValue bitAnd: mask) = aValue 
-		] 
-		ifFalse: [ "Try to do the two's complement in the given size" 
-			twosComplement := mask - aValue abs + 1.
-			self assert: (twosComplement >= 0 and: twosComplement <= mask) "Checks that the twos complement fits"
-		]
-
+	self assert: (self value: aValue isContainedIn: aSize)
 ]
 
 { #category : #'helpers - size sign' }
 CogRiscV64Compiler >> assertValue: aValue isContainedIn: aSize ifTrue: trueBlock [
 
 	"Checks that the given value is contained in a certain number of bits"
-	| mask twosComplement |
 	self flag: #TODO.
-	mask := (1 << aSize) - 1.
-	aValue >= 0
-		ifTrue: [ "Compare the value with the mask"
-			(aValue bitAnd: mask) = aValue 
-				ifTrue: [ trueBlock value ]
-				ifFalse: [ ]
-		] 
-		ifFalse: [ "Try to do the two's complement in the given size" 
-			twosComplement := mask - aValue abs + 1.
-			(twosComplement >= 0 and: twosComplement <= mask) "Checks that the twos complement fits"
-				ifTrue: [ trueBlock value ]
-				ifFalse: [ ]
-		]
+	(self value: aValue isContainedIn: aSize)
+		ifTrue: [ trueBlock value ]
+		ifFalse: [  ]
 
 ]
 
@@ -487,21 +466,11 @@ CogRiscV64Compiler >> assertValue: aValue isContainedIn: aSize ifTrue: trueBlock
 CogRiscV64Compiler >> assertValue: aValue isContainedIn: aSize ifTrue: trueBlock ifFalse: falseBlock [
 
 	"Checks that the given value is contained in a certain number of bits"
-	| mask twosComplement |
 	self flag: #TODO.
-	mask := (1 << aSize) - 1.
-	aValue >= 0
-		ifTrue: [ "Compare the value with the mask"
-			(aValue bitAnd: mask) = aValue 
-				ifTrue: [ trueBlock value ]
-				ifFalse: [ falseBlock value ]
-		] 
-		ifFalse: [ "Try to do the two's complement in the given size" 
-			twosComplement := mask - aValue abs + 1.
-			(twosComplement >= 0 and: twosComplement <= mask) "Checks that the twos complement fits"
-				ifTrue: [ trueBlock value ]
-				ifFalse: [ falseBlock value ]
-		]
+	(self value: aValue isContainedIn: aSize)
+		ifTrue: [ trueBlock value ]
+		ifFalse: [ falseBlock value ]
+
 
 ]
 
@@ -860,9 +829,9 @@ CogRiscV64Compiler >> bytesForADDCq [
 		ifNil: [ 
 			| cq |
 			cq := operands at: 0.
-			((self computeSignedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+			self assertValue: cq isContainedIn: 12
 				ifTrue: [ "Immediate that can be encoded in andi" 
-					^ self bytesForArithmeticFlagUpdateWithImmediate + self bytesForADDOverflowCheck + 8 ]
+					^ self bytesForArithmeticFlagUpdateWithImmediate + self bytesForADDOverflowCheck + 4 ]
 				ifFalse: [ 
 					^ (self bytesToLoadImmediate: (operands at: 0))
 					  + self bytesForArithmeticFlagUpdateWithMov + self bytesForADDOverflowCheck + 4 ] "Immediate loaded in a register" ]
@@ -907,6 +876,19 @@ CogRiscV64Compiler >> bytesForArithmeticFlagUpdateWithMov [
 	  move result to destination"
 	self flag: #TODO.
 	^ 16
+]
+
+{ #category : #'concretization helpers - mc size' }
+CogRiscV64Compiler >> bytesForCMPCq [
+	
+	"Used for SUB as there is no SUBI"
+	| loadOffset | 
+	self flag: #TODO.
+	dependent
+		ifNil: [ loadOffset := self bytesToLoadImmediate: (operands at: 0) ] "Immediate loaded in a register" 
+		ifNotNil: [ loadOffset := self literalLoadInstructionBytes ].
+	^ loadOffset + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdate + 4
+	
 ]
 
 { #category : #'concretization helpers - mc size' }
@@ -978,6 +960,20 @@ CogRiscV64Compiler >> bytesForFloatingPointSUBOverflowCheck [
 ]
 
 { #category : #'concretization helpers - mc size' }
+CogRiscV64Compiler >> bytesForLoadEffectiveAddress [
+	
+	| cq |
+	self flag: #TODO.	
+	cq := operands at: 0.
+	dependent
+		ifNil: [   
+			self assertValue: cq isContainedIn: 12
+				ifTrue: [ ^ 4 ]
+				ifFalse: [ ^ (self bytesToLoadImmediate: (operands at: 0)) + 4 ] "Immediate loaded in a register" ]
+		ifNotNil: [ ^ self literalLoadInstructionBytes + 4 ]	
+]
+
+{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> bytesForLogicCqOperation [
 
 	"Use 4 as the default size"
@@ -1003,11 +999,11 @@ CogRiscV64Compiler >> bytesForLogicCqOperationOfSize: operationSize andImmediate
 		ifNil: [ 
 			| cq |
 			cq := operands at: 0.
-			((self computeSignedValueOf: cq ofSize: 12) bitAnd: 16rfff) = cq
+			self assertValue: cq isContainedIn: 12
 				ifTrue: [ "Immediate that can be encoded in andi" 
 					^ self bytesForLogicFlagUpdate + immOperationSize ]
 				ifFalse: [ 
-					^ (self bytesToLoadImmediate: (operands at: 0))
+					^ (self bytesToLoadImmediate: cq)
 					  + self bytesForLogicFlagUpdate + operationSize ] "Immediate loaded in a register" ]
 		ifNotNil: [ "Literal load" 
 			^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate + operationSize ]
@@ -1033,8 +1029,7 @@ CogRiscV64Compiler >> bytesForSUBCq [
 	dependent
 		ifNil: [ loadOffset := self bytesToLoadImmediate: (operands at: 0) ] "Immediate loaded in a register" 
 		ifNotNil: [ loadOffset := self literalLoadInstructionBytes ].
-	"load + sub(4) + overflow check + mov(4) + flag update"
-	^ loadOffset + self bytesForSUBOverflowCheck + 8 + self bytesForArithmeticFlagUpdate
+	^ loadOffset + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdateWithMov + 4
 	
 ]
 
@@ -1081,6 +1076,7 @@ CogRiscV64Compiler >> callTargetFromReturnAddress: callSiteReturnAddress [
 	"Answer the address that the call immediately preceding callSiteReturnAddress will jump to."
 	"this is also used by #jumpLongTargetBeforeFollowingAddress:."
 	| callDistance callInstruction callAddress |
+	1halt.
 	callAddress := self instructionAddressBefore: callSiteReturnAddress.
 	callInstruction := objectMemory long32At: callAddress.
 	self assert: ((self instructionIsB: callInstruction) or: [self instructionIsBL: callInstruction]).
@@ -1263,14 +1259,14 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[Fill32]			  -> [ ^ 4 ]. "DONE"
 		[Nop]				  -> [ ^ 4 ]. "DONE"
 		"Control"
-		[Call]					   -> [ ((operands at: 0) signedIntFromLong - address signedIntFromLong) abs >= (1 << 19) 
+		[Call]					   -> [ ((operands at: 0) signedIntFromLong - address signedIntFromLong) abs >= (1 << 31) 
 											ifTrue: [ ^ self literalLoadInstructionBytes + 4 "Same as call full" ]
 											ifFalse: [ ^ 8 ]]. "TODO"
 		[CallFull]				-> [ ^ self literalLoadInstructionBytes + 4 ]. "TODO"
 		[JumpR]					-> [ ^ 4 ]. "DONE"
 		[Jump]					   -> [ ^ 4 ]. "DONE"
-		[JumpFull]				-> [ ^ self notYetImplemented ]. "TODO"
-		[JumpLong]				-> [ ^ self notYetImplemented ]. "TODO"
+		[JumpFull]				-> [ ^ self literalLoadInstructionBytes + 4 ]. "TODO"
+		[JumpLong]				-> [ ^ 4 ]. "TODO"
 		[JumpZero]				-> [ ^ 4 ]. "DONE"
 		[JumpNonZero]			-> [ ^ 4 ]. "DONE"
 		[JumpNegative]			-> [ ^ 4 ]. "DONE"
@@ -1309,26 +1305,26 @@ CogRiscV64Compiler >> computeMaximumSize [
 		
 		"Arithmetic"
 		[AddCqR]	 ->	 [ ^ self bytesForADDCq ]. "DONE"
-		[CmpCqR]  ->	 [ ^ self bytesForSUBCq - 4 ]. "DONE"
-		[CmpC32R] ->	 [ ^ self bytesForSUBCq - 4 ]. "DONE"
+		[CmpCqR]  ->	 [ ^ self bytesForCMPCq ]. "DONE"
+		[CmpC32R] ->	 [ ^ self bytesForCMPCq ]. "DONE"
 		[SubCqR]  ->	 [ ^ self bytesForSUBCq ]. "DONE"
-		[LoadEffectiveAddressMwrR] -> [ ^ self bytesForADDCq ]. "DONE"
+		[LoadEffectiveAddressMwrR] -> [ ^ self bytesForLoadEffectiveAddress  ]. "DONE"
 		
 		"Arithmetic with an ensured literal load"
-		[AddCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForADDOverflowCheck + self bytesForArithmeticFlagUpdate + 8 ]. "DONE"
-		[AndCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate + 4 ].      "DONE"
+		[AddCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForADDOverflowCheck + self bytesForArithmeticFlagUpdateWithMov + 4 ]. "DONE"
+		[SubCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdateWithMov + 4 ]. "DONE"
 		[CmpCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdate + 4 ]. "DONE"
+		[AndCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate + 4 ].      "DONE"
 		[OrCwR]  -> [ ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate + 4 ].      "DONE"
-		[SubCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdate + 8 ]. "DONE"
 		[XorCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate + 4 ].      "DONE"
 		
 		"Arithmetic Register-Only"
-		[AddRR]			   	-> [ ^ self bytesForADDOverflowCheck + self bytesForArithmeticFlagUpdate + 8 ]. "DONE"
-		[AndRR]				-> [ ^ self bytesForLogicFlagUpdate + 4 ].      "DONE"
+		[AddRR]			   	-> [ ^ self bytesForADDOverflowCheck + self bytesForArithmeticFlagUpdateWithMov + 4 ]. "DONE"
+		[SubRR]				-> [ ^ self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdateWithMov + 4 ]. "DONE"
 		[CmpRR]				-> [ ^ self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdate + 4 ]. "DONE"
+		[AndRR]				-> [ ^ self bytesForLogicFlagUpdate + 4 ].      "DONE"
 		[OrRR]					-> [ ^ self bytesForLogicFlagUpdate + 4 ].      "DONE"
 		[XorRR]				-> [ ^ self bytesForLogicFlagUpdate + 4 ].      "DONE"
-		[SubRR]				-> [ ^ self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdateWithMov + 4 ]. "DONE"
 		[MulRR]    	      -> [ ^ 32 ]. "TODO" 
 		[DivRR]           	-> [ ^ 4 ]. "TODO"
 		[RemRR]          	-> [ ^ 4 ]. "TODO"
@@ -1348,11 +1344,11 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[RotateRightCqR]			 -> [ ^ self bytesForLogicCqOperationOfSize: 16 andImmediateOperationSize: 12 ]. "DONE"
 	
 		"Floating point operations"
-		[AddRdRd]					-> [ ^ self bytesForFloatingPointADDOverflowCheck + self bytesForFloatingPointArithmeticFlagUpdate + 8 ]. "DONE"
-		[CmpRdRd]					-> [ ^ self bytesForFloatingPointArithmeticFlagUpdate ]. "DONE"
-		[SubRdRd]					-> [ ^ self bytesForFloatingPointSUBOverflowCheck + self bytesForFloatingPointArithmeticFlagUpdate + 8 ]. "DONE"
-		[MulRdRd]					-> [ ^ self bytesForFloatingPointArithmeticFlagUpdate + 4 ]. "DONE"
-		[DivRdRd]					-> [ ^ self bytesForFloatingPointArithmeticFlagUpdate + 4 ]. "DONE"
+		[AddRdRd]					-> [ ^ self bytesForFloatingPointADDOverflowCheck + 12 ]. "DONE"
+		[SubRdRd]					-> [ ^ self bytesForFloatingPointSUBOverflowCheck + 12 ]. "DONE"
+		[CmpRdRd]					-> [ ^ 8 ]. "DONE"
+		[MulRdRd]					-> [ ^ 8 ]. "DONE"
+		[DivRdRd]					-> [ ^ 8 ]. "DONE"
 		[SqrtRd]					-> [ ^ 4]. "DONE"
 		[XorRdRd]					-> [ ^ 4]. "DONE"
 				
@@ -1360,10 +1356,9 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[MoveCqR]				-> [ dependent 
 										ifNil:[ ^ (self bytesToLoadImmediate: (operands at: 0)) ]
 						   				ifNotNil: [^ self literalLoadInstructionBytes ] ]. "DONE"
-		[MoveC32R]			-> [ ^ 4 ]. "DONE"
+		[MoveC32R]			-> [ ^ self shouldBeImplemented ]. "DONE"
 		[MoveCwR]				-> [ ^ self literalLoadInstructionBytes ]. "DONE"
 		[MoveRR]				-> [ ^ 4 ]. "DONE"
-		[MoveRdRd]			-> [ ^ 4 ]. "TODO"
 		
 		"Data movement - Absolute addresses"
 		[MoveAwR]				-> [
@@ -1436,7 +1431,6 @@ CogRiscV64Compiler >> computeMaximumSize [
 							ifNil:[ ^ (self bytesToLoadImmediate: (operands at: 0)) + 8 ]
                      	ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
 						]. "DONE"	
-		[PrefetchAw] 		-> [ ^ self notYetImplemented ].
 			
 		"Conversion"
 		[ConvertRdRs]		-> [ ^ 4 ]. "DONE"
@@ -1604,18 +1598,20 @@ CogRiscV64Compiler >> concretizeAddRR [
 CogRiscV64Compiler >> concretizeAddRdRd [
 
 	<inline: true>
-	| srcReg1 srcReg2 destReg flagOffset overflowOffset |
+	| srcReg1 srcReg2 destReg overflowOffset |
 	self flag: #TODO.
 	srcReg1 := operands at: 0.
 	srcReg2 := destReg := operands at: 1.
 	
-	flagOffset := self machineCodeWriteInstructions: (self
-		updateFlagsFPForSourceReg1: srcReg1
-		andSourceReg2: srcReg2
-	).
-	
+	"Carry flag: Carry in FP is a simple comparison (note that 0 will be put if any of the two is NaN)"		
+	self machineCodeAt: 0 put: (self 
+		fSetOneIn: ConcreteCarryReg  
+		ifRegisterValue: srcReg2 
+		isLessThanRegisterValue: srcReg1
+	).	
+
 	"Perform the ADD operation"
-	self machineCodeAt: flagOffset put: (self
+	self machineCodeAt: 4 put: (self
 		fAddRegister: srcReg1 
 		toRegister: srcReg2 
 		intoRegister: ConcreteIPFPReg2
@@ -1626,14 +1622,15 @@ CogRiscV64Compiler >> concretizeAddRdRd [
 		checkADDFloatingPointOverflowWithSourceReg1: srcReg1 
 		sourceReg2: srcReg2
 		andResultReg: ConcreteIPFPReg2
-	) startingAtIndex: flagOffset + 4.
+	) startingAtIndex: 8.
 
 	"Move result to destination"
-	self machineCodeAt: flagOffset + overflowOffset + 4 put: (self 
+	self machineCodeAt: overflowOffset + 8 put: (self 
 		fMoveDoubleWordInFRegister: ConcreteIPFPReg2 
 		toFRegister: destReg		 
 	).
-	^ machineCodeSize := flagOffset + overflowOffset + 8
+	
+	^ machineCodeSize := overflowOffset + 12
 ]
 
 { #category : #concretization }
@@ -1869,24 +1866,6 @@ CogRiscV64Compiler >> concretizeAt: actualAddress [
 ]
 
 { #category : #concretization }
-CogRiscV64Compiler >> concretizeCMPMULOverflow [
-	
-	| registerA destinationRegister registerB |
-	registerA := operands at: 0.
-	registerB := destinationRegister := operands at: 1.
-	
-	self
-		machineCodeAt: 0
-		put: (self
-			cmpSize: 1
-			shiftedRegister: registerA
-			shiftType: 2r10 "Arithmetic Shift Right so the sign is extended and kept"
-			shiftValue: 63 "Shift all but sign"
-			secondRegister: registerB).
-	^ machineCodeSize := 4
-]
-
-{ #category : #concretization }
 CogRiscV64Compiler >> concretizeCall [
 	"Will get inlined into concretizeAt: switch."
 
@@ -2031,6 +2010,7 @@ CogRiscV64Compiler >> concretizeCmpCwR [
 			updateFlagsCMPForSourceReg: srcReg 
 			resultReg: ConcreteZeroReg
 	) startingAtIndex: loadOffset + overflowOffset + 4.
+	
 	^ machineCodeSize := loadOffset + overflowOffset + flagOffset + 4
 ]
 
@@ -2077,11 +2057,11 @@ CogRiscV64Compiler >> concretizeCmpRdRd [
 	self flag: #TODO.
 	srcReg1 := operands at: 0.
 	srcReg2 := operands at: 1.
-	flagOffset := self machineCodeWriteInstructions: (self
-		updateFlagsFPForSourceReg1: srcReg1
-		andSourceReg2: srcReg2
-	).
-	^ machineCodeSize := flagOffset
+	"1. Zero Flag: Test Equality (note that 0 will be put if any of the two is NaN)"	
+	self machineCodeAt: 0 put: (self fSetOneIn: ConcreteZeroReg  ifRegisterValue: srcReg2 isEqualToRegisterValue: srcReg1).
+	"2. Carry flag: Carry in FP is a simple comparison (note that 0 will be put if any of the two is NaN)"		
+	self machineCodeAt: 4 put: (self fSetOneIn: ConcreteCarryReg  ifRegisterValue: srcReg2 isLessThanRegisterValue: srcReg1).
+	^ machineCodeSize := 8
 ]
 
 { #category : #concretization }
@@ -2165,14 +2145,15 @@ CogRiscV64Compiler >> concretizeDivRdRd [
 	self flag: #TODO.
 	srcReg1 := operands at: 0.
 	srcReg2 := destReg := operands at: 1.
-	"Update flags"
-	flagOffset := self machineCodeWriteInstructions: (self
-		updateFlagsFPForSourceReg1: srcReg1 
-      andSourceReg2: srcReg2
-	). 
+	"Carry flag: Carry in FP is a simple comparison (note that 0 will be put if any of the two is NaN)"		
+	self machineCodeAt: 0 put: (self 
+		fSetOneIn: ConcreteCarryReg  
+		ifRegisterValue: srcReg2 
+		isLessThanRegisterValue: srcReg1
+	).	
 	"Perform DIV operation"
-	self machineCodeAt: flagOffset put: (self fDivideRegister: srcReg2 byRegister: srcReg1 intoRegister: destReg).
-	^ machineCodeSize := flagOffset + 4
+	self machineCodeAt: 4 put: (self fDivideRegister: srcReg2 byRegister: srcReg1 intoRegister: destReg).
+	^ machineCodeSize := 8
 ]
 
 { #category : #concretization }
@@ -2268,9 +2249,8 @@ CogRiscV64Compiler >> concretizeJumpCarry [
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
-	"carry if carry register at 1"
-	self machineCodeAt: 0 put: (self branchTo: offset 
-											  ifRegisterValueIsNotEqualToZero: ConcreteCarryReg).
+	"Carry set if carry register at 1"
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNotEqualToZero: ConcreteCarryReg).
 	^ machineCodeSize := 4
 ]
 
@@ -2391,11 +2371,12 @@ CogRiscV64Compiler >> concretizeJumpFull [
 
 	<inline: true>
 	<var: #jumpTarget type: #'AbstractInstruction *'>
-	| jumpTarget instrOffset |
+	| jumpTarget loadOffset |
+	self flag: #TODO.	
 	jumpTarget := self longJumpTargetAddress.
-	instrOffset := self machineCodeWriteInstructions: (self loadImmediate: jumpTarget inRegister: ConcreteIPReg).
-	self flag: #TODO.
-	1halt.
+	loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
+	self machineCodeAt: loadOffset put: (self jumpToRegisterValue: ConcreteIPReg).
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
@@ -2477,19 +2458,42 @@ CogRiscV64Compiler >> concretizeJumpLessOrEqual [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpLong [
 
-	1halt.
+	| offset |
+	self flag: #TODO.
+	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong.
+	self assert: (self isInImmediateJumpRange: offset).
+	self machineCodeAt: 0 put: (self jumpToOffset: offset).
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpLongNonZero [
 
-	1halt.
+	| offset |
+	"Calculate the offset between the B and the target. The B is the second instruction thus the -4"
+	self flag: #TODO.
+	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4.
+	self assert: (self isInImmediateJumpRange: offset).
+
+	self machineCodeAt: 0 put: (self  branchTo: 8 ifRegisterValueIsEqualToZero: ConcreteZeroReg "should jump after the jump").
+	self machineCodeAt: 4 put: (self jumpToOffset: offset).
+	
+	^ machineCodeSize := 8
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpLongZero [
 	
-	1halt.
+	| offset |
+	"Calculate the offset between the B and the target. The B is the second instruction thus the -4"
+	self flag: #TODO.
+	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4.
+	self assert: (self isInImmediateJumpRange: offset).
+
+	self machineCodeAt: 0 put: (self  branchTo: 8 ifRegisterValueIsNotEqualToZero: ConcreteZeroReg "should jump after the jump").
+	self machineCodeAt: 4 put: (self jumpToOffset: offset).
+	
+	^ machineCodeSize := 8
 ]
 
 { #category : #concretization }
@@ -2610,7 +2614,7 @@ CogRiscV64Compiler >> concretizeLoadEffectiveAddressMwrR [
 		
 	<inline: true>
 	<var: #cq type: #uint_64>
-	| offset destReg sourceReg instrOffset |
+	| offset destReg sourceReg loadOffset |
 	self flag: #TODO.
 	offset := operands at: 0.
 	sourceReg := operands at: 1.
@@ -2623,24 +2627,22 @@ CogRiscV64Compiler >> concretizeLoadEffectiveAddressMwrR [
 							 addImmediate: offset
 							 toRegister: sourceReg
 							 inRegister: destReg).
-					instrOffset := 4 ]
-				ifFalse: [ "Move to a register before performing ADD on the registers"	
-					"Load the immediate to a register"
-					instrOffset := self machineCodeWriteInstructions: (self loadImmediate: offset inRegister: ConcreteIPReg).
-					self machineCodeAt: instrOffset put: (self
+					^ machineCodeSize := 4 ]
+				ifFalse: [ "Load the immediate to a register"
+					loadOffset := self machineCodeWriteInstructions: (self loadImmediate: offset inRegister: ConcreteIPReg).
+					self machineCodeAt: loadOffset put: (self
 							 addRegister: sourceReg
 							 toRegister: ConcreteIPReg
 							 inRegister: destReg).
-					instrOffset := instrOffset + 4 ] 
+					^ machineCodeSize := loadOffset + 4 ] 
 				]
 		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
-			instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
-			self machineCodeAt: instrOffset put: (self
+			loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
+			self machineCodeAt: loadOffset put: (self
 					 addRegister: sourceReg
 					 toRegister: ConcreteIPReg
 					 inRegister: destReg).
-			instrOffset := instrOffset + 4 ].
-	^ machineCodeSize := instrOffset
+			^ machineCodeSize := loadOffset + 4 ].
 ]
 
 { #category : #concretization }
@@ -3718,17 +3720,15 @@ CogRiscV64Compiler >> concretizeMulRdRd [
 	self flag: #TODO.
 	sourceReg1 := operands at: 0.
 	sourceReg2 := destReg := operands at: 1.
-	"Flag update"
-	flagOffset := self machineCodeWriteInstructions: (self
-		updateFlagsFPForSourceReg1: sourceReg1 
-		andSourceReg2: sourceReg2
-	).
+	"Carry flag: Carry in FP is a simple comparison (note that 0 will be put if any of the two is NaN)"		
+	self machineCodeAt: 0 put: (self 
+		fSetOneIn: ConcreteCarryReg  
+		ifRegisterValue: sourceReg2 
+		isLessThanRegisterValue: sourceReg1
+	).	
 	"Perform MUL operation"
-	self machineCodeAt: flagOffset put: (self fMultiplyRegister: sourceReg2 fromRegister: sourceReg1 intoRegister: destReg).
-
-	"Check overflow?"
-
-	^ machineCodeSize := flagOffset + 4
+	self machineCodeAt: 4 put: (self fMultiplyRegister: sourceReg2 fromRegister: sourceReg1 intoRegister: destReg).
+	^ machineCodeSize := 8 
 ]
 
 { #category : #concretization }
@@ -4233,28 +4233,30 @@ CogRiscV64Compiler >> concretizeSubRdRd [
 	self flag: #TODO.
 	rightReg := operands at: 0.
 	leftReg := destReg := operands at: 1.
-	"Update flags"
-	flagOffset := self machineCodeWriteInstructions: (self
-		updateFlagsFPForSourceReg1: rightReg 
-		andSourceReg2: leftReg
-	).
+	
+	"Carry flag: Carry in FP is a simple comparison (note that 0 will be put if any of the two is NaN)"		
+	self machineCodeAt: 0 put: (self 
+		fSetOneIn: ConcreteCarryReg  
+		ifRegisterValue: leftReg 
+		isLessThanRegisterValue: rightReg
+	).	
 
 	"Perform SUB operation"
-	self machineCodeAt: flagOffset put: (self fSubtractRegister: rightReg fromRegister: leftReg intoRegister: ConcreteIPFPReg2).
+	self machineCodeAt: 4 put: (self fSubtractRegister: rightReg fromRegister: leftReg intoRegister: ConcreteIPFPReg2).
 
 	"Check for overflow"
 	overflowOffset := self machineCodeWriteInstructions: (self
 		checkSUBFloatingPointOverflowWithSourceReg1: leftReg 
 		sourceReg2: rightReg 
 		andResultReg: ConcreteIPFPReg2
-	) startingAtIndex: flagOffset + 4.
+	) startingAtIndex: 8.
 
 	"Move result to destination"
-	self machineCodeAt: overflowOffset + flagOffset + 4 put: (self 
+	self machineCodeAt: overflowOffset + 8 put: (self 
 		fMoveDoubleWordInFRegister: ConcreteIPFPReg2 
 		toFRegister: destReg		 
 	).
-	^ machineCodeSize := overflowOffset + flagOffset + 8
+	^ machineCodeSize := overflowOffset + 12
 ]
 
 { #category : #concretization }
@@ -5607,10 +5609,9 @@ CogRiscV64Compiler >> isCallPrecedingReturnPC: mcpc [
 
 { #category : #testing }
 CogRiscV64Compiler >> isInImmediateJumpRange: operand [
-	"ARM calls and jumps span +/- 32 mb, more than enough for intra-zone calls and jumps."
+	"RISC-V calls and jumps can use immediates of max size 20 bits"
 	<var: #operand type: #'usqIntptr_t'>
-	self flag: #TODO.
-	^operand signedIntFromLong between: -16r2000000 and: 16r1FFFFFC
+	^ self value: operand isContainedIn: 20
 ]
 
 { #category : #testing }
@@ -5643,12 +5644,15 @@ CogRiscV64Compiler >> jumpLongByteSize [
 	for most calls and jumps.  CallFull/JumpFull must also be generated in the same number of bytes irrespective of
 	displacement for the same reason, but they must be able to span the full (32-bit or 64-bit) address space because
 	they are used to call code in the C runtime, which may be distant from the code zone"
+	self flag: #TODO.
 	^4
 ]
 
 { #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> jumpLongConditionalByteSize [
-	" AArch64 does not have conditional long jumps. Be a short conditional jump and a long jump "
+	" RISCV-64 does not have conditional long jumps. 
+	 Be a short conditional jump (over the long jump instruction) and a long jump "
+	self flag: #TODO.
 	^ 8
 ]
 
@@ -7230,45 +7234,9 @@ CogRiscV64Compiler >> updateFlagsCMPForSourceReg: srcReg resultReg: resReg [
 ]
 
 { #category : #concretization }
-CogRiscV64Compiler >> updateFlagsFPForSourceReg1: srcReg1 andSourceReg2: srcReg2 [
-
-	self flag: #TODO.
-	^ { 
-		"1. Zero Flag: Test Equality (note that 0 will be put if any of the two is NaN)"	
-		self fSetOneIn: ConcreteZeroReg  ifRegisterValue: srcReg2 isEqualToRegisterValue: srcReg1 .
-		"2. Carry flag: Carry in FP is a simple comparison (note that 0 will be put if any of the two is NaN)"		
-		self fSetOneIn: ConcreteCarryReg  ifRegisterValue: srcReg2 isLessThanRegisterValue: srcReg1
-
-	}
-	
-
-]
-
-{ #category : #concretization }
-CogRiscV64Compiler >> updateFlagsFloatingPointArithmeticForSourceReg1: srcReg1 sourceReg2: srcReg2 andResultReg: resReg [
-
-	1halt.
-	self flag: #TODO.
-	^ { 
-		"1. Zero Flag: Test Equality (note that 0 will be put if any of the two is NaN)"	
-		self fSetOneIn: ConcreteZeroReg  ifRegisterValue: srcReg2 isEqualToRegisterValue: srcReg1 .
-		"2. Carry flag: Carry in FP is a simple comparison"		
-		self fSetOneIn: ConcreteCarryReg  ifRegisterValue: srcReg2 isLessThanRegisterValue: srcReg1
-
-	}
-	
-
-	"Test LT (note that 0 will be put if any of the two is NaN)"
-
-]
-
-{ #category : #concretization }
 CogRiscV64Compiler >> updateFlagsLogicForResultReg: resReg [
 
-	| instructions |
 	self flag: #TODO.
-	instructions := OrderedCollection new.
-
 	^ {
 		"1. Overflow Flag: set to 0"	
 		self moveRegister: X0  toRegister: ConcreteOverflowReg .
@@ -7295,6 +7263,19 @@ CogRiscV64Compiler >> updateFlagsSUBForSourceReg: srcReg resultReg: resReg andMo
 		"4. Zero flag: Replace the result of the subtraction with 1 if it is 0, 0 otherwise"
 		self setOneIn: ConcreteZeroReg ifValueInRegisterIsEqualToZero: resReg .
 	}
+]
+
+{ #category : #'helpers - size sign' }
+CogRiscV64Compiler >> value: value isContainedIn: size [ 
+
+
+	| mask twosComplement |
+	self flag: #TODO.
+	mask := (1 << size) - 1.
+	twosComplement := mask - value abs + 1.
+	value >= 0 
+		ifTrue: [ ^ (value bitAnd: mask) = value ]
+		ifFalse: [ ^ (twosComplement >= 0 and: twosComplement <= mask) ]	
 ]
 
 { #category : #'inline cacheing' }
