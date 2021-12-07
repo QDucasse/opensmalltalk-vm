@@ -6335,15 +6335,16 @@ CogRiscV64Compiler >> recursiveLoadImmediate: anImmediate inRegister: aRegister 
 	 are needed by the pseudo instruction li.
 	https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
 	
-	| hi20 lo12 hi52 shiftAmount |
+	| hi20 lo12 hi52 shiftAmount signedImmediate |
 	self flag: #TODO.
+	signedImmediate := anImmediate signedIntFromLong64.
 	"Special case if the value is 16rFFFFFFFFFFFFFFFF (max)"
-	(anImmediate = 16rFFFFFFFFFFFFFFFF)
+	(signedImmediate = -1)
 		ifTrue: [ aCollection add: (self addImmediate: -1 toRegister: X0 inRegister: aRegister).
 					 "End the recursion!"
 					 ^ 0 ].
 	"Check if the immediate can be contained in 32 bits"		
-	self assertValue: anImmediate isContainedIn: 31 
+	self assertValue: signedImmediate isContainedIn: 31 
 		ifTrue: [ 
 			"Depending on the value of the immediate, the following instructions are emitted:
 				imm == 0                          : ADDI 
@@ -6351,8 +6352,8 @@ CogRiscV64Compiler >> recursiveLoadImmediate: anImmediate inRegister: aRegister 
 			   imm[0,12) == 0 && imm[12,32) != 0 : LUI 
 				imm[0,32) != 0                    : LUI+ADDIW 
 			"
-			hi20 := (((self signExtendValue64Bits: anImmediate) + 16r800) >> 12) bitAnd: 16rFFFFF.
-			lo12 := self signExtendValue64Bits: (anImmediate bitAnd: 16rFFF).
+			hi20 := (((self signExtendValue64Bits: signedImmediate) + 16r800) >> 12) bitAnd: 16rFFFFF.
+			lo12 := self signExtendValue64Bits: (signedImmediate bitAnd: 16rFFF).
 			
 			"lui instruction"
 			hi20 ~= 0
@@ -6366,10 +6367,9 @@ CogRiscV64Compiler >> recursiveLoadImmediate: anImmediate inRegister: aRegister 
 			"Return to end the recursion"			
 			^ 0
 		]. 
-	
 		"In the case the value does not fit in 32 bits"
-		lo12 := self signExtendValue64Bits: (anImmediate bitAnd: 16rFFF).
-		hi52 := ((self signExtendValue64Bits: anImmediate) + 16r800) >> 12.
+		lo12 := self signExtendValue64Bits: (signedImmediate bitAnd: 16rFFF).
+		hi52 := (((self signExtendValue64Bits: signedImmediate) + 16r800) bitAnd: 16rFFFFFFFFFFFFFFFF) >> 12.
 		"Process the optimal shift amount"
 		shiftAmount := 12 + (self trailingZerosOf: hi52).
 		hi52 := self computeSignedValueOf: hi52 >> (shiftAmount - 12) ofSize: (64 - shiftAmount).

@@ -108,3 +108,17 @@ VMRISCV64SpecificEncodingTest >> testEncode64BitImmediateF [
 
 	self assert: machineSimulator receiverRegisterValue equals: 16rFFFFFFFFFFFFFFFF
 ]
+
+{ #category : #tests }
+VMRISCV64SpecificEncodingTest >> testEncode64BitImmediateFA1 [
+
+	"Should lui addi"
+	self compile: [		 
+		cogit MoveCq: 16rFFFFFFFFFFFFFFA1 R: ReceiverResultReg ].
+
+	"1halt.
+	self openMachineDebugger."
+	self runGeneratedCode.
+
+	self assert: machineSimulator receiverRegisterValue equals: 16rFFFFFFFFFFFFFFA1
+]
