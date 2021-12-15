@@ -295,6 +295,20 @@ UnicornProcessor >> runUntil: anAddress [
 ]
 
 { #category : #'as yet unclassified' }
+UnicornProcessor >> s0: anInteger [ 
+
+	self flag: #TODO.
+	machineSimulator s0: anInteger
+]
+
+{ #category : #'as yet unclassified' }
+UnicornProcessor >> s2: anInteger [ 
+
+	self flag: #TODO.
+	machineSimulator s2: anInteger
+]
+
+{ #category : #'as yet unclassified' }
 UnicornProcessor >> s7: anInteger [ 
 	
 	self flag: #TODO.
