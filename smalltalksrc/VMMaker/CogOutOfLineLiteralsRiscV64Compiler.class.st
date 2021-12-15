@@ -17,15 +17,22 @@ CogOutOfLineLiteralsRiscV64Compiler >> cmpC32RTempByteSize [
 { #category : #'generate machine code - concretize' }
 CogOutOfLineLiteralsRiscV64Compiler >> concretizeLiteral [
 	"Generate an out-of-line literal.  Copy the value and any annotation from the stand-in in the literals manager."
-	| twoComplement literal |
+	| twoComplement literal literalAsInstruction |
+	self flag: #TODO.
+	"Process the literal if it is an instruction"
+	literalAsInstruction := cogit cCoerceSimple: (operands at: 0) to: #'AbstractInstruction *'.
+	literal := (self isAnInstruction: literalAsInstruction)
+				ifTrue: [literalAsInstruction address]
+				ifFalse: [self cCode: [literalAsInstruction asUnsignedInteger]
+							inSmalltalk: [literalAsInstruction]].
+	"Get the address"
 	self assert: (dependent notNil and: [dependent opcode = Literal]).
 	dependent annotation ifNotNil:
 	[self assert: annotation isNil.
 		 annotation := dependent annotation].
 	dependent address ifNotNil: [self assert: dependent address = address].
 	dependent address: address.
-
-	literal := operands at: 0.
+	"Write the actual literal"
 	twoComplement := literal < 0
 		ifTrue: [ 16rFFFFFFFFFFFFFFFF - literal abs + 1 ]
 		ifFalse: [ literal ].
@@ -56,7 +63,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> concretizeMovePatcheableC32R [
 CogOutOfLineLiteralsRiscV64Compiler >> configureStackAlignment [
 	
 	<doNotGenerate>
-	"Acordinh to RISC-V ISA description, stack should always be kept 16-byte aligned"
+	"Acording to RISC-V ISA description, stack should always be kept 16-byte aligned"
 	cogit setStackAlignment: 16 expectedSPOffset: 0 expectedFPOffset: 0.
 ]
 
@@ -159,12 +166,13 @@ CogOutOfLineLiteralsRiscV64Compiler >> pcRelativeAddressAt: instrAddress [
 	"
 	
 	| inst offset |
-
+	self flag: #TODO.
+	1halt.
 	inst := objectMemory long32At: instrAddress.
-	offset := inst >> 5 bitAnd: 16r7ffff.
-	^instrAddress + (((offset allMask: (1 << 18))
-							ifTrue: [offset negated]
-							ifFalse: [offset]) * 4 "because LDR includes the imm / 4")
+	offset := inst >> 20 bitAnd: 16rfff.
+	^instrAddress + ((offset allMask: (1 << 12))
+						   ifTrue: [offset negated]
+							ifFalse: [offset])
 ]
 
 { #category : #'inline cacheing' }
@@ -209,11 +217,12 @@ CogOutOfLineLiteralsRiscV64Compiler >> rewriteInlineCacheAt: callSiteReturnAddre
 	<var: #callSiteReturnAddress type: #usqInt>
 	<var: #callTargetAddress type: #usqInt>
 	| call callDistance |
+	self flag: #TODO.
 	callTargetAddress >= cogit minCallAddress ifFalse:
 		[self error: 'linking callsite to invalid address'].
 	callDistance := (callTargetAddress - (callSiteReturnAddress - 4 "return offset")).
 	self assert: (self isInImmediateJumpRange: callDistance). "we don't support long call updates here"
-	call := self bl: callDistance.
+	call := self jumpToOffset: callDistance andStorePreviousPCPlus4in: LR.
 	objectMemory
 		long32At: (self instructionAddressBefore: callSiteReturnAddress ) put: call;
 		longAt: (self pcRelativeAddressAt: callSiteReturnAddress - 8) put: cacheTag signedIntToLong64.

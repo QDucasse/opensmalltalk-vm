@@ -1076,15 +1076,15 @@ CogRiscV64Compiler >> callTargetFromReturnAddress: callSiteReturnAddress [
 	"Answer the address that the call immediately preceding callSiteReturnAddress will jump to."
 	"this is also used by #jumpLongTargetBeforeFollowingAddress:."
 	| callDistance callInstruction callAddress |
-	1halt.
+	self flag: #TODO.
 	callAddress := self instructionAddressBefore: callSiteReturnAddress.
 	callInstruction := objectMemory long32At: callAddress.
-	self assert: ((self instructionIsB: callInstruction) or: [self instructionIsBL: callInstruction]).
-	
-	callDistance := self extractOffsetFromBL: callInstruction.
+	"A call instruction expands to auipc jalr"
+	self assert: (self instructionIsJALR: callInstruction).
+	callDistance := self extractOffsetFromJALR: callInstruction.
 
 	"this is the pc's offset at the branch"
-	^callAddress + callDistance signedIntFromLong
+	^callAddress + callDistance signedIntFromChar
 ]
 
 { #category : #testing }
@@ -1325,7 +1325,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[AndRR]				-> [ ^ self bytesForLogicFlagUpdate + 4 ].      "DONE"
 		[OrRR]					-> [ ^ self bytesForLogicFlagUpdate + 4 ].      "DONE"
 		[XorRR]				-> [ ^ self bytesForLogicFlagUpdate + 4 ].      "DONE"
-		[MulRR]    	      -> [ ^ 32 ]. "TODO" 
+		[MulRR]    	      -> [ ^ 28 ]. "TODO" 
 		[DivRR]           	-> [ ^ 4 ]. "TODO"
 		[RemRR]          	-> [ ^ 4 ]. "TODO"
 		[NegateR]				-> [ ^ 4 ]. "DONE"
@@ -3665,49 +3665,45 @@ CogRiscV64Compiler >> concretizeMulRR [
 		byRegisterValue: srcReg2
 		inRegister: ConcreteIPReg
 	).
-	"Update the carry flag while the operands are untouched"
-	self machineCodeAt: 4 put: (self
-		setOneIn: ConcreteCarryReg 
-		ifUnsignedValueIn: srcReg2 
-		isLessThanUnsignedValueIn: srcReg1
-	).
+	
 	"Multiply and store the lower part in the destination register"
-	self machineCodeAt: 8 put: (self 
+	self machineCodeAt: 4 put: (self 
 		multiplyRegisterValue: srcReg1
 		byRegisterValue: srcReg2 
 		inRegister: destReg
 	).
+			
 	"Create a temp register to be either all 0s or all 1s depending on the result sign
 	 An arithmetic shift of 63 on the result will produce such a value"
-	self machineCodeAt: 12 put: (self
+	self machineCodeAt: 8 put: (self
 		arithmeticShiftRightValueInRegister: destReg
 		byShiftAmount: 63
 		intoRegister: ConcreteOverflowReg
 	).
 	"Compare the high result to the 'sign' reg -> if equal no overflow.
 	 First sub then set one if not equal to zero!"
-	self machineCodeAt: 16 put: (self
+	self machineCodeAt: 12 put: (self
 		subtractRegister: ConcreteIPReg 
 		fromRegister: ConcreteOverflowReg 
 		intoRegister: ConcreteOverflowReg 
 	).
 	"Set one if the result is not null (i.e. not equal -> overflow)"
-	self machineCodeAt: 20 put: (self
+	self machineCodeAt: 16 put: (self
 		setOneIn: ConcreteOverflowReg 
 		ifValueInRegisterIsNotEqualToZero: ConcreteOverflowReg 
 	).
 	"Update the sign flag"
-	self machineCodeAt: 24 put: (self
+	self machineCodeAt: 20 put: (self
 		setOneIn: ConcreteSignReg 
 		ifValueIn: destReg 
 		isLessThanImmediate: 0
 	).
 	"Update the zero flag"
-	self machineCodeAt: 28 put: (self
+	self machineCodeAt: 24 put: (self
 		setOneIn: ConcreteZeroReg 
 		ifValueInRegisterIsEqualToZero: destReg
 	).
-^ machineCodeSize := 32
+^ machineCodeSize := 28
 ]
 
 { #category : #concretization }
@@ -4755,6 +4751,13 @@ CogRiscV64Compiler >> extractOffsetFromConditionalBranch: instruction [
 		ifFalse: [ twoComplement << 2 ]
 ]
 
+{ #category : #'inline cacheing' }
+CogRiscV64Compiler >> extractOffsetFromJALR: instruction [ 
+
+	self flag: #TODO.
+	^ ((instruction >> 20) bitAnd: 16rFFF)
+]
+
 { #category : #'machine code instruction' }
 CogRiscV64Compiler >> fAddRegister: srcReg1 toRegister: srcReg2 intoRegister: destReg [
 
@@ -5151,7 +5154,7 @@ CogRiscV64Compiler >> genCaptureCStackPointers: captureFramePointer [
 	Make sure to reuse a caller-saved register: we can reuse it freely"
 	self hasVarBaseRegister ifTrue:
 		[cogit
-			MoveR: VarBaseReg R: X1;
+			MoveR: VarBaseReg R: CArg0Reg;
 			MoveCq: cogit varBaseAddress R: VarBaseReg].
 	captureFramePointer ifTrue:
 		[cogit MoveR: FPReg Aw: cogit cFramePointerAddress].
@@ -5161,7 +5164,7 @@ CogRiscV64Compiler >> genCaptureCStackPointers: captureFramePointer [
 	
 	"Restore the base register for our caller"
 	self hasVarBaseRegister ifTrue:
-		[cogit MoveR: X1 R: VarBaseReg].
+		[cogit MoveR: CArg0Reg R: VarBaseReg].
 
 	cogit RetN: 0.
 ]
@@ -5410,6 +5413,14 @@ CogRiscV64Compiler >> generalPurposeRegisterMap [
 			#r12. X12	}
 ]
 
+{ #category : #'method entry' }
+CogRiscV64Compiler >> generateAlignmentNopsForEntry [
+
+	cogit Nop.
+	cogit Nop.
+
+]
+
 { #category : #concretization }
 CogRiscV64Compiler >> getTestReg [ 
 
@@ -5517,6 +5528,16 @@ CogRiscV64Compiler >> instructionIsConditionalBranch: instruction [
 	
 	
 	self flag: #TODO.
+]
+
+{ #category : #'instruction detection' }
+CogRiscV64Compiler >> instructionIsJALR: instruction [
+
+	| check1 check2 |
+	"Check bits 12 to 14 null"
+	check1 := ((instruction >> 12) bitAnd: 16r7) = 0.
+	check2 := (instruction bitAnd: 16r7F) = 2r1100111.
+	^ check1 and: check2
 ]
 
 { #category : #testing }
