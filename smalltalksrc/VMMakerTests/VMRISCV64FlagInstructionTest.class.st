@@ -630,46 +630,21 @@ VMRISCV64FlagInstructionTest >> testCmpRRSetZeroFlag [
 ]
 
 { #category : #tests }
-VMRISCV64FlagInstructionTest >> testMulRRSetCarryFlag [
+VMRISCV64FlagInstructionTest >> testMulRRSetOverflowSignFlags [
 
 	self compile: [		 
 		cogit MulR: ReceiverResultReg R: TempReg 
 	].
 
-	1halt.	
-	machineSimulator receiverRegisterValue: 5.
-	machineSimulator temporaryRegisterValue: 4.
+	machineSimulator receiverRegisterValue: 16r7FFFFFFFFFFFFFFF.
+	machineSimulator temporaryRegisterValue: 2.
 	
 	self runGeneratedCode.
-	"Check result"
-	self assert: machineSimulator temporaryRegisterValue equals: 1.
 	"Check flags"
 	self assert: machineSimulator flagZeroRegisterValue equals: 0.
-	self assert: machineSimulator flagSignRegisterValue equals: 0.	
+	self assert: machineSimulator flagSignRegisterValue equals: 1.	
 	self assert: machineSimulator flagCarryRegisterValue equals: 0.
-	self assert: machineSimulator flagOverflowRegisterValue equals: 0.	
-	
-]
-
-{ #category : #tests }
-VMRISCV64FlagInstructionTest >> testMulRRSetOverflowFlag [
-
-	self compile: [		 
-		cogit MulR: ReceiverResultReg R: TempReg 
-	].
-
-	1halt.	
-	machineSimulator receiverRegisterValue: 5.
-	machineSimulator temporaryRegisterValue: 4.
-	
-	self runGeneratedCode.
-	"Check result"
-	self assert: machineSimulator temporaryRegisterValue equals: 1.
-	"Check flags"
-	self assert: machineSimulator flagZeroRegisterValue equals: 0.
-	self assert: machineSimulator flagSignRegisterValue equals: 0.	
-	self assert: machineSimulator flagCarryRegisterValue equals: 0.
-	self assert: machineSimulator flagOverflowRegisterValue equals: 0.	
+	self assert: machineSimulator flagOverflowRegisterValue equals: 1.	
 	
 ]
 
@@ -680,16 +655,15 @@ VMRISCV64FlagInstructionTest >> testMulRRSetSignFlag [
 		cogit MulR: ReceiverResultReg R: TempReg 
 	].
 
-	1halt.	
-	machineSimulator receiverRegisterValue: 5.
-	machineSimulator temporaryRegisterValue: 4.
+	machineSimulator receiverRegisterValue: 16rFFFFFFFFFFFFFFFF.
+	machineSimulator temporaryRegisterValue: 2.
 	
 	self runGeneratedCode.
 	"Check result"
-	self assert: machineSimulator temporaryRegisterValue equals: 1.
+	self assert: machineSimulator temporaryRegisterValue equals: 16rFFFFFFFFFFFFFFFE.
 	"Check flags"
 	self assert: machineSimulator flagZeroRegisterValue equals: 0.
-	self assert: machineSimulator flagSignRegisterValue equals: 0.	
+	self assert: machineSimulator flagSignRegisterValue equals: 1.	
 	self assert: machineSimulator flagCarryRegisterValue equals: 0.
 	self assert: machineSimulator flagOverflowRegisterValue equals: 0.	
 	
@@ -702,15 +676,14 @@ VMRISCV64FlagInstructionTest >> testMulRRSetZeroFlag [
 		cogit MulR: ReceiverResultReg R: TempReg 
 	].
 
-	1halt.	
-	machineSimulator receiverRegisterValue: 5.
-	machineSimulator temporaryRegisterValue: 4.
+	machineSimulator receiverRegisterValue: 0.
+	machineSimulator temporaryRegisterValue: 0.
 	
 	self runGeneratedCode.
 	"Check result"
-	self assert: machineSimulator temporaryRegisterValue equals: 1.
+	self assert: machineSimulator temporaryRegisterValue equals: 0.
 	"Check flags"
-	self assert: machineSimulator flagZeroRegisterValue equals: 0.
+	self assert: machineSimulator flagZeroRegisterValue equals: 1.
 	self assert: machineSimulator flagSignRegisterValue equals: 0.	
 	self assert: machineSimulator flagCarryRegisterValue equals: 0.
 	self assert: machineSimulator flagOverflowRegisterValue equals: 0.	
