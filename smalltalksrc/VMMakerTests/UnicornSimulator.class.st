@@ -72,7 +72,7 @@ UnicornSimulator >> doStartAt: startAddress until: until timeout: timeout count:
 ]
 
 { #category : #'stack-access' }
-UnicornSimulator >> finishMappingMemory [ 
+UnicornSimulator >> finishMappingMemory [
 
 	"Do nothing in the case of Unicorn, is useful if the simulator used has to map memory by hand"
 ]

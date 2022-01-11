@@ -10,13 +10,13 @@ Class {
 { #category : #'as yet unclassified' }
 UnicornProcessor >> cResultRegister [
 	
-	^ machineSimulator cResultRegister
+	^ machineSimulator cResultRegisterValue
 ]
 
 { #category : #'as yet unclassified' }
 UnicornProcessor >> cResultRegister: anInteger [ 
 	
-	machineSimulator cReturnRegisterValue: anInteger
+	machineSimulator cResultRegisterValue: anInteger
 ]
 
 { #category : #'as yet unclassified' }
@@ -68,9 +68,10 @@ UnicornProcessor >> esp: anInteger [
 ]
 
 { #category : #caching }
-UnicornProcessor >> flushICacheFrom: anInteger to: anInteger2 [ 
+UnicornProcessor >> flushICacheFrom: startAddress to: endAddress [
 
 	"Do nothing for now..."
+	machineSimulator flushICacheFrom: startAddress to: endAddress
 ]
 
 { #category : #registers }

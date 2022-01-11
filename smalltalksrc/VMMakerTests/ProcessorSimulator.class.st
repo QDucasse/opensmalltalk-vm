@@ -7,7 +7,7 @@ Class {
 		'registerSmalltalkAliases',
 		'memory'
 	],
-	#category : #VMMakerTests
+	#category : #'VMMakerTests-Unicorn'
 }
 
 { #category : #'instance creation' }
@@ -97,6 +97,12 @@ ProcessorSimulator >> arg1RegisterValue [
 ]
 
 { #category : #registers }
+ProcessorSimulator >> arg1RegisterValue: aValue [
+
+	^ self writeRegister: self arg1Register value: aValue
+]
+
+{ #category : #registers }
 ProcessorSimulator >> baseRegister [
 
 	self subclassResponsibility
@@ -118,6 +124,18 @@ ProcessorSimulator >> baseRegisterValue: aValue [
 ProcessorSimulator >> cResultRegister [
 
 	^ self subclassResponsibility
+]
+
+{ #category : #registers }
+ProcessorSimulator >> cResultRegisterValue [
+
+	^ self readRegister: self cResultRegister
+]
+
+{ #category : #'c calling convention' }
+ProcessorSimulator >> cResultRegisterValue: aValue [
+
+	self writeRegister: self cResultRegister value: aValue
 ]
 
 { #category : #'c calling convention' }
@@ -278,6 +296,12 @@ ProcessorSimulator >> doublePrecisionFloatingPointRegister0Value [
 ]
 
 { #category : #registers }
+ProcessorSimulator >> doublePrecisionFloatingPointRegister0Value: aValue [
+
+	^ self writeFloat64Register: self doublePrecisionFloatingPointRegister0 value: aValue
+]
+
+{ #category : #registers }
 ProcessorSimulator >> doublePrecisionFloatingPointRegister1 [
 
 	self subclassResponsibility
@@ -293,6 +317,12 @@ ProcessorSimulator >> doublePrecisionFloatingPointRegister1: aValue [
 ProcessorSimulator >> doublePrecisionFloatingPointRegister1Value [
 
 	^ self readFloat64Register: self doublePrecisionFloatingPointRegister1
+]
+
+{ #category : #registers }
+ProcessorSimulator >> doublePrecisionFloatingPointRegister1Value: aValue [
+
+	^ self writeFloat64Register: self doublePrecisionFloatingPointRegister1 value: aValue
 ]
 
 { #category : #registers }
@@ -313,6 +343,12 @@ ProcessorSimulator >> doublePrecisionFloatingPointRegister2Value [
 	^ self readFloat64Register: self doublePrecisionFloatingPointRegister2
 ]
 
+{ #category : #registers }
+ProcessorSimulator >> doublePrecisionFloatingPointRegister2Value: aValue [
+
+	^ self writeFloat64Register: self doublePrecisionFloatingPointRegister2 value: aValue
+]
+
 { #category : #disassembling }
 ProcessorSimulator >> extractDestinationRegisterFromAssembly: aLLVMInstruction [
 
@@ -323,6 +359,12 @@ ProcessorSimulator >> extractDestinationRegisterFromAssembly: aLLVMInstruction [
 ProcessorSimulator >> finishMappingMemory [
 
 	self subclassResponsibility
+]
+
+{ #category : #registers }
+ProcessorSimulator >> flushICacheFrom: startAddress to: endAddress [
+
+	simulator removeInstructionCacheFrom: startAddress to: endAddress
 ]
 
 { #category : #shortcut }
@@ -366,7 +408,7 @@ ProcessorSimulator >> getLastAddress: abstractInstructions [
 { #category : #testing }
 ProcessorSimulator >> hasLinkRegister [
 
-	self subclassResponsibility
+	^ false
 ]
 
 { #category : #initialization }
@@ -679,7 +721,7 @@ ProcessorSimulator >> returnRegisterValue: aValue [
 { #category : #registers }
 ProcessorSimulator >> sendNumberOfArgumentsRegister [
 
-	^ SpikeRISCVRegisters x25
+	self shouldBeImplemented.
 ]
 
 { #category : #registers }
