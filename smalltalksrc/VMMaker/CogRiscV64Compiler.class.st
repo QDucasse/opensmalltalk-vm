@@ -5259,6 +5259,17 @@ CogRiscV64Compiler >> genMulR: regSource R: regDest [
 	^ cogit gen: MulRR operand: regSource operand: regDest
 ]
 
+{ #category : #alignment }
+CogRiscV64Compiler >> genNopsForEntries [
+
+	"Generate the correct amount of nops to disalign the cog entry and no check entry
+	 (see genGetInlineCacheClassTagFromgenGetInlineCacheClassTagFrom:  into:  forEntry:)"
+	
+	self flag: #DONE.
+	cogit Nop.
+	cogit Nop.
+]
+
 { #category : #'smalltalk calling convention' }
 CogRiscV64Compiler >> genPushRegisterArgsForAbortMissNumArgs: numArgs [
 	"Ensure that the register args are pushed before the outer and

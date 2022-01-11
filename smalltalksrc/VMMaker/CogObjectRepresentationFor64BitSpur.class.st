@@ -556,9 +556,7 @@ CogObjectRepresentationFor64BitSpur >> genGetInlineCacheClassTagFrom: sourceReg 
 	
 	In x86-64 instruction size is variable, and 3 Nops take 3 bytes."
 	forEntry ifTrue: [ 
-		cogit Nop.
-		cogit Nop.
-		cogit Nop.
+		cogit backend genNopsForEntries
 	].
 
 	jumpImm jmpTarget: cogit Label.

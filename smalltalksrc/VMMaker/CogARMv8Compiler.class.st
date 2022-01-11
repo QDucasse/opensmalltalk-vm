@@ -3847,6 +3847,17 @@ CogARMv8Compiler >> genMulR: regSource R: regDest [
 	^ first
 ]
 
+{ #category : #alignment }
+CogARMv8Compiler >> genNopsForEntries [
+
+	"Generate the correct amount of nops to disalign the cog entry and no check entry
+	 (see genGetInlineCacheClassTagFromgenGetInlineCacheClassTagFrom:  into:  forEntry:)"
+	self flag: #DONE.
+	cogit Nop.
+	cogit Nop.
+	cogit Nop.
+]
+
 { #category : #'smalltalk calling convention' }
 CogARMv8Compiler >> genPushRegisterArgsForAbortMissNumArgs: numArgs [
 	"Ensure that the register args are pushed before the outer and
