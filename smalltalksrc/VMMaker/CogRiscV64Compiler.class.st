@@ -2856,7 +2856,7 @@ CogRiscV64Compiler >> concretizeMoveAwR [
 		"Move the result to SP"
 		destReg = SP ifTrue: [ 
 			self machineCodeAt: 4 put: (self moveRegister: actualDestination toRegister: SP).
-			machineCodeSize := 8.
+			^ machineCodeSize := 8.
 		].
 
 		^ machineCodeSize := 4 ].
