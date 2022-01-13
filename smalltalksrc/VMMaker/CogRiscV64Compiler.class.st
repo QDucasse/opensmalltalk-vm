@@ -1067,8 +1067,8 @@ CogRiscV64Compiler >> cStackPointer [
 
 { #category : #accessing }
 CogRiscV64Compiler >> callInstructionByteSize [
-	"ARM calls and jumps span +/- 32 mb, more than enough for intra-zone calls and jumps."
-	^4
+	"ANy call on RISC-V goes through the auipc + jalr sequence"
+	^8
 ]
 
 { #category : #'inline cacheing' }
@@ -1357,7 +1357,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 										ifNil:[ ^ (self bytesToLoadImmediate: (operands at: 0)) ]
 						   				ifNotNil: [^ self literalLoadInstructionBytes ] ]. "DONE"
 		[MoveC32R]			-> [ ^ self shouldBeImplemented ]. "DONE"
-		[MoveCwR]				-> [ ^ self literalLoadInstructionBytes ]. "DONE"
+		[MoveCwR]				-> [ ^ 8 "always a auipc addi/ld sequence" ]. "DONE"
 		[MoveRR]				-> [ ^ 4 ]. "DONE"
 		
 		"Data movement - Absolute addresses"
@@ -2904,11 +2904,29 @@ CogRiscV64Compiler >> concretizeMoveCqR [
 CogRiscV64Compiler >> concretizeMoveCwR [
 
 	<inline: true>
-	| destReg |
+	| operand destReg distance offsetLow offsetHigh|
 	self flag: #TODO.
-	self assert: dependent notNil.
+	operand := operands at: 0.
 	destReg := operands at: 1.
-	^ self machineCodeWriteInstructions: (self loadLiteralInRegister: destReg)
+	self cCode:[] inSmalltalk:[operand := operand bitAnd: 16rFFFFFFFF]. "Need to clamp the value to a word size since one or two usages actually generate double sized values and rely upon the C code to narrow it within the running VM"
+	(self isAnInstruction: (cogit cCoerceSimple: operand to: #'AbstractInstruction *')) ifTrue:
+		[operand := (cogit cCoerceSimple: operand to: #'AbstractInstruction *') address].
+	(cogit addressIsInCurrentCompilation: operand) ifTrue: [
+		distance := operand - address.
+		"Check if the absolute distance fits in 12 bits or produce a way to split the distance between the two instructions
+		 https://forums.sifive.com/t/bit-11-of-jalr-sign-extened-for-call-auipc-jalr/1950"
+		self assertValue: distance isContainedIn: 12
+			ifTrue: [ offsetLow := distance.
+				       offsetHigh := 0 ]
+			ifFalse: [ offsetLow := ((distance << 20) bitAnd: 16rFFFFFFFF) >> 20. 
+				        offsetHigh := (distance - offsetLow signedIntFromChar) >> 12. ].
+		"Generate the auipc addi sequence"
+		self machineCodeAt: 0 put: (self addUpperImmediateToPC: offsetHigh toRegister: destReg).
+		self machineCodeAt: 4 put: (self addImmediate: offsetLow toRegister: destReg inRegister:  destReg).
+		^ machineCodeSize := 8
+		].
+	"Otherwise, load the literal in a register"
+	^ self moveCw: operand intoR: destReg
 ]
 
 { #category : #concretization }
@@ -5866,6 +5884,29 @@ CogRiscV64Compiler >> loadByteFromAddressInRegister: baseRegister withOffset: of
 	
 ]
 
+{ #category : #concretization }
+CogRiscV64Compiler >> loadCwInto: destReg [
+
+	| operand distance |
+	self flag: #TODO.
+	operand := operands at: 0.
+	self cCode:[] inSmalltalk:[operand := operand bitAnd: 16rFFFFFFFF]. "Need to clamp the value to a word size since one or two usages actually generate double sized values and rely upon the C code to narrow it within the running VM"
+	(self isAnInstruction: (cogit cCoerceSimple: operand to: #'AbstractInstruction *')) ifTrue:
+		[operand := (cogit cCoerceSimple: operand to: #'AbstractInstruction *') address].
+	(cogit addressIsInCurrentCompilation: operand) ifTrue: [
+		distance := operand - address.
+		"Check if the absolute distance fits in 20 bits.
+		We need to encode the offset in 21 bits signed, so 1 bit is for the sign."
+		(distance abs bitAnd: 16rfffff) = distance abs
+			ifTrue: [ 
+				self machineCodeAt: 0 put: (self adrSignedImmediate21BitsValue: distance destinationRegister: destReg).
+				^ machineCodeSize := 4 ]
+			ifFalse: [ self notYetImplemented. ]].
+	"Otherwise, load the literal in a register"
+	self assert: dependent notNil.
+	^ self machineCodeWriteInstructions: (self loadLiteralInRegister: destReg)
+]
+
 { #category : #'machine code instruction' }
 CogRiscV64Compiler >> loadDoubleWordFromAddressInRegister: baseRegister withOffset: offset toRegister: destinationRegister [ 
 
@@ -5940,6 +5981,11 @@ CogRiscV64Compiler >> loadLiteralInRegister: destReg [
 	self flag: #DONE.
 	literalAddress := (cogit cCoerceSimple: dependent to: #'AbstractInstruction *') address.
 	distance := literalAddress - address.
+	"Several guard are checked"
+	self assert: dependent isNotNil.
+	self assert: dependent opcode = Literal.
+	self assert: (cogit addressIsInCurrentCompilation: dependent address).
+	self assert: distance abs < (1 << 12).
 	^ {  
 		self addUpperImmediateToPC: 0 toRegister: destReg.
    		self loadDoubleWordFromAddressInRegister: destReg withOffset: distance toRegister: destReg
@@ -6132,6 +6178,16 @@ CogRiscV64Compiler >> machineCodeWriteInstructions: anInstructionCollection star
 	anInstructionCollection doWithIndex: [ :each :i | self machineCodeAt: (i-1) * 4 + index put: each ].
 	^ anInstructionCollection size * 4
 
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> moveCw: constant intoR: destReg [
+
+	"Emit a load of a word into the destination register. 
+	 Answers the number of bytes of machine code generated"
+	<var: 'constant' type: #usqInt>
+	<inline: true>
+	^ self subclassResponsibility 
 ]
 
 { #category : #'machine code instruction' }
