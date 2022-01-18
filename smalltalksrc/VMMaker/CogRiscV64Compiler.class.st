@@ -4697,61 +4697,24 @@ CogRiscV64Compiler >> enableFloatingPoint [
 	^ instructions
 ]
 
-{ #category : #patching }
-CogRiscV64Compiler >> extractConditionFromB: instruction [ 
-	
-	"Extract the offset inside a branch instruction of the formformat: 
-	
-	C6.2.25 B.cond
-	
-	Branch conditionally to a label at a PC-relative offset, with a hint that this is not a subroutine call or return.
-	
-	B.<cond> <label>
-	
-	The condition is encoded as the last 4 bits"
-	self seeAlso: #branchCondition:offset:.
-	
-	^ instruction bitAnd: 16rf.
+{ #category : #'inline cacheing' }
+CogRiscV64Compiler >> extractOffsetFromAUIPC: instruction [ 
+
+	self flag: #TODO.
+	^ ((instruction >> 20) bitAnd: 16rFFFFF) << 12
 ]
 
-{ #category : #patching }
-CogRiscV64Compiler >> extractOffsetFromBL: instr [
-	"we are told this is a BL <offset> instruction, so work out the offset it encodes.
-	
-	Its offset from the address of this instruction, in the range +/-128MB, is encoded as imm26 times 4.
-	So extract the immediate, and multiply it by 4.
-	If negative, sign extend it."
-	<inline: true>
-	| relativeJump |
-	relativeJump := instr bitAnd: 16r03FFFFFF.
-	relativeJump := (relativeJump allMask: 1<<25)
-						ifTrue: [(relativeJump bitOr: 16rFC000000) signedIntFromLong * 4]
-						ifFalse: [relativeJump << 2].
-	^relativeJump
-]
+{ #category : #'inline cacheing' }
+CogRiscV64Compiler >> extractOffsetFromJAL: instruction [ 
 
-{ #category : #patching }
-CogRiscV64Compiler >> extractOffsetFromConditionalBranch: instruction [ 
-	
-	"Extract the offset inside a branch instruction of the formformat: 
-	
-	C6.2.25 B.cond
-	
-	Branch conditionally to a label at a PC-relative offset, with a hint that this is not a subroutine call or return.
-	
-	B.<cond> <label>
-	
-	The offset is encoded as an immediate of 19 bits that should be multiplied by 4 => so we do it by shifting it by 2
-	"
-	| twoComplement |
-	self seeAlso: #branchCondition:offset:.
-	
-	twoComplement := instruction >> 5 bitAnd: 16r7FFFF.
-	
-	"Check if negative, if the highest bit is on"
-	^ (twoComplement allMask: 1 << 18)
-		ifTrue: [ self notYetImplemented  ]
-		ifFalse: [ twoComplement << 2 ]
+	| offset |
+	self flag: #TODO.
+	"JAL encodes the offset from bits 31 to 12 as: offset[20|10:1|11|19:12]"
+	offset := instruction >> 12.
+	^ (((((offset >> 19 bitAnd: 16r1) << 20) "20"
+	  bitOr: ((offset >> 9 bitAnd: 16r3FF) << 1)) "10:1"
+	  bitOr: ((offset >> 8 bitAnd: 16r1) << 11)) "11"
+	  bitOr: ((offset bitAnd: 16rFF) << 12)) "19:12"
 ]
 
 { #category : #'inline cacheing' }
@@ -5511,6 +5474,14 @@ CogRiscV64Compiler >> instructionBeforeAddress: followingAddress [
 	^objectMemory long32At: (self instructionAddressBefore: followingAddress)
 ]
 
+{ #category : #'instruction detection' }
+CogRiscV64Compiler >> instructionIsAUIPC: instruction [
+
+	self flag: #DONE.
+	^ (instruction bitAnd: 16r7F) = 2r0010111.
+
+]
+
 { #category : #testing }
 CogRiscV64Compiler >> instructionIsB: instr [
 	"is this a B <label> instruction?"
@@ -5545,19 +5516,27 @@ CogRiscV64Compiler >> instructionIsConditionalBranch: instruction [
 ]
 
 { #category : #'instruction detection' }
-CogRiscV64Compiler >> instructionIsJALR: instruction [
+CogRiscV64Compiler >> instructionIsJAL: instruction [
 
-	| check1 check2 |
-	"Check bits 12 to 14 null"
-	check1 := ((instruction >> 12) bitAnd: 16r7) = 0.
-	check2 := (instruction bitAnd: 16r7F) = 2r1100111.
-	^ check1 and: check2
+	self flag: #DONE.
+	^ (instruction bitAnd: 16r7F) = 2r1101111.
+
 ]
 
-{ #category : #testing }
-CogRiscV64Compiler >> instructionIsLDR: instr [
+{ #category : #'instruction detection' }
+CogRiscV64Compiler >> instructionIsJALR: instruction [
 
-	^ instr allMask: 2r01011000 << 24
+	self flag: #DONE.
+	"Check bits 12 to 14 null"
+	^ ((instruction >> 12 bitAnd: 16r7) = 0) and: ((instruction bitAnd: 16r7F) = 2r1100111).
+
+]
+
+{ #category : #'instruction decoding' }
+CogRiscV64Compiler >> instructionIsLD: instruction [ 
+
+
+	^ ((instruction >> 12 bitAnd: 2r111) = 2r011) and: ((instruction bitAnd: 2r1111111) = 2r0000011)
 ]
 
 { #category : #testing }
