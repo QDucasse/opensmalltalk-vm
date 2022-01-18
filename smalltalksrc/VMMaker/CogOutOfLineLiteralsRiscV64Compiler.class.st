@@ -125,12 +125,22 @@ CogOutOfLineLiteralsRiscV64Compiler >> isSharable [
 ]
 
 { #category : #'inline cacheing' }
+CogOutOfLineLiteralsRiscV64Compiler >> literal32BeforeFollowingAddress: followingAddress [
+	"Return the literal referenced by the instruction immediately preceding followingAddress.
+	 Used for CMP32."
+	self flag: #TODO.
+	1halt.
+	^ self extractLiteralFromCMP32: (self instructionAddressBefore: followingAddress - self cmpC32RTempByteSize + 4)
+]
+
+{ #category : #'inline cacheing' }
 CogOutOfLineLiteralsRiscV64Compiler >> literalBeforeFollowingAddress: followingAddress [
 	"Return the literal referenced by the instruction immediately preceding followingAddress."
-	^objectMemory long64At: (self pcRelativeAddressAt:
-		((self instructionIsLDR: (self instructionBeforeAddress: followingAddress))
-			ifTrue: [self instructionAddressBefore: followingAddress]
-			ifFalse: [ self instructionAddressBefore: followingAddress - 4]))
+	self flag: #TODO.
+	^objectMemory long64At: (self pcRelativeAddressAt: 
+		((self instructionIsLD: (self instructionBeforeAddress: followingAddress))
+			ifTrue: [self instructionAddressBefore: followingAddress - 4] "need to go before auipc + ld"
+			ifFalse: [ 1halt. ])) "need to go before cmp through literal32BeforeFollowingAddress: "
 ]
 
 { #category : #'generate machine code - support' }
@@ -188,19 +198,20 @@ CogOutOfLineLiteralsRiscV64Compiler >> outOfLineLiteralOpcodeLimit [
 
 { #category : #'inline cacheing' }
 CogOutOfLineLiteralsRiscV64Compiler >> pcRelativeAddressAt: instrAddress [
-	"Extract the address of the LDR (literal) instruction at address
+	"Extract the address out of a pc-relative load (auipc + ld)"
 	
-	c.f. C6.2.132
-	"
-	
-	| inst offset |
+	| instAUIPC instLD offsetAUIPC offsetLD |
 	self flag: #TODO.
 	1halt.
-	inst := objectMemory long32At: instrAddress.
-	offset := inst >> 20 bitAnd: 16rfff.
-	^instrAddress + ((offset allMask: (1 << 12))
+	instAUIPC := objectMemory long32At: instrAddress.
+	instLD := objectMemory long32At: instrAddress + 4.
+	"Each offset is sign-extended then added"
+	offsetAUIPC := self computeSignedValueOf: (instAUIPC >> 12 bitAnd: 16rfffff) << 12 ofSize: 32. "20 upper bits"
+	offsetLD := self computeSignedValueOf: (instLD >> 20 bitAnd: 16rfff) ofSize: 32. "12 lower bits"
+	"((offset allMask: (1 << 12))
 						   ifTrue: [offset negated]
-							ifFalse: [offset])
+							ifFalse: [offset])"
+	^instrAddress + offsetAUIPC + offsetLD
 ]
 
 { #category : #'inline cacheing' }
