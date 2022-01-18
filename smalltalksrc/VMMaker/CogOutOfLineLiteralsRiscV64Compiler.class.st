@@ -11,7 +11,10 @@ CogOutOfLineLiteralsRiscV64Compiler class >> literalsManagerClass [
 
 { #category : #accessing }
 CogOutOfLineLiteralsRiscV64Compiler >> cmpC32RTempByteSize [
-	^8
+	
+	self flag: #TODO.
+	1halt.
+	^ 48
 ]
 
 { #category : #'generate machine code - concretize' }
@@ -65,6 +68,29 @@ CogOutOfLineLiteralsRiscV64Compiler >> configureStackAlignment [
 	<doNotGenerate>
 	"Acording to RISC-V ISA description, stack should always be kept 16-byte aligned"
 	cogit setStackAlignment: 16 expectedSPOffset: 0 expectedFPOffset: 0.
+]
+
+{ #category : #'inline cacheing' }
+CogOutOfLineLiteralsRiscV64Compiler >> extractLiteralFromCMP32: instrAddress [
+	"Return the literal referenced by the instruction immediately preceding followingAddress.
+	 Used for CMP32."
+	| instLUI instADDIW instSLLI instADDI offsetLUI offsetADDIW shiftAmount offsetADDI |
+	self flag: #TODO.
+	"Extract LUI"
+	instLUI := objectMemory long32At: instrAddress.
+	offsetLUI := self signExtendValue: (instLUI >> 12 bitAnd: 16rfffff) << 12 forSize: 20. "20 upper bits"
+	"Extract ADDIW"
+	instADDIW := objectMemory long32At: instrAddress + 4.
+	offsetADDIW := self signExtendValue: (instADDIW >> 20 bitAnd: 16rfff) forSize: 12. "12 lower bits"
+	"Extract SLLI"
+	instSLLI := objectMemory long32At: instrAddress + 8.
+	shiftAmount := instSLLI >> 20 bitAnd: 16r3F. "shift by shift amount (13)"
+	"Extract ADDI"
+	1halt.
+	instADDI := objectMemory long32At: instrAddress + 12.
+	offsetADDI := self signExtendValue: (instADDI >> 20 bitAnd: 16rfff) forSize: 12. "12 lower bits"
+	"Each offset is sign-extended then added"
+	^ (offsetLUI + offsetADDIW) << shiftAmount + offsetADDI
 ]
 
 { #category : #accessing }
