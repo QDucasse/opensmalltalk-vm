@@ -140,7 +140,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> mapEntryAddress [
 { #category : #'generate machine code - support' }
 CogOutOfLineLiteralsRiscV64Compiler >> moveCw: constant intoR: destReg [
 
-	"Emit a load of aWord into destReg.  Answer the number of bytes of machine code generated.
+	"Emit a load of aWord into destReg. Expands to auipc + ld. Answer the number of bytes of machine code generated.
 	 Literals are stored out-of-line"
 	 <var: 'constant' type: #usqInt>
 	<inline: true>
