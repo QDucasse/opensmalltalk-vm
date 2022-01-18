@@ -6446,8 +6446,8 @@ CogRiscV64Compiler >> recursiveLoadImmediate: anImmediate inRegister: aRegister 
 			   imm[0,12) == 0 && imm[12,32) != 0 : LUI 
 				imm[0,32) != 0                    : LUI+ADDIW 
 			"
-			hi20 := (((self signExtendValue64Bits: signedImmediate) + 16r800) >> 12) bitAnd: 16rFFFFF.
-			lo12 := self signExtendValue64Bits: (signedImmediate bitAnd: 16rFFF).
+			hi20 := (((self computeSignedValue64Bits: signedImmediate) + 16r800) >> 12) bitAnd: 16rFFFFF.
+			lo12 := self computeSignedValue64Bits: (signedImmediate bitAnd: 16rFFF).
 			
 			"lui instruction"
 			hi20 ~= 0
@@ -6462,8 +6462,8 @@ CogRiscV64Compiler >> recursiveLoadImmediate: anImmediate inRegister: aRegister 
 			^ 0
 		]. 
 		"In the case the value does not fit in 32 bits"
-		lo12 := self signExtendValue64Bits: (signedImmediate bitAnd: 16rFFF).
-		hi52 := (((self signExtendValue64Bits: signedImmediate) + 16r800) bitAnd: 16rFFFFFFFFFFFFFFFF) >> 12.
+		lo12 := self computeSignedValue64Bits: (signedImmediate bitAnd: 16rFFF).
+		hi52 := (((self computeSignedValue64Bits: signedImmediate) + 16r800) bitAnd: 16rFFFFFFFFFFFFFFFF) >> 12.
 		"Process the optimal shift amount"
 		shiftAmount := 12 + (self trailingZerosOf: hi52).
 		hi52 := self computeSignedValueOf: hi52 >> (shiftAmount - 12) ofSize: (64 - shiftAmount).
