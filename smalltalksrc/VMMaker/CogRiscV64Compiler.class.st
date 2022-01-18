@@ -1067,24 +1067,28 @@ CogRiscV64Compiler >> cStackPointer [
 
 { #category : #accessing }
 CogRiscV64Compiler >> callInstructionByteSize [
-	"ANy call on RISC-V goes through the auipc + jalr sequence"
-	^8
+
+	^ 8
 ]
 
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> callTargetFromReturnAddress: callSiteReturnAddress [
 	"Answer the address that the call immediately preceding callSiteReturnAddress will jump to."
 	"this is also used by #jumpLongTargetBeforeFollowingAddress:."
-	| callDistance callInstruction callAddress |
+	| callAddress callInstruction callDistance |
 	self flag: #TODO.
+	1halt.
 	callAddress := self instructionAddressBefore: callSiteReturnAddress.
 	callInstruction := objectMemory long32At: callAddress.
-	"A call instruction expands to auipc jalr"
-	self assert: (self instructionIsJALR: callInstruction).
-	callDistance := self extractOffsetFromJALR: callInstruction.
-
-	"this is the pc's offset at the branch"
-	^callAddress + callDistance signedIntFromChar
+	"Note that j is a pseudo-instruction that expands to jal x0, offset"
+	self assert: (self instructionIsJAL: callInstruction).
+	callDistance := self extractOffsetFromJAL: callInstruction.
+		
+	^ callAddress + callDistance signedIntFromLong
+	
+	
+	
+	
 ]
 
 { #category : #testing }
@@ -6382,7 +6386,9 @@ CogRiscV64Compiler >> pushFromRegister: destReg [
 
 { #category : #accessing }
 CogRiscV64Compiler >> pushLinkRegisterByteSize [
-	^4
+	
+	self flag: #TODO.
+	^8
 ]
 
 { #category : #'machine code instruction' }
