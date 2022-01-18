@@ -1445,6 +1445,12 @@ CogRiscV64Compiler >> computeMaximumSize [
 	^0 "to keep C compiler qui Unmatched " 
 ]
 
+{ #category : #'machine code instruction' }
+CogRiscV64Compiler >> computeSignedValue64Bits: aValue [ 
+
+	^ self computeSignedValueOf: aValue ofSize: 64
+]
+
 { #category : #'helpers - size sign' }
 CogRiscV64Compiler >> computeSignedValueOf: aValue ofSize: aSize [
 
@@ -7061,9 +7067,15 @@ CogRiscV64Compiler >> shiftSetsConditionCodesFor: aConditionalJumpOpcode [
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> signExtendValue64Bits: aValue [ 
-
-	^ self computeSignedValueOf: aValue ofSize: 64
+CogRiscV64Compiler >> signExtendValue: value forSize: size [
+	
+	| mask |
+	self flag: #TODO.
+	"Reverse two's complement"
+	mask := (1 << size) - 1. "check sign bit"
+	^ (value allMask: (1 << (size - 1)))
+		ifTrue: [ (mask - value + 1) negated ] "invert add 1 and return negated value"
+		ifFalse: [ value ]
 ]
 
 { #category : #accessing }
