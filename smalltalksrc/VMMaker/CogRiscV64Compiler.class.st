@@ -881,10 +881,7 @@ CogRiscV64Compiler >> bytesForCMPCq [
 	"Used for SUB as there is no SUBI"
 	| loadOffset | 
 	self flag: #TODO.
-	dependent
-		ifNil: [ loadOffset := self bytesToLoadImmediate: (operands at: 0) ] "Immediate loaded in a register" 
-		ifNotNil: [ loadOffset := self literalLoadInstructionBytes ].
-	^ loadOffset + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdate + 4
+	^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdate + 4
 	
 ]
 
@@ -1927,71 +1924,37 @@ CogRiscV64Compiler >> concretizeCmpC32R [
 
 	<inline: true>
 	self flag: #TODO.
-	^ self concretizeCmpCqR 
+	^ self concretizeCmpCwR.
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeCmpCqR [
 	
 	<inline: true>
-	"Perform a cmp operation (sub discarding the result) and between the value of register and the value of the operand.
-	 The result is discarded.
-	
-	For example if the instruction is used as: TstCqR JumpEquals(label) 
-	No immediate possibility because no subi instruction exists.
-	
-	 If the operand is not a literal load the value in a register:
-		li ConcreteIPReg, cq 
-		sub ConcreteFlagReg, ConcreteIPReg, reg
-	
-	 If it is a literal:
-	   auipc ConcreteIPReg, 0
-	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		sub  ConcreteFlagReg, ConcreteIPReg, reg 
-		
-		(beq ConcreteFlagReg, ConcreteIPReg, label)
-		"
-
-	<inline: true>
-	| srcReg cq loadOffset flagOffset overflowOffset |
 	self flag: #TODO.
-	cq := operands at: 0.
-	srcReg := operands at: 1.
-	"Note: There is no sub immediate"
-	dependent
-		ifNil: [ "Move to a register before performing the AND on the two registers"
-					loadOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg). ]
-		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
-			loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg). ].
-	"Perform the subtraction"
-	self machineCodeAt: loadOffset put: (self
-			 subtractRegister: ConcreteIPReg 
-		    fromRegister: srcReg 
-			 intoRegister: ConcreteZeroReg). 	
-
-	"Check for overflow"
-	overflowOffset := self machineCodeWriteInstructions: (self
-		checkSUBOverflowWithSourceReg1: srcReg
-		sourceReg2: ConcreteIPReg 
-		andResultReg: ConcreteZeroReg
-	) startingAtIndex: loadOffset + 4.
-
-	"Update flag registers"
-	flagOffset := self machineCodeWriteInstructions: (self 
-			updateFlagsCMPForSourceReg: srcReg
-			resultReg: ConcreteZeroReg
-	) startingAtIndex: loadOffset + overflowOffset + 4.
-
-	^ machineCodeSize := loadOffset + overflowOffset + flagOffset + 4
+	^ self concretizeCmpCwR
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeCmpCwR [
+
+	"Perform a cmp operation (sub discarding the result) and between the value of register and the value of the operand.
+	 The result is discarded. The instruction is used with a Jump next to it, for example: CmpCqR JumpEquals(label) .
+	 No immediate possibility because no subi instruction exists.
+	
+	 As no immediate can be provided (no subi), all cmp use the instruction sequence:
+	   auipc ConcreteIPReg, 0
+	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
+		sub  ConcreteFlagReg, ConcreteIPReg, reg 
+		
+		(beq ConcreteFlagReg, ConcreteIPReg, label)"
+	
 	
 	| loadOffset srcReg flagOffset overflowOffset |
    self flag: #TODO.
+	self assert: dependent notNil.
 	srcReg := operands at: 1. "operands at 0 is the Cw"
-	loadOffset := self loadCwInto: ConcreteIPReg.
+	loadOffset := self moveCw: (operands at: 0) intoR: ConcreteIPReg.
 	"Perform the subtraction"
 	self machineCodeAt: loadOffset put: (self
 			subtractRegister: ConcreteIPReg 
