@@ -826,15 +826,11 @@ CogRiscV64Compiler >> bytesForADDCq [
 	
 	self flag: #TODO.
 	dependent
-		ifNil: [ 
-			| cq |
+		ifNil: [ | cq |
 			cq := operands at: 0.
-			self assertValue: cq isContainedIn: 12
-				ifTrue: [ "Immediate that can be encoded in andi" 
-					^ self bytesForArithmeticFlagUpdateWithImmediate + self bytesForADDOverflowCheck + 4 ]
-				ifFalse: [ 
-					^ (self bytesToLoadImmediate: (operands at: 0))
-					  + self bytesForArithmeticFlagUpdateWithMov + self bytesForADDOverflowCheck + 4 ] "Immediate loaded in a register" ]
+			self assertValue: cq isContainedIn: 12.
+			"Immediate that can be encoded in andi" 
+			^ self bytesForArithmeticFlagUpdateWithImmediate + self bytesForADDOverflowCheck + 4 ]
 		ifNotNil: [ "Literal load" 
 			^ self literalLoadInstructionBytes + self bytesForArithmeticFlagUpdateWithMov + self bytesForADDOverflowCheck + 4 ]	
 ]
@@ -1077,7 +1073,7 @@ CogRiscV64Compiler >> callTargetFromReturnAddress: callSiteReturnAddress [
 	"this is also used by #jumpLongTargetBeforeFollowingAddress:."
 	| callAddress callInstruction callDistance |
 	self flag: #TODO.
-	1halt.
+	"1halt."
 	callAddress := self instructionAddressBefore: callSiteReturnAddress.
 	callInstruction := objectMemory long32At: callAddress.
 	"Note that j is a pseudo-instruction that expands to jal x0, offset"
@@ -1488,6 +1484,7 @@ CogRiscV64Compiler >> concretizeAddCqR [
 	| cq destReg sourceReg loadOffset flagOffset overflowOffset |
 	self flag: #DONE.
 	cq := operands at: 0.
+	"1halt."
 	sourceReg := destReg := operands at: 1.
 	"Load cq if needed in a register (whether big immediate or literal) 
 	 or use the immediate instruction if it is a small immediate"

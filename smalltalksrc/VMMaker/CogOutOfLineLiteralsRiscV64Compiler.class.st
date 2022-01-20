@@ -348,7 +348,9 @@ CogOutOfLineLiteralsRiscV64Compiler >> updateLabel: labelInstruction [
 { #category : #testing }
 CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 	"Answer if the receiver uses an out-of-line literal.  Needs only
-	 to work for the opcodes created with gen:literal:operand: et al."
+	 to work for the opcodes created with gen:literal:operand: et al.
+	
+	 Note that it will provide the 'dependent' in concretization"
 
 	| offset |
 	
@@ -358,16 +360,17 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		caseOf: {
 		[CallFull]		-> [^true].
 		[JumpFull]		-> [^true].
-		"Arithmetic"
-		[AddCqR]	   -> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		"CqR operations try to constant in an immediate, otherwise fallback in load literal (like Cw)"
+		[AddCqR]	   -> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 
 		[AndCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 		[AndCqRR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 		[CmpCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
-		[CmpC32R]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		[CmpC32R]		-> [ ^ true ]. "TODO"
 		[OrCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 		[SubCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 		[TstCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 		[XorCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		"CwR operations use a word size value and need a full literal load"
 		[AddCwR]		-> [^true].
 		[AndCwR]		-> [^true].
 		[CmpCwR]		-> [^true].
