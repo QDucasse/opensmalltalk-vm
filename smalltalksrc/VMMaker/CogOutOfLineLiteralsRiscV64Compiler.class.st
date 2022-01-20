@@ -367,7 +367,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[CmpCqR]		-> [^ true]. "no subi"
 		[CmpC32R]		-> [^ true]. "no subi"
 		[OrCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
-		[SubCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		[SubCqR]		-> [^ true]. "no subi"
 		[TstCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 		[XorCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 		"CwR operations use a word size value and need a full literal load"
