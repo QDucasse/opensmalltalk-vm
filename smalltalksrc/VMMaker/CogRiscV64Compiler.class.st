@@ -3717,17 +3717,13 @@ CogRiscV64Compiler >> concretizeNop [
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeOrCqR [
-	
+
 	"Perform a bitwise or between the value of register and the value of the operand.
 	
-	 If the operand is not a literal and fits in under 12 bits:
+	 If the operand fits in under 12 bits:
 		ori reg, reg, cq
-
-	 Otherwise load the value in a register:
-		li ConcreteIPReg, cq 
-		or reg, reg, ConcreteIPReg 
 		
-	 If it is a literal:
+	 Else load the provided literal:
 	   auipc ConcreteIPReg, 0
 	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
 		or reg, reg, ConcreteIPReg 
@@ -3738,34 +3734,33 @@ CogRiscV64Compiler >> concretizeOrCqR [
 	self flag: #TODO.
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
-	dependent
-		ifNil: [ 
-			self assertValue: cq isContainedIn: 12
-				ifTrue: [ "Direct encoding as an immediate"
-					self machineCodeAt: 0 put: (self
-							 bitwiseOrBetweenRegister: sourceReg
-							 andImmediate: cq
-							 toRegister: destReg).
-					"Update flags"
-					flagOffset := self machineCodeWriteInstructions: (self 
-								updateFlagsLogicForResultReg: destReg
-						) startingAtIndex: 4.
-					^ machineCodeSize := flagOffset + 4 ]
-				ifFalse: [ "Move to a register before performing AND on the registers"	
-					"Load the immediate to a register"
-					loadOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ] 
-				]
-		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
-			loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
+	dependent ifNil: [ 
+		self assertValue: cq isContainedIn: 12.
+		"Direct encoding as an immediate"
+		self machineCodeAt: 0 put: (self
+				 bitwiseOrBetweenRegister: sourceReg
+				 andImmediate: cq
+				 toRegister: destReg).
+		"Update flags"
+		flagOffset := self
+			              machineCodeWriteInstructions:
+			              (self updateFlagsLogicForResultReg: destReg)
+			              startingAtIndex: 4.
+		^ machineCodeSize := flagOffset + 4 ].
+
+
+	"Literal -> compute the distance, load the actual value then and between the 2 registers"
+	loadOffset := self moveCw: cq intoR: ConcreteIPReg.
 	"Perform the OR operation"
 	self machineCodeAt: loadOffset put: (self
-			bitwiseOrBetweenRegister: sourceReg
-			andRegister: ConcreteIPReg
-			toRegister: destReg).	
+			 bitwiseOrBetweenRegister: sourceReg
+			 andRegister: ConcreteIPReg
+			 toRegister: destReg).
 	"Update the flags according to a logic operation"
-	flagOffset := self machineCodeWriteInstructions: (self 
-			updateFlagsLogicForResultReg: destReg
-		) startingAtIndex: loadOffset + 4.
+	flagOffset := self
+		              machineCodeWriteInstructions:
+		              (self updateFlagsLogicForResultReg: destReg)
+		              startingAtIndex: loadOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + 4
 ]
 

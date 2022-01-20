@@ -366,7 +366,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[AndCqRR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[CmpCqR]		-> [^ true]. "no subi"
 		[CmpC32R]		-> [^ true]. "no subi"
-		[OrCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		[OrCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[SubCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 		[TstCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 		[XorCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
