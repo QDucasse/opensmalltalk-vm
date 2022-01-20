@@ -362,8 +362,8 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[JumpFull]		-> [^true].
 		"CqR operations try to constant in an immediate, otherwise fallback in load literal (like Cw)"
 		[AddCqR]	   -> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 
-		[AndCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
-		[AndCqRR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		[AndCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. "TODO"
+		[AndCqRR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. "TODO"
 		[CmpCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 		[CmpC32R]		-> [ ^ true ]. "TODO"
 		[OrCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"

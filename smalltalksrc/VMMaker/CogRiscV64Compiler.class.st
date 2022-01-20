@@ -993,17 +993,12 @@ CogRiscV64Compiler >> bytesForLogicCqOperationOfSize: operationSize andImmediate
 	 example: ROT"
 	self flag: #TODO.
 	dependent
-		ifNil: [ 
-			| cq |
+		ifNil: [ | cq |
 			cq := operands at: 0.
-			self assertValue: cq isContainedIn: 12
-				ifTrue: [ "Immediate that can be encoded in andi" 
-					^ self bytesForLogicFlagUpdate + immOperationSize ]
-				ifFalse: [ 
-					^ (self bytesToLoadImmediate: cq)
-					  + self bytesForLogicFlagUpdate + operationSize ] "Immediate loaded in a register" ]
-		ifNotNil: [ "Literal load" 
-			^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate + operationSize ]
+			self assertValue: cq isContainedIn: 12.
+			"Immediate that can be encoded in andi" 
+			^ self bytesForLogicFlagUpdate + immOperationSize ].
+	^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate + operationSize 
 ]
 
 { #category : #'concretization helpers - mc size' }
@@ -1467,19 +1462,15 @@ CogRiscV64Compiler >> concretizeAddCqR [
 
 	"Perform an add operation between the value of register and the value of the operand.
 	
-	 If the operand is not a literal:
+	 If the operand is smaller than 12 bits:
 		addi reg, reg, cq
 
-	 Otherwise load the value in a register:
-		li ConcreteIPReg, cq 
-		add reg, reg, ConcreteIPReg 	
-			
-	 If it is a literal:
+	 Else, use the provided literal:
 	   auipc ConcreteIPReg, 0
 	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
 		add reg, reg, ConcreteIPReg 
 		"
-		
+
 	<inline: true>
 	<var: #cq type: #uint_64>
 	| cq destReg sourceReg loadOffset flagOffset overflowOffset |
@@ -1489,49 +1480,54 @@ CogRiscV64Compiler >> concretizeAddCqR [
 	sourceReg := destReg := operands at: 1.
 	"Load cq if needed in a register (whether big immediate or literal) 
 	 or use the immediate instruction if it is a small immediate"
-	 dependent
-	   "If the value is not a literal"
-		ifNil: [ self assertValue: cq isContainedIn: 12.
-				"Use the provided immediate instruction"
-				self machineCodeAt: 0 put: (self addImmediate: cq toRegister: sourceReg inRegister: ConcreteZeroReg).
-				"Check for overflow"
-				overflowOffset := self machineCodeWriteInstructions: (self
-					checkADDOverflowWithSourceReg: sourceReg 
-					immediate: cq 
-					andResultReg: ConcreteZeroReg
-				) startingAtIndex: 4.
-							
-				"Update flag registers"
-				flagOffset := self machineCodeWriteInstructions: (self 
-					updateFlagsADDForSourceReg: sourceReg
-					resultReg: ConcreteZeroReg
-					andMoveResultTo: destReg
-				) startingAtIndex: overflowOffset + 4.
-				^ machineCodeSize := flagOffset + overflowOffset + 4].
+	dependent ifNil: [ 
+		self assertValue: cq isContainedIn: 12.
+		"Use the provided immediate instruction"
+		self machineCodeAt: 0 put: (self
+				 addImmediate: cq
+				 toRegister: sourceReg
+				 inRegister: ConcreteZeroReg).
+		"Check for overflow"
+		overflowOffset := self
+			                  machineCodeWriteInstructions: (self
+					                   checkADDOverflowWithSourceReg: sourceReg
+					                   immediate: cq
+					                   andResultReg: ConcreteZeroReg)
+			                  startingAtIndex: 4.
 
-	"Otherwise, use the literal"
-	loadOffset := self moveCw: cq intoR: ConcreteIPReg.			
+		"Update flag registers"
+		flagOffset := self
+			              machineCodeWriteInstructions: (self
+					               updateFlagsADDForSourceReg: sourceReg
+					               resultReg: ConcreteZeroReg
+					               andMoveResultTo: destReg)
+			              startingAtIndex: overflowOffset + 4.
+		^ machineCodeSize := flagOffset + overflowOffset + 4 ].
+
+	"Otherwise, use the provided literal"
+	loadOffset := self moveCw: cq intoR: ConcreteIPReg.
 	"Perform the actual ADD operation"
 	self machineCodeAt: loadOffset put: (self
-			addRegister: sourceReg
-			toRegister: ConcreteIPReg
-			inRegister: ConcreteZeroReg).
-			
+			 addRegister: sourceReg
+			 toRegister: ConcreteIPReg
+			 inRegister: ConcreteZeroReg).
+
 	"Check for overflow"
-	overflowOffset := self machineCodeWriteInstructions: (self
-		checkADDOverflowWithSourceReg1: sourceReg 
-		sourceReg2: ConcreteIPReg 
-		andResultReg: ConcreteZeroReg
-	) startingAtIndex: loadOffset + 4.
+	overflowOffset := self
+		                  machineCodeWriteInstructions: (self
+				                   checkADDOverflowWithSourceReg1: sourceReg
+				                   sourceReg2: ConcreteIPReg
+				                   andResultReg: ConcreteZeroReg)
+		                  startingAtIndex: loadOffset + 4.
 
 	"Update flag registers"
-	flagOffset := self machineCodeWriteInstructions: (self 
-			updateFlagsADDForSourceReg: sourceReg 
-			resultReg: ConcreteZeroReg
-			andMoveResultTo: destReg
-	) startingAtIndex: loadOffset + overflowOffset + 4.
+	flagOffset := self
+		              machineCodeWriteInstructions: (self
+				               updateFlagsADDForSourceReg: sourceReg
+				               resultReg: ConcreteZeroReg
+				               andMoveResultTo: destReg)
+		              startingAtIndex: loadOffset + overflowOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + overflowOffset + 4
-
 ]
 
 { #category : #concretization }
@@ -1653,47 +1649,47 @@ CogRiscV64Compiler >> concretizeAndCqR [
 
 	"Perform a bitwise and between the value of register and the value of the operand.
 	
-	 If the operand is not a literal:
+	 If the operand is smaller than 12 bits:
 		andi reg, reg, cq
 
-	 Otherwise load the value in a register:
-		li ConcreteIPReg, cq 
-		and reg, reg, ConcreteIPReg 
-
-	 If it is a literal:
+	 Else, use the provided literal:
 	   auipc ConcreteIPReg, 0
 	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
 		and reg, reg, ConcreteIPReg 
 		"
 
 	<inline: true>
-	| cq sourceReg destReg loadOffset flagOffset |
-	self flag: #DONE.
+	| cq destReg sourceReg loadOffset flagOffset |
+	self flag: #TODO.
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
-	"Load cq if needed in a register (whether big immediate or literal) 
-	 or use the immediate instruction if it is a small immediate"
-	 dependent
-	   "If the value is not a literal"
-		ifNil: [ self assertValue: cq isContainedIn: 12
-				"Use the provided immediate instruction"
-				ifTrue: [ self machineCodeAt: 0 put: (self bitwiseAndBetweenRegister: sourceReg andImmediate: cq toRegister: destReg).
-					       flagOffset := self machineCodeWriteInstructions: (self 
-									updateFlagsLogicForResultReg: destReg) startingAtIndex: 4.
-					       ^ machineCodeSize := flagOffset + 4 ]
-				"Otherwise, load the value in the given register"
-				ifFalse: [ loadOffset  := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ] ]
-		"If the value is a literal, load it in a given register"
-		ifNotNil: [ loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].		
+	"Use immediate with quick or literal load"
+	dependent ifNil: [ 
+		self assertValue: cq isContainedIn: 12.
+		"Use the provided immediate instruction"
+		self machineCodeAt: 0 put: (self
+				 bitwiseAndBetweenRegister: sourceReg
+				 andImmediate: cq
+				 toRegister: destReg).
+		flagOffset := self
+			              machineCodeWriteInstructions:
+			              (self updateFlagsLogicForResultReg: destReg)
+			              startingAtIndex: 4.
+		^ machineCodeSize := flagOffset + 4 ].
+
+	"If the value is a literal, load it in a given register"
+	loadOffset := self machineCodeWriteInstructions:
+		              (self loadLiteralInRegister: ConcreteIPReg).
 	"Perform the AND operation"
 	self machineCodeAt: loadOffset put: (self
-			bitwiseAndBetweenRegister: sourceReg
-			andRegister: ConcreteIPReg
-			toRegister: destReg).
+			 bitwiseAndBetweenRegister: sourceReg
+			 andRegister: ConcreteIPReg
+			 toRegister: destReg).
 	"Update the flag registers"
-	flagOffset := self machineCodeWriteInstructions: (self
-		updateFlagsLogicForResultReg: destReg
-		) startingAtIndex: loadOffset + 4.
+	flagOffset := self
+		              machineCodeWriteInstructions:
+		              (self updateFlagsLogicForResultReg: destReg)
+		              startingAtIndex: loadOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + 4
 ]
 
@@ -1702,14 +1698,10 @@ CogRiscV64Compiler >> concretizeAndCqRR [
 
 	"Perform a bitwise and between the value of register and the value of the operand.
 	
-	 If the operand is not a literal:
+	 If the operand is smaller than 12 bits:
 		andi reg, reg, cq
 
-	 Otherwise load the value in a register:
-		li ConcreteIPReg, cq 
-		and reg, reg, ConcreteIPReg 
-
-	 If it is a literal:
+	 Else, use the provided literal:
 	   auipc ConcreteIPReg, 0
 	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
 		and reg, reg, ConcreteIPReg 
@@ -1721,29 +1713,33 @@ CogRiscV64Compiler >> concretizeAndCqRR [
 	cq := operands at: 0.
 	sourceReg := operands at: 1.
 	destReg := operands at: 2.
-	"Load cq if needed in a register (whether big immediate or literal) 
-	 or use the immediate instruction if it is a small immediate"
-	 dependent
-	   "If the value is not a literal"
-		ifNil: [ self assertValue: cq isContainedIn: 12
-				"Use the provided immediate instruction"
-				ifTrue: [ self machineCodeAt: 0 put: (self bitwiseAndBetweenRegister: sourceReg andImmediate: cq toRegister: destReg).
-					       flagOffset := self machineCodeWriteInstructions: (self 
-									updateFlagsLogicForResultReg: destReg) startingAtIndex: 4.
-					       ^ machineCodeSize := flagOffset + 4 ]
-				"Otherwise, load the value in the given register"
-				ifFalse: [ loadOffset  := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ] ]
-		"If the value is a literal, load it in a given register"
-		ifNotNil: [ loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].		
+	"Use immediate with quick or literal load"
+	dependent ifNil: [ 
+		self assertValue: cq isContainedIn: 12.
+		"Use the provided immediate instruction"
+		self machineCodeAt: 0 put: (self
+				 bitwiseAndBetweenRegister: sourceReg
+				 andImmediate: cq
+				 toRegister: destReg).
+		flagOffset := self
+			              machineCodeWriteInstructions:
+			              (self updateFlagsLogicForResultReg: destReg)
+			              startingAtIndex: 4.
+		^ machineCodeSize := flagOffset + 4 ].
+
+	"If the value is a literal, load it in a given register"
+	loadOffset := self machineCodeWriteInstructions:
+		              (self loadLiteralInRegister: ConcreteIPReg).
 	"Perform the AND operation"
 	self machineCodeAt: loadOffset put: (self
-			bitwiseAndBetweenRegister: sourceReg
-			andRegister: ConcreteIPReg
-			toRegister: destReg).
+			 bitwiseAndBetweenRegister: sourceReg
+			 andRegister: ConcreteIPReg
+			 toRegister: destReg).
 	"Update the flag registers"
-	flagOffset := self machineCodeWriteInstructions: (self
-		updateFlagsLogicForResultReg: destReg
-		) startingAtIndex: loadOffset + 4.
+	flagOffset := self
+		              machineCodeWriteInstructions:
+		              (self updateFlagsLogicForResultReg: destReg)
+		              startingAtIndex: loadOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + 4
 ]
 
