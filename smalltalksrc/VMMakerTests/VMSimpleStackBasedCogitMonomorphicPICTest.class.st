@@ -10,7 +10,7 @@ VMSimpleStackBasedCogitMonomorphicPICTest >> testCalculateClosePICSize [
 	"Calculate the size of the Closed Pic"
 	self setUpCogMethodEntry.
 	cogit generateClosedPICPrototype.
-	
+
 	self assert: cogit closedPICSize isNotNil
 ]
 
@@ -37,7 +37,7 @@ VMSimpleStackBasedCogitMonomorphicPICTest >> testLinkCallDuringSendInTrampolineR
 	"Push receiver then send"
 	self pushAddress: memory falseObject.
 	self runFrom: sendAddress until: sendTrampolineAddress.
-	
+	"1halt."
 	cogit 
 		linkSendAt: machineSimulator getReturnAddress 
 		in: sendingMethod 

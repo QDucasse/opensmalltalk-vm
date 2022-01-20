@@ -167,7 +167,8 @@ VMTrampolineTest >> testLoadStackPointersShouldLoadStackPointer [
 	self interpreter stackPointer: 17.
 	self interpreter framePointer: 0.
 	machineSimulator smalltalkStackPointerRegisterValue: 0.
-	
+
+	"self openMachineDebugger. 1halt."
 	self runFrom: initialAddress until: self getLastAddress.
 
 	"The generated code should load in SP the value stored in `stackPointer`"

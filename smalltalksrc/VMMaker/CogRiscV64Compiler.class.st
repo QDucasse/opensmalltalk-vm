@@ -285,7 +285,8 @@ CogRiscV64Compiler class >> isAbstract [
 { #category : #testing }
 CogRiscV64Compiler class >> isRISCTempRegister: reg [
 	"For tests to filter-out bogus values left in the RISCTempRegister, if any."
-	^reg = ConcreteIPReg
+	self flag: #TODO.
+	^ ((reg = ConcreteIPReg) or: (reg = ConcreteIPReg2)) or: (reg = ConcreteIPReg3)
 ]
 
 { #category : #translation }
@@ -1490,29 +1491,26 @@ CogRiscV64Compiler >> concretizeAddCqR [
 	 or use the immediate instruction if it is a small immediate"
 	 dependent
 	   "If the value is not a literal"
-		ifNil: [ self assertValue: cq isContainedIn: 12
+		ifNil: [ self assertValue: cq isContainedIn: 12.
 				"Use the provided immediate instruction"
-				ifTrue: [ self machineCodeAt: 0 put: (self addImmediate: cq toRegister: sourceReg inRegister: ConcreteZeroReg).
-							 	"Check for overflow"
-								overflowOffset := self machineCodeWriteInstructions: (self
-									checkADDOverflowWithSourceReg: sourceReg 
-									immediate: cq 
-									andResultReg: ConcreteZeroReg
-								) startingAtIndex: 4.
+				self machineCodeAt: 0 put: (self addImmediate: cq toRegister: sourceReg inRegister: ConcreteZeroReg).
+				"Check for overflow"
+				overflowOffset := self machineCodeWriteInstructions: (self
+					checkADDOverflowWithSourceReg: sourceReg 
+					immediate: cq 
+					andResultReg: ConcreteZeroReg
+				) startingAtIndex: 4.
 							
-								"Update flag registers"
-								flagOffset := self machineCodeWriteInstructions: (self 
-									updateFlagsADDForSourceReg: sourceReg
-									resultReg: ConcreteZeroReg
-									andMoveResultTo: destReg
-								) startingAtIndex: overflowOffset + 4.
-							^ machineCodeSize := flagOffset + overflowOffset + 4
-					]
-				"Otherwise, load the value in the given register"
-				ifFalse: [ loadOffset  := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ] ]
-		"If the value is a literal, load it in a given register"
-		ifNotNil: [ loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].		
-				
+				"Update flag registers"
+				flagOffset := self machineCodeWriteInstructions: (self 
+					updateFlagsADDForSourceReg: sourceReg
+					resultReg: ConcreteZeroReg
+					andMoveResultTo: destReg
+				) startingAtIndex: overflowOffset + 4.
+				^ machineCodeSize := flagOffset + overflowOffset + 4].
+
+	"Otherwise, use the literal"
+	loadOffset := self moveCw: cq intoR: ConcreteIPReg.			
 	"Perform the actual ADD operation"
 	self machineCodeAt: loadOffset put: (self
 			addRegister: sourceReg

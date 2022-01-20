@@ -9086,6 +9086,7 @@ Cogit >> linkSendAt: callSiteReturnAddress in: sendingMethod to: targetMethod of
 
 	self 
 		enableCodeZoneWriteDuring: [ 	
+			"1halt."
 			extent := backEnd
 						rewriteInlineCacheAt: callSiteReturnAddress
 						tag: inlineCacheTag
