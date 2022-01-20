@@ -4179,25 +4179,21 @@ CogRiscV64Compiler >> concretizeSubRdRd [
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeTstCqR [
+	"Perform a cmp operation (sub discarding the result) and between the value of register and the value of the operand.
+	 The result is discarded. The instruction is used with a Jump next to it, for example: TstCqR JumpEquals(label) .
+	 No immediate possibility because no subi instruction exists.
 
-	"Perform a bitwise and between the value of register and the value of the operand. The result is discarded.
-	
-	For example if the instruction is used as: TstCqR JumpEquals(label) 
-	
-	If the operand is not a literal:
+	 If the operand fits in 12 bits:
 		andi ConcreteFlagReg, reg, cq
 
-	 Otherwise load the value in a register:
-		li ConcreteIPReg, cq 
-		and ConcreteFlagReg, ConcreteIPReg, reg
+		(beq ConcreteFlagReg, ConcreteIPReg, label)
 	
-	 If it is a literal:
+	 Else load the provided literal:
 	   auipc ConcreteIPReg, 0
 	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
 		and  ConcreteFlagReg, ConcreteIPReg, reg 
 		
-		(beq ConcreteFlagReg, ConcreteIPReg, label)
-		"
+		(beq ConcreteFlagReg, ConcreteIPReg, label)"
 
 	<inline: true>
 	| srcReg cq loadOffset flagOffset |
@@ -4205,23 +4201,20 @@ CogRiscV64Compiler >> concretizeTstCqR [
 	cq := operands at: 0.
 	srcReg := operands at: 1.
 	dependent
-		ifNil: [ "No literal -> and immediate then load the immediate to register (for further checks)"
-			self assertValue: cq abs isContainedIn: 12 
-				ifTrue: [ "Direct encoding as an immediate"
-					self machineCodeAt: 0 put: (self
-						bitwiseAndBetweenRegister: srcReg
-						andImmediate: cq
-					 	toRegister: ConcreteZeroReg).
-					"Update flag registers, here no difference between immediate or not"
-					flagOffset := self machineCodeWriteInstructions: (self
-							updateFlagsLogicForResultReg: ConcreteZeroReg
-						) startingAtIndex: 4.
-					^ machineCodeSize := flagOffset + 4 ]
-				ifFalse: [ "Move to a register before performing the AND on the two registers"
-					loadOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ]
-		]
-		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
-			loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
+		ifNil: [ "If the cq fits in 12 bits, encode it directly"
+			self assertValue: cq abs isContainedIn: 12.
+			"Direct encoding as an immediate"
+			self machineCodeAt: 0 put: (self
+				bitwiseAndBetweenRegister: srcReg
+				andImmediate: cq
+			 	toRegister: ConcreteZeroReg).
+			"Update flag registers, here no difference between immediate or not"
+			flagOffset := self machineCodeWriteInstructions: (self
+					updateFlagsLogicForResultReg: ConcreteZeroReg
+				) startingAtIndex: 4.
+			^ machineCodeSize := flagOffset + 4 ].
+	"Literal -> compute the distance, load the actual value then and between the 2 registers"
+	loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
 	self machineCodeAt: loadOffset put: (self
 			   bitwiseAndBetweenRegister: srcReg 
 				andRegister: ConcreteIPReg  
@@ -5867,12 +5860,12 @@ CogRiscV64Compiler >> loadLiteralInRegister: destReg [
 	- auipc to get the PC
 	- ld    to load relative to the PC"
 	self flag: #DONE.
-	literalAddress := (cogit cCoerceSimple: dependent to: #'AbstractInstruction *') address.
-	distance := literalAddress - address.
 	"Several guard are checked"
 	self assert: dependent isNotNil.
 	self assert: dependent opcode = Literal.
 	self assert: (cogit addressIsInCurrentCompilation: dependent address).
+	literalAddress := (cogit cCoerceSimple: dependent to: #'AbstractInstruction *') address.
+	distance := literalAddress - address.
 	self assert: distance abs < (1 << 12).
 	^ {  
 		self addUpperImmediateToPC: 0 toRegister: destReg.
