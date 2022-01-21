@@ -358,8 +358,11 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 	self flag: #TODO.
 	opcode
 		caseOf: {
-		[CallFull]		-> [^true].
-		[JumpFull]		-> [^true].
+		[CallFull]		   -> [^true].
+		[JumpFull]		   -> [^true].
+		[JumpLong]        	-> [^true].
+	 	[JumpLongNonZero] 	-> [^true].
+		[JumpLongZero]    	-> [^true].
 		"CqR operations try to constant in an immediate, otherwise fallback in load literal (like Cw)"
 		[AddCqR]	   -> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 
 		[AndCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].

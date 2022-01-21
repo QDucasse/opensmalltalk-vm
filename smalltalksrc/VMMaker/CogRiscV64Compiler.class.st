@@ -2331,10 +2331,10 @@ CogRiscV64Compiler >> concretizeJumpFull [
 
 	<inline: true>
 	<var: #jumpTarget type: #'AbstractInstruction *'>
-	| jumpTarget loadOffset |
+	| loadOffset jumpTarget |
 	self flag: #TODO.	
 	jumpTarget := self longJumpTargetAddress.
-	loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
+	loadOffset := self moveCw: jumpTarget intoR: ConcreteIPReg.
 	self machineCodeAt: loadOffset put: (self jumpToRegisterValue: ConcreteIPReg).
 	^ machineCodeSize := loadOffset + 4
 ]
@@ -2418,42 +2418,44 @@ CogRiscV64Compiler >> concretizeJumpLessOrEqual [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpLong [
 
-	| offset |
+	"Jump Longs are to small to jump in code space"
 	self flag: #TODO.
-	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong.
-	self assert: (self isInImmediateJumpRange: offset).
-	self machineCodeAt: 0 put: (self jumpToOffset: offset).
-	^ machineCodeSize := 4
+	^ self concretizeJumpFull
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpLongNonZero [
 
-	| offset |
-	"Calculate the offset between the B and the target. The B is the second instruction thus the -4"
-	self flag: #TODO.
-	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4.
-	self assert: (self isInImmediateJumpRange: offset).
-
-	self machineCodeAt: 0 put: (self  branchTo: 8 ifRegisterValueIsEqualToZero: ConcreteZeroReg "should jump after the jump").
-	self machineCodeAt: 4 put: (self jumpToOffset: offset).
+	"No conditional long jump so a test is made right before the actual jump and chooses to avoid it or not"
+	<inline: true>
+	<var: #jumpTarget type: #'AbstractInstruction *'>
+	| loadOffset jumpTarget |
+	self flag: #TODO.	
+	jumpTarget := self longJumpTargetAddress.
 	
-	^ machineCodeSize := 8
+	self machineCodeAt: 0 put: (self  branchTo: 16 ifRegisterValueIsNotEqualToZero: ConcreteZeroReg "should jump after the jump -> has to skip literal load (8) + jr (4)").
+
+	loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) startingAtIndex: 4.
+	self machineCodeAt: loadOffset + 4 put: (self jumpToRegisterValue: ConcreteIPReg).
+	^ machineCodeSize := loadOffset + 8
+	
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpLongZero [
 	
-	| offset |
-	"Calculate the offset between the B and the target. The B is the second instruction thus the -4"
-	self flag: #TODO.
-	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4.
-	self assert: (self isInImmediateJumpRange: offset).
-
-	self machineCodeAt: 0 put: (self  branchTo: 8 ifRegisterValueIsNotEqualToZero: ConcreteZeroReg "should jump after the jump").
-	self machineCodeAt: 4 put: (self jumpToOffset: offset).
+	"No conditional long jump so a test is made right before the actual jump and chooses to avoid it or not"
+	<inline: true>
+	<var: #jumpTarget type: #'AbstractInstruction *'>
+	| loadOffset jumpTarget |
+	self flag: #TODO.	
+	jumpTarget := self longJumpTargetAddress.
 	
-	^ machineCodeSize := 8
+	self machineCodeAt: 0 put: (self  branchTo: 16 ifRegisterValueIsEqualToZero: ConcreteZeroReg "should jump after the jump -> has to skip literal load (8) + jr (4)").
+
+	loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) startingAtIndex: 4.
+	self machineCodeAt: loadOffset + 4 put: (self jumpToRegisterValue: ConcreteIPReg).
+	^ machineCodeSize := loadOffset + 8
 ]
 
 { #category : #concretization }
@@ -5567,8 +5569,10 @@ CogRiscV64Compiler >> jumpLongByteSize [
 	for most calls and jumps.  CallFull/JumpFull must also be generated in the same number of bytes irrespective of
 	displacement for the same reason, but they must be able to span the full (32-bit or 64-bit) address space because
 	they are used to call code in the C runtime, which may be distant from the code zone"
+	
+	"Jump long is the same as jump full -> literal load (auipc + ld) then jump register (jr)"
 	self flag: #TODO.
-	^4
+	^12
 ]
 
 { #category : #'concretization helpers - mc size' }
@@ -5576,7 +5580,7 @@ CogRiscV64Compiler >> jumpLongConditionalByteSize [
 	" RISCV-64 does not have conditional long jumps. 
 	 Be a short conditional jump (over the long jump instruction) and a long jump "
 	self flag: #TODO.
-	^ 8
+	^ 16
 ]
 
 { #category : #'inline cacheing' }
