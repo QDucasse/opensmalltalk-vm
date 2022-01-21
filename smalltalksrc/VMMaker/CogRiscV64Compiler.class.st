@@ -1499,7 +1499,7 @@ CogRiscV64Compiler >> concretizeAddCqR [
 		^ machineCodeSize := flagOffset + overflowOffset + 4 ].
 
 	"Otherwise, use the provided literal"
-	loadOffset := self moveCw: cq intoR: ConcreteIPReg.
+	loadOffset := self loadCwInto: ConcreteIPReg.
 	"Perform the actual ADD operation"
 	self machineCodeAt: loadOffset put: (self
 			 addRegister: sourceReg
@@ -4078,37 +4078,39 @@ CogRiscV64Compiler >> concretizeSubCqR [
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeSubCwR [
-	
+
 	<inline: true>
 	| sourceReg destReg loadOffset flagOffset overflowOffset |
 	self flag: #TODO.
 	self assert: dependent notNil.
-	sourceReg := destReg := operands at: 1.	
-	
+	sourceReg := destReg := operands at: 1.
+
 	"Load Cw in register then perform the add"
-	loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
-	
+	loadOffset := self machineCodeWriteInstructions:
+		              (self loadLiteralInRegister: ConcreteIPReg).
+
 	"Perform the SUB operation to a temp register (as operands AND result are needed for overflow check)"
 	self machineCodeAt: loadOffset put: (self
-					 subtractRegister: ConcreteIPReg
-					 fromRegister: sourceReg
-					 intoRegister: ConcreteZeroReg).
-					
+			 subtractRegister: ConcreteIPReg
+			 fromRegister: sourceReg
+			 intoRegister: ConcreteZeroReg).
+
 	"Check for overflow"
-	overflowOffset := self machineCodeWriteInstructions: (self
-		checkSUBOverflowWithSourceReg1: sourceReg 
-		sourceReg2: ConcreteIPReg 
-		andResultReg: ConcreteZeroReg
-	) startingAtIndex: loadOffset + 4.
+	overflowOffset := self
+		                  machineCodeWriteInstructions: (self
+				                   checkSUBOverflowWithSourceReg1: sourceReg
+				                   sourceReg2: ConcreteIPReg
+				                   andResultReg: ConcreteZeroReg)
+		                  startingAtIndex: loadOffset + 4.
 
 	"Update flag registers"
-	flagOffset := self machineCodeWriteInstructions: (self 
-			updateFlagsSUBForSourceReg: sourceReg 
-			resultReg: ConcreteZeroReg 
-			andMoveResultTo: destReg
-	) startingAtIndex: loadOffset + overflowOffset + 4.
+	flagOffset := self
+		              machineCodeWriteInstructions: (self
+				               updateFlagsSUBForSourceReg: sourceReg
+				               resultReg: ConcreteZeroReg
+				               andMoveResultTo: destReg)
+		              startingAtIndex: loadOffset + overflowOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + overflowOffset + 4
-			
 ]
 
 { #category : #concretization }
@@ -4179,6 +4181,7 @@ CogRiscV64Compiler >> concretizeSubRdRd [
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeTstCqR [
+
 	"Perform a cmp operation (sub discarding the result) and between the value of register and the value of the operand.
 	 The result is discarded. The instruction is used with a Jump next to it, for example: TstCqR JumpEquals(label) .
 	 No immediate possibility because no subi instruction exists.
@@ -4200,86 +4203,80 @@ CogRiscV64Compiler >> concretizeTstCqR [
 	self flag: #TODO.
 	cq := operands at: 0.
 	srcReg := operands at: 1.
-	dependent
-		ifNil: [ "If the cq fits in 12 bits, encode it directly"
-			self assertValue: cq abs isContainedIn: 12.
-			"Direct encoding as an immediate"
-			self machineCodeAt: 0 put: (self
-				bitwiseAndBetweenRegister: srcReg
-				andImmediate: cq
-			 	toRegister: ConcreteZeroReg).
-			"Update flag registers, here no difference between immediate or not"
-			flagOffset := self machineCodeWriteInstructions: (self
-					updateFlagsLogicForResultReg: ConcreteZeroReg
-				) startingAtIndex: 4.
-			^ machineCodeSize := flagOffset + 4 ].
+	dependent ifNil: [ "If the cq fits in 12 bits, encode it directly"
+		self assertValue: cq abs isContainedIn: 12.
+		"Direct encoding as an immediate"
+		self machineCodeAt: 0 put: (self
+				 bitwiseAndBetweenRegister: srcReg
+				 andImmediate: cq
+				 toRegister: ConcreteZeroReg).
+		"Update flag registers, here no difference between immediate or not"
+		flagOffset := self
+			              machineCodeWriteInstructions:
+			              (self updateFlagsLogicForResultReg: ConcreteZeroReg)
+			              startingAtIndex: 4.
+		^ machineCodeSize := flagOffset + 4 ].
 	"Literal -> compute the distance, load the actual value then and between the 2 registers"
-	loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
+	loadOffset := self machineCodeWriteInstructions:
+		              (self loadLiteralInRegister: ConcreteIPReg).
 	self machineCodeAt: loadOffset put: (self
-			   bitwiseAndBetweenRegister: srcReg 
-				andRegister: ConcreteIPReg  
-				toRegister: ConcreteZeroReg).
+			 bitwiseAndBetweenRegister: srcReg
+			 andRegister: ConcreteIPReg
+			 toRegister: ConcreteZeroReg).
 	"Check and update the flags"
-	flagOffset := self machineCodeWriteInstructions: (self
-	                      updateFlagsLogicForResultReg: ConcreteZeroReg
-				) startingAtIndex: loadOffset + 4.
+	flagOffset := self
+		              machineCodeWriteInstructions:
+		              (self updateFlagsLogicForResultReg: ConcreteZeroReg)
+		              startingAtIndex: loadOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + 4
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeXorCqR [
 
-
-	"Perform an add operation between the value of register and the value of the operand.
+	"Perform a xor operation between the value of register and the value of the operand.
 	
-	 If the operand is not a literal and fits in an immediate:
+	 If the operands fits in 12 bits:
 		xori reg, reg, cq
-
-	 Otherwise load the value in a register:
-		li ConcreteIPReg, cq 
-		xor reg, reg, ConcreteIPReg 	
 			
-	 If it is a literal:
+	 Else load the provided literal:
 	   auipc ConcreteIPReg, 0
 	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		xor reg, reg, ConcreteIPReg 
-		"
-		
+		xor reg, reg, ConcreteIPReg"
+
 	<inline: true>
 	<var: #cq type: #uint_64>
 	| cq destReg sourceReg loadOffset flagOffset |
 	self flag: #DONE.
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
-	dependent
-		ifNil: [ 
-			 self assertValue: cq isContainedIn: 12
-				ifTrue: [ "Direct encoding as an immediate"
-					self machineCodeAt: 0 put: (self
-							 bitwiseXorBetweenRegister: sourceReg 
-							 andImmediate: cq
-							 intoRegister: destReg).
-					flagOffset := self machineCodeWriteInstructions: (self
-							updateFlagsLogicForResultReg: destReg
-						) startingAtIndex: 4.
-					^ machineCodeSize := flagOffset + 4 ]
-				ifFalse: [ "Move to a register before performing XOR on the registers"	
-					"Load the immediate to a register"
-					loadOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ] 
-				]
-		ifNotNil: [ "Literal -> compute the distance, load the actual value then XOR between the 2 registers"
-			loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
+	dependent ifNil: [ 
+		self assertValue: cq isContainedIn: 12.
+		"Direct encoding as an immediate"
+		self machineCodeAt: 0 put: (self
+				 bitwiseXorBetweenRegister: sourceReg
+				 andImmediate: cq
+				 intoRegister: destReg).
+		flagOffset := self
+			              machineCodeWriteInstructions:
+			              (self updateFlagsLogicForResultReg: destReg)
+			              startingAtIndex: 4.
+		^ machineCodeSize := flagOffset + 4 ].
+
+	"Literal -> compute the distance, load the actual value then XOR between the 2 registers"
+	loadOffset := self moveCw: cq intoR: ConcreteIPReg.
+
 	"Perform the XOR operation"
 	self machineCodeAt: loadOffset put: (self
-			bitwiseXorBetweenRegister: sourceReg
-			andRegister: ConcreteIPReg
-			intoRegister: destReg).
+			 bitwiseXorBetweenRegister: sourceReg
+			 andRegister: ConcreteIPReg
+			 intoRegister: destReg).
 	"Update the affected flags"
-	flagOffset := self machineCodeWriteInstructions: (self 
-			updateFlagsLogicForResultReg: destReg
-		) startingAtIndex: loadOffset + 4.
+	flagOffset := self
+		              machineCodeWriteInstructions:
+		              (self updateFlagsLogicForResultReg: destReg)
+		              startingAtIndex: loadOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + 4
-	
 ]
 
 { #category : #concretization }
