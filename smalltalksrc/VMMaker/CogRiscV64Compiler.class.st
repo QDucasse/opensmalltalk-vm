@@ -878,10 +878,13 @@ CogRiscV64Compiler >> bytesForArithmeticFlagUpdateWithMov [
 { #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> bytesForCMPCq [
 	
-	"Used for SUB as there is no SUBI"
 	| loadOffset | 
 	self flag: #TODO.
-	^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdate + 4
+	self assertValue: (operands at: 0) isContainedIn: 12
+		ifTrue: [ loadOffset := self bytesToLoadImmediate: (operands at: 0) ] "Immediate embedded in operations" 
+		ifFalse: [ loadOffset := self literalLoadInstructionBytes ].
+	^ loadOffset + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdate + 4
+
 	
 ]
 
@@ -1928,8 +1931,36 @@ CogRiscV64Compiler >> concretizeCmpC32R [
 CogRiscV64Compiler >> concretizeCmpCqR [
 	
 	<inline: true>
+	| srcReg cq loadOffset flagOffset overflowOffset |
 	self flag: #TODO.
-	^ self concretizeCmpCwR
+	cq := operands at: 0.
+	srcReg := operands at: 1.
+	"Note: There is no sub immediate"
+	self assertValue: cq isContainedIn: 12
+		ifTrue: [ "Move to a register using immediate operations (no subi but will avoid having too much literals)"
+					loadOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg). ]
+		ifFalse: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
+			loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg). ].
+	"Perform the subtraction"
+	self machineCodeAt: loadOffset put: (self
+			 subtractRegister: ConcreteIPReg 
+		    fromRegister: srcReg 
+			 intoRegister: ConcreteZeroReg). 	
+
+	"Check for overflow"
+	overflowOffset := self machineCodeWriteInstructions: (self
+		checkSUBOverflowWithSourceReg1: srcReg
+		sourceReg2: ConcreteIPReg 
+		andResultReg: ConcreteZeroReg
+	) startingAtIndex: loadOffset + 4.
+
+	"Update flag registers"
+	flagOffset := self machineCodeWriteInstructions: (self 
+			updateFlagsCMPForSourceReg: srcReg
+			resultReg: ConcreteZeroReg
+	) startingAtIndex: loadOffset + overflowOffset + 4.
+
+	^ machineCodeSize := loadOffset + overflowOffset + flagOffset + 4
 ]
 
 { #category : #concretization }

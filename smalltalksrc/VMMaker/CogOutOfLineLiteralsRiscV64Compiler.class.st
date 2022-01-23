@@ -367,10 +367,10 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[AddCqR]	   -> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 
 		[AndCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[AndCqRR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
-		[CmpCqR]		-> [^ true]. "no subi"
-		[CmpC32R]		-> [^ true]. "no subi"
+		[CmpCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. "no subi but load with immediate embedded if small"
+		[CmpC32R]		-> [^ true]. 
 		[OrCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
-		[SubCqR]		-> [^ true]. "no subi"
+		[SubCqR]		-> [^ true]. 
 		[TstCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[XorCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		"CwR operations use a word size value and need a full literal load"
