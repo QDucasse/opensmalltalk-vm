@@ -48,6 +48,18 @@ VMRISCV64SpecificEncodingTest >> testEncode13BitNegativeImmediate [
 ]
 
 { #category : #tests }
+VMRISCV64SpecificEncodingTest >> testEncode24BitImmediate [
+
+	"Should lui addi"
+	self compile: [		 
+		cogit MoveCq: 16rFFFFFF R: ReceiverResultReg ].
+
+	self runGeneratedCode.
+
+	self assert: machineSimulator receiverRegisterValue equals: 16rFFFFFF
+]
+
+{ #category : #tests }
 VMRISCV64SpecificEncodingTest >> testEncode32BitImmediate [
 
 	"Should lui addi"

@@ -10,7 +10,7 @@ VMSimpleStackBasedCogitMonomorphicPICTest >> testCalculateClosePICSize [
 	"Calculate the size of the Closed Pic"
 	self setUpCogMethodEntry.
 	cogit generateClosedPICPrototype.
-
+	
 	self assert: cogit closedPICSize isNotNil
 ]
 
