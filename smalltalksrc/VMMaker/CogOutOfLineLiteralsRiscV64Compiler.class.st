@@ -428,7 +428,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[MoveCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 		[MoveC32R]  -> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 
-		[MoveCwR]		-> ["^(self inCurrentCompilation: (operands at: 0)) not" ^ true].
+		[MoveCwR]		-> [^(self inCurrentCompilation: (operands at: 0)) not].
 		[MoveAwR]		-> [^(self isAddressRelativeToVarBase: (operands at: 0)) ifTrue: [false] ifFalse: [true]].
 		[MoveRAw]		-> [^(self isAddressRelativeToVarBase: (operands at: 1)) ifTrue: [false] ifFalse: [true]].
 		[MoveAbR]		-> [^(self isAddressRelativeToVarBase: (operands at: 0)) ifTrue: [false] ifFalse: [true]].
@@ -439,15 +439,15 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 
 		[MoveRMwr]	-> [^ false]. "#TODO"
 
-		[MoveRsM32r]	-> [^self is12BitValue: (operands at: 1) ifTrue: [:s :v| false] ifFalse: [true]]. 												
-		[MoveRdM64r]	-> [^self is12BitValue: (operands at: 1) ifTrue: [:s :v| false] ifFalse: [true]]. 
-		[MoveMbrR]	-> [^self is9BitValue: (operands at: 0) ifTrue: [:v| false] ifFalse: [true]].
-		[MoveRMbr]	-> [^self is12BitValue: (operands at: 1) ifTrue: [:s :v| false] ifFalse: [true]].
-		[MoveRM8r]	-> [^self is12BitValue: (operands at: 1) ifTrue: [:s :v| false] ifFalse: [true]].
-		[MoveM16rR]	-> [^self rotateable8bitImmediate: (operands at: 0) ifTrue: [:r :i| false] ifFalse: [true]].
-		[MoveRM16r]	-> [^self is12BitValue: (operands at: 1) ifTrue: [:s :v| false] ifFalse: [true]].
-		[MoveM32rRs]	-> [^self is12BitValue: (operands at: 0) ifTrue: [:s :v| false] ifFalse: [true]].
-		[MoveM64rRd]	-> [^self is12BitValue: (operands at: 0) ifTrue: [:s :v| false] ifFalse: [true]].
+		[MoveRsM32r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 												
+		[MoveRdM64r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 
+		[MoveMbrR]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
+		[MoveRMbr]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
+		[MoveRM8r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
+		[MoveM16rR]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
+		[MoveRM16r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
+		[MoveM32rRs]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
+		[MoveM64rRd]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 			
 		[MoveM32rR] -> [^ false]. "#TODO"
 

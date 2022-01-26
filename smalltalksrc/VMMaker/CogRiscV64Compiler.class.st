@@ -6764,72 +6764,6 @@ CogRiscV64Compiler >> rotateRightValueInRegister: srcReg byShiftAmountInRegister
 	}
 ]
 
-{ #category : #testing }
-CogRiscV64Compiler >> rotateable8bitBitwiseImmediate: constant ifTrue: trueAlternativeBlock ifFalse: falseAlternativeBlock [
-	<inline: true>
-	"Invoke trueAlternativeBlock with shift, value and inverted if constant can be represented
-	 by a possibly rotated 8-bit constant, otherwise invoke falseAlternativeBlock. For data
-	 processing operands, there is the immediate shifter_operand variant,  where an 8 bit value
-	 is ring shifted _right_ by i. This is only suitable for quick constants (Cq), which won't change."
-	| value |
-	value := constant.
-	[(value bitAnd: 16rFF) = value ifTrue:
-		[^trueAlternativeBlock value: 0 value: value value: constant ~= value].
-	 2 to: 30 by: 2 do:
-		[:i |
-		(value bitAnd: ((16rFF <<i bitAnd:16rFFFFFFFF) bitOr: 16rFF>>(32-i))) = value ifTrue:
-			[^trueAlternativeBlock
-				value: 32 - i
-				value: ((value >> i) bitOr: (value <<(32 - i) bitAnd:16rFFFFFFFF))
-				value: constant ~= value]].
-	 value = constant]
-		whileTrue:
-			[value := constant < 0
-						ifTrue:[-1 - constant]
-						ifFalse:[constant bitInvert32]].
-	^falseAlternativeBlock value
-]
-
-{ #category : #testing }
-CogRiscV64Compiler >> rotateable8bitImmediate: constant ifTrue: trueAlternativeBlock ifFalse: falseAlternativeBlock [
-	<inline: true>
-	"For data processing operands, there is the immediate shifter_operand variant, 
-	 where an 8 bit value is ring shifted _right_ by i.
-	 This is only suitable for quick constants(Cq), which won't change."
-	
-	(constant bitAnd: 16rFF) = constant ifTrue:
-		[^trueAlternativeBlock value: 0 value: constant].
-	2 to: 30 by: 2 do:
-		[:i |
-		(constant bitAnd: ((16rFF <<i bitAnd:16rFFFFFFFF) bitOr: 16rFF>>(32-i))) = constant ifTrue:
-			[^trueAlternativeBlock value: 32 - i value: ((constant >> i) bitOr: (constant <<(32 - i) bitAnd:16rFFFFFFFF))]].
-	^falseAlternativeBlock value
-]
-
-{ #category : #testing }
-CogRiscV64Compiler >> rotateable8bitSignedImmediate: constant ifTrue: trueAlternativeBlock ifFalse: falseAlternativeBlock [
-	<inline: true>
-	"Invoke trueAlternativeBlock with shift, value and negated if constant can be represented
-	 by a possibly rotated 8-bit constant, otherwise invoke falseAlternativeBlock. For data
-	 processing operands, there is the immediate shifter_operand variant,  where an 8 bit value
-	 is ring shifted _right_ by i. This is only suitable for quick constants (Cq), which won't change."
-	| value |
-	value := constant.
-	[(value bitAnd: 16rFF) = value ifTrue:
-		[^trueAlternativeBlock value: 0 value: value value: constant ~= value].
-	 2 to: 30 by: 2 do:
-		[:i |
-		(value bitAnd: ((16rFF <<i bitAnd:16rFFFFFFFF) bitOr: 16rFF>>(32-i))) = value ifTrue:
-			[^trueAlternativeBlock
-				value: 32 - i
-				value: ((value >> i) bitOr: (value <<(32 - i) bitAnd:16rFFFFFFFF))
-				value: constant ~= value]].
-	 value = constant and: [constant ~= 0]]
-		whileTrue:
-			[value := constant negated].
-	^falseAlternativeBlock value
-]
-
 { #category : #abi }
 CogRiscV64Compiler >> saveAndRestoreLinkRegAround: aBlock [
 	"If the processor's ABI includes a link register, generate instructions
@@ -7224,16 +7158,6 @@ CogRiscV64Compiler >> subtractWordRegister: srcReg2 fromRegister: srcReg1 intoRe
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
 	  bitOr: 2r0111011
-]
-
-{ #category : #'private-bit-manipulation' }
-CogRiscV64Compiler >> trailingOnesOf: aNumber [
-	"Return how many trailing ones are in the 64bit bitString representation of aNumber.
-	That is, how many ones are in the least significant bits before there is a zero.
-	For example, the 64bit binary number 2r10101000110001111 has 4 trailing ones"
-	
-	"Calculate it by calculating the trailing zeros of the bit-inverted number"
-	^ self trailingZerosOf: aNumber bitInvert64
 ]
 
 { #category : #'private-bit-manipulation' }
