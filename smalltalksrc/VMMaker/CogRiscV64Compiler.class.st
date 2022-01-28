@@ -1442,6 +1442,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 { #category : #'machine code instruction' }
 CogRiscV64Compiler >> computeSignedValue64Bits: aValue [ 
 
+	self flag: #TODO.
 	^ self computeSignedValueOf: aValue ofSize: 64
 ]
 
@@ -5505,6 +5506,14 @@ CogRiscV64Compiler >> instructionBeforeAddress: followingAddress [
 ]
 
 { #category : #'instruction detection' }
+CogRiscV64Compiler >> instructionIsADDI: instruction [
+
+	self flag: #TODO.
+	^ ((instruction >> 12 bitAnd: 16r7) = 0) and: ((instruction bitAnd: 16r7F) = 2r0010011).
+
+]
+
+{ #category : #'instruction detection' }
 CogRiscV64Compiler >> instructionIsADDIW: instruction [
 
 	self flag: #DONE.
@@ -5551,6 +5560,15 @@ CogRiscV64Compiler >> instructionIsConditionalBranch: instruction [
 	
 	
 	self flag: #TODO.
+	^ (instruction bitAnd: 16r7F) = 2r1100011
+]
+
+{ #category : #'instruction detection' }
+CogRiscV64Compiler >> instructionIsConditionalZeroBranch: instruction [ 
+
+	"Check that the instruction is a conditional branch and that it focuses on the concretezeroreg"
+	self flag: #TODO.
+	^ ((instruction bitAnd: 16r7F) = 2r1100011) and: ((instruction >> 15 bitAnd: 16r1F) = ConcreteZeroReg)
 ]
 
 { #category : #'instruction detection' }
@@ -5598,6 +5616,13 @@ CogRiscV64Compiler >> instructionIsPush: instr [
 	<var: #instr type: #'uint32_t'> 
 	
 	^ (self pushR: 0) = (instr bitAnd: 16rFFFFFFFFFFFFFFE0)
+]
+
+{ #category : #'instruction detection' }
+CogRiscV64Compiler >> instructionIsSD: instruction [  
+
+	self flag: #DONE.
+	^ ((instruction >> 12 bitAnd: 16r7) = 2r011) and: ((instruction bitAnd: 16r7F) = 2r0100011).
 ]
 
 { #category : #disassembly }
@@ -5675,10 +5700,19 @@ CogRiscV64Compiler >> isCallPrecedingReturnPC: mcpc [
 ]
 
 { #category : #testing }
+CogRiscV64Compiler >> isInImmediateCallRange: operand [
+	"RISC-V calls and jumps can use immediates of max size 20 bits"
+	<var: #operand type: #'usqIntptr_t'>
+	self flag: #TODO.
+	^ self value: operand isContainedIn: 32
+]
+
+{ #category : #testing }
 CogRiscV64Compiler >> isInImmediateJumpRange: operand [
 	"RISC-V calls and jumps can use immediates of max size 20 bits"
 	<var: #operand type: #'usqIntptr_t'>
-	^ self value: operand isContainedIn: 20
+	self flag: #TODO.
+	^ self value: operand isContainedIn: 32
 ]
 
 { #category : #testing }
@@ -5695,6 +5729,15 @@ CogRiscV64Compiler >> isPCRelativeValueLoad: instr [
 	"If ADR <Xd>, <label>"
 	
 	^ (instr bitAnd: 2r10011111 << 24) = (1 << 28)
+]
+
+{ #category : #testing }
+CogRiscV64Compiler >> isRelativeLiteralLoad: followingAddress [
+
+	self flag: #TODO.
+	"1halt."
+	^ (self instructionIsAUIPC: (self instructionBeforeAddress: followingAddress - 4)) 
+		and: (self instructionIsLD: (self instructionBeforeAddress: followingAddress))
 ]
 
 { #category : #'private-bit-manipulation' }
@@ -6560,20 +6603,6 @@ CogRiscV64Compiler >> returnFromCallCFunctionInSmalltalkStack: anObject [
 
 ]
 
-{ #category : #patching }
-CogRiscV64Compiler >> rewriteBranch: conditionalBranch withNewOffset: newOffset [
-	
-	"Rewrite the offset inside a branch instruction of the form: 
-	26-bit signed PC-relative branch offset variant
-	
-	B <label>
-	
-	<label> Is the program label to be unconditionally branched to. Its offset from the address of this instruction, in the range +/-128MB, is encoded as imm26 times 4."
-	
-	self seeAlso: #b:.
-	^ self b: newOffset
-]
-
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> rewriteCPICJumpAt: callSiteReturnAddress target: callTargetAddress [
 	"Rewrite a jump instruction to call a different target.  This variant is used to reset the 
@@ -6748,34 +6777,6 @@ CogRiscV64Compiler >> rewriteJumpLongAt: jumpReturnAddress target: jumpTargetAdd
 	self assert: (self jumpLongTargetBeforeFollowingAddress: jumpReturnAddress) = jumpTargetAddress.
 	
 	^8
-]
-
-{ #category : #'inline cacheing' }
-CogRiscV64Compiler >> rewriteTransferAt: callSiteReturnAddress target: callTargetAddress [
-	"Rewrite a call/jump instruction to call a different target.  This variant is used to link PICs
-	 in ceSendMiss et al, and to rewrite call/jumps in CPICs.
-	Answer the extent of
-	 the code change which is used to compute the range of the icache to flush."
-	<var: #callSiteReturnAddress type: #usqInt>
-	<var: #callTargetAddress type: #usqInt>
-	| callDistance instr |
-
-	callTargetAddress >= cogit minCallAddress
-		ifFalse: [self error: 'linking callsite to invalid address'].
-
-	callDistance := (callTargetAddress - (callSiteReturnAddress - 4 "return offset")).
-	self assert: (self isInImmediateJumpRange: callDistance). "we don't support long call updates, yet"
-
-	instr := self instructionBeforeAddress: callSiteReturnAddress.
-	self assert: ((self instructionIsB: instr) or: [self instructionIsBL: instr]).
-
-	objectMemory
-		long32At: (self instructionAddressBefore: callSiteReturnAddress)
-		put: (self b: callDistance withLink: (self instructionIsBL: instr)).
-
-	self assert: (self callTargetFromReturnAddress: callSiteReturnAddress) = callTargetAddress.
-
-	^4
 ]
 
 { #category : #'machine code instruction' }

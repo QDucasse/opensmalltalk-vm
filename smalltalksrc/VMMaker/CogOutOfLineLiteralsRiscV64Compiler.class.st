@@ -134,9 +134,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> literal32BeforeFollowingAddress: followin
 	"Return the literal referenced by the instruction immediately preceding followingAddress.
 	 Used for CMP32"
 	self flag: #TODO.
-	"1halt."
 	^ self literalBeforeFollowingAddress: followingAddress 
-	"^ self extractLiteralFromCMP32: (self instructionAddressBefore: followingAddress - self cmpC32RTempByteSize + 4)"
 ]
 
 { #category : #'inline cacheing' }
@@ -148,7 +146,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> literalBeforeFollowingAddress: followingA
 	^objectMemory long64At: (self pcRelativeAddressAt: 
 		((self instructionIsLD: (self instructionBeforeAddress: followingAddress))
 			ifTrue: [self instructionAddressBefore: followingAddress - 4] "need to go before auipc + ld"
-			ifFalse: [ "1halt." self instructionAddressBefore: followingAddress + 4 - self cmpC32RTempByteSize ])) "need to go in the load at the beginning of the cmp"
+			ifFalse: [ self instructionAddressBefore: followingAddress + 4 - self cmpC32RTempByteSize ])) "need to go in the load at the beginning of the cmp"
 ]
 
 { #category : #'generate machine code - support' }
@@ -354,19 +352,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> storeLiteral32: literal beforeFollowingAd
 	self flag: #TODO.
 	"1halt."
 	^ self storeLiteral: literal beforeFollowingAddress: followingAddress
-	"newInstructions := self loadImmediate: literal inRegister: ConcreteIPReg.
-	objectMemory
-		long32At: (self instructionAddressBefore: followingAddress - self cmpC32RTempByteSize + 4) 
-		put: (newInstructions at: 1).
-	objectMemory
-		long32At: (self instructionAddressBefore: followingAddress - self cmpC32RTempByteSize + 8)
-		put: (newInstructions at: 2).
-	objectMemory
-		long32At: (self instructionAddressBefore: followingAddress - self cmpC32RTempByteSize + 12)
-		put: (newInstructions at: 3).
-	objectMemory
-		long32At: (self instructionAddressBefore: followingAddress - self cmpC32RTempByteSize + 16) 
-		put: (newInstructions at: 4)."
 ]
 
 { #category : #'inline cacheing' }
@@ -375,12 +360,11 @@ CogOutOfLineLiteralsRiscV64Compiler >> storeLiteral: literal beforeFollowingAddr
 	 If followingAddress points to an ld instruction, it means it is loading a relative using auipc + ld.
 	 If not, it is comparing to a given literal and is performing auipc + ld + cmp (expands to several instructions in riscv)"
 	self flag: #TODO.
-	"1halt."
 	objectMemory
 		longAt: (self pcRelativeAddressAt:
 					((self instructionIsLD: (self instructionBeforeAddress: followingAddress))
 						ifTrue: [self instructionAddressBefore: followingAddress - 4]
-						ifFalse: [ "1halt." self instructionAddressBefore: followingAddress + 4 - self cmpC32RTempByteSize ])) 
+						ifFalse: [self instructionAddressBefore: followingAddress + 4 - self cmpC32RTempByteSize])) 
 		put: literal
 ]
 
