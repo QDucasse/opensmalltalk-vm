@@ -1057,23 +1057,23 @@ CogRiscV64Compiler >> cStackPointer [
 { #category : #accessing }
 CogRiscV64Compiler >> callInstructionByteSize [
 
+	self flag: #TODO.
 	^ 8
 ]
 
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> callTargetFromReturnAddress: callSiteReturnAddress [
 	"Answer the address that the call immediately preceding callSiteReturnAddress will jump to."
-	"this is also used by #jumpLongTargetBeforeFollowingAddress:."
-	| callAddress callInstruction callDistance |
+	| callAddress callInstruction callDistance targetInstruction |
 	self flag: #TODO.
-	"1halt."
 	callAddress := self instructionAddressBefore: callSiteReturnAddress.
 	callInstruction := objectMemory long32At: callAddress.
-	"Note that j is a pseudo-instruction that expands to jal x0, offset"
-	self assert: (self instructionIsJAL: callInstruction).
-	callDistance := self extractOffsetFromJAL: callInstruction.
-		
-	^ callAddress + callDistance signedIntFromLong
+	"Check if the instruction is a nop, in that case take the one before"
+	(self instructionIsNOP: callInstruction) ifTrue: 
+		[ 1halt. callInstruction := objectMemory long32At: callAddress - 4].
+	self assert: (self instructionIsJALR: callInstruction).
+	callDistance := self extractOffsetFromCall: callAddress.
+	^ callAddress + callDistance - 4
 	
 	
 	
@@ -1252,9 +1252,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 		[Fill32]			  -> [ ^ 4 ]. "DONE"
 		[Nop]				  -> [ ^ 4 ]. "DONE"
 		"Control"
-		[Call]					   -> [ ((operands at: 0) signedIntFromLong - address signedIntFromLong) abs >= (1 << 31) 
-											ifTrue: [ ^ self literalLoadInstructionBytes + 4 "Same as call full" ]
-											ifFalse: [ ^ 8 ]]. "TODO"
+		[Call]					   -> [ ^ self callInstructionByteSize ]. "TODO"
 		[CallFull]				-> [ ^ self literalLoadInstructionBytes + 4 ]. "TODO"
 		[JumpR]					-> [ ^ 4 ]. "DONE"
 		[Jump]					   -> [ ^ 4 ]. "DONE"
@@ -1879,23 +1877,13 @@ CogRiscV64Compiler >> concretizeCall [
 	self assert: (operands at: 0) \\ 4 = 0.
 	"Compute the offset from the PC"
    offset := (operands at: 0) signedIntFromLong - address signedIntFromLong.
-
-   offset abs >= (1 << 31) ifTrue: [ 
-		"In the case the offset is larger than 32 bits, more operations need to be done to handle it
-		and add (or substract) it to the PC"
-	  ^ self concretizeCallFull.
-	].
+	self assert: (self isInImmediateJumpRange: offset).
 	
-	offset abs >= (1 << 11) 
-		ifTrue: [ 
-			"This mangling avoid having to bias the 11th bit in case of a negative value"
-			"https://forums.sifive.com/t/bit-11-of-jalr-sign-extened-for-call-auipc-jalr/1950"
-			offsetLow := ((offset << 20) bitAnd: 16rFFFFFFFF) >> 20. 
-			offsetHigh := (offset - offsetLow signedIntFromChar) >> 12.
-		] ifFalse: [  
-			offsetLow := offset.
-			offsetHigh := 0.
-		].
+	"This mangling avoid having to bias the 11th bit in case of a negative value
+	 it is also used in loadImmediate:inRegister:"
+	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
+	offsetLow := self computeSignedValue64Bits: (offset  bitAnd: 16rFFF).
+	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
 	
 	self machineCodeAt: 0 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
 	self machineCodeAt: 4 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: LR).
@@ -2452,66 +2440,79 @@ CogRiscV64Compiler >> concretizeJumpLessOrEqual [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpLong [
 
-	"Using J (expands to jalr x0) only is too small for the entire code space (+-16mb) so instead,
-	 the offset is loaded in a sequence of lui + addiw"
-	| offset offsetLow offsetHigh |
+	"JumpLong works the same way as a Call buts does not store the return address"
+	<inline: true>
+	| offset offsetHigh offsetLow |
 	self flag: #TODO.
-	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 8. "The actual size of loading before the jump"
+	self assert: (operands at: 0) ~= 0.
+	self assert: (operands at: 0) \\ 4 = 0.
+	"Compute the offset from the address of the first instruction (auipc)"
+   offset := (operands at: 0) signedIntFromLong - address signedIntFromLong.
 	self assert: (self isInImmediateJumpRange: offset).
 	
-	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
+	"This mangling avoid having to bias the 11th bit in case of a negative value
+	 it is also used in loadImmediate:inRegister:"
+	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
 	offsetLow := self computeSignedValue64Bits: (offset bitAnd: 16rFFF).
+	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
 	
-	self machineCodeAt: 0 put: (self loadUpperImmediate: offsetHigh inRegister: ConcreteIPReg).
-	self machineCodeAt: 4 put: (self addWordImmediate: offsetLow toRegister: ConcreteIPReg inRegister: ConcreteIPReg).
-	self machineCodeAt: 8 put: (self jumpToRegisterValue: ConcreteIPReg).
-	^ machineCodeSize := 12
+	self machineCodeAt: 0 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+	self machineCodeAt: 4 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
+	^ machineCodeSize := 8
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpLongNonZero [
 
+	"JumpLong works the same way as a Call buts does not store the return address"
+	<inline: true>
 	| offset offsetHigh offsetLow |
-	"Calculate the offset between the B and the target. The actual jump is the second instruction thus the -12 (jump long is lui + addiw + j)
-	 so it needs to start aftere b+lui+addiw"
 	self flag: #TODO.
-	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 12. 
+	self assert: (operands at: 0) ~= 0.
+	self assert: (operands at: 0) \\ 4 = 0.
+	"Compute the offset from the address of the first instruction (auipc)"
+	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4.
 	self assert: (self isInImmediateJumpRange: offset).
-
-	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
-	offsetLow := self computeSignedValue64Bits: (offset bitAnd: 16rFFF).
-
-	"Branch over the jump if the condition is not met"
-	self machineCodeAt: 0 put: (self  branchTo: 16 ifRegisterValueIsEqualToZero: ConcreteZeroReg "should jump after the jump").
-	"Perform the actual jump"
-	self machineCodeAt: 4 put: (self loadUpperImmediate: offsetHigh inRegister: ConcreteIPReg).
-	self machineCodeAt: 8 put: (self addWordImmediate: offsetLow toRegister: ConcreteIPReg inRegister: ConcreteIPReg).
-	self machineCodeAt: 12 put: (self jumpToRegisterValue: ConcreteIPReg).
 	
-	^ machineCodeSize := 16
+	"This mangling avoid having to bias the 11th bit in case of a negative value
+	 it is also used in loadImmediate:inRegister:"
+	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
+	offsetLow := self computeSignedValue64Bits: (offset bitAnd: 16rFFF).
+	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
+	
+	"Branch over the jump if the condition is not met"
+	self machineCodeAt: 0 put: (self  branchTo: 12 ifRegisterValueIsEqualToZero: ConcreteZeroReg "should jump after the jump").
+	"Perform the actual jump"
+	self machineCodeAt: 4 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+	self machineCodeAt: 8 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
+	^ machineCodeSize := 12
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpLongZero [
-	
+
+	"JumpLong works the same way as a Call buts does not store the return address"
+	<inline: true>	
 	| offset offsetHigh offsetLow |
-	"Calculate the offset between the B and the target. The actual jump is the second instruction thus the -12 (jump long is lui + addiw + j)
-	 so it needs to start aftere b+lui+addiw"
 	self flag: #TODO.
-	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 12.
+	self assert: (operands at: 0) ~= 0.
+	self assert: (operands at: 0) \\ 4 = 0.
+	"Compute the offset from the address of the first instruction (auipc)"
+	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4. 
 	self assert: (self isInImmediateJumpRange: offset).
 
-	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
+	"This mangling avoid having to bias the 11th bit in case of a negative value
+	 it is also used in loadImmediate:inRegister:"
+	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
 	offsetLow := self computeSignedValue64Bits: (offset bitAnd: 16rFFF).
-
-	"Branch over the jump if the condition is not met"
-	self machineCodeAt: 0 put: (self  branchTo: 16 ifRegisterValueIsNotEqualToZero: ConcreteZeroReg "should jump after the jump").
-	"Perform the actual jump"
-	self machineCodeAt: 4 put: (self loadUpperImmediate: offsetHigh inRegister: ConcreteIPReg).
-	self machineCodeAt: 8 put: (self addWordImmediate: offsetLow toRegister: ConcreteIPReg inRegister: ConcreteIPReg).
-	self machineCodeAt: 12 put: (self jumpToRegisterValue: ConcreteIPReg).
+	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
 	
-	^ machineCodeSize := 16
+	"Branch over the jump if the condition is not met"
+	self machineCodeAt: 0 put: (self  branchTo: 12 ifRegisterValueIsNotEqualToZero: ConcreteZeroReg "should jump after the jump").
+	"Perform the actual jump"
+	self machineCodeAt: 4 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+	self machineCodeAt: 8 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
+	^ machineCodeSize := 12
 ]
 
 { #category : #concretization }
@@ -4668,11 +4669,50 @@ CogRiscV64Compiler >> enableFloatingPoint [
 	^ instructions
 ]
 
+{ #category : #'instruction detection' }
+CogRiscV64Compiler >> extractConditionFromZeroConditionalBranch: instruction [ 
+
+	^ instruction >> 12 bitAnd: 16r7
+]
+
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> extractOffsetFromAUIPC: instruction [ 
 
 	self flag: #TODO.
-	^ self signExtendValue: ((instruction >> 20) bitAnd: 16rFFFFF) << 12 forSize: 32
+	^ self signExtendValue: ((instruction >> 12) bitAnd: 16rFFFFF) << 12 forSize: 32
+]
+
+{ #category : #'calculating offsets' }
+CogRiscV64Compiler >> extractOffsetFromCall: callAddress [ 
+
+	| instAUIPC offsetAUIPC instJALR offsetJALR |
+	"A call consists of auipc + jalr"
+	self flag: #TODO.	
+	"AUIPC"
+	instAUIPC := objectMemory long32At: callAddress - 4.
+	self assert: (self instructionIsAUIPC: instAUIPC).
+	offsetAUIPC := self extractOffsetFromAUIPC: instAUIPC.
+	"JALR"
+	instJALR := objectMemory long32At: callAddress.
+	self assert: (self instructionIsJALR: instJALR).
+	offsetJALR := self extractOffsetFromJALR: instJALR.
+	
+	^ offsetAUIPC + offsetJALR
+]
+
+{ #category : #'instruction extraction' }
+CogRiscV64Compiler >> extractOffsetFromConditionalBranch: instruction [ 
+
+	"Branch instruction encode the offset from bits 31->25 as 12|10:5 
+	                                  and from bits 11->7  as 4:1|11"
+	| offset1 offset2 |
+	offset1 := instruction >> 7 bitAnd: 16r1F.
+	offset2 := instruction >> 25 bitAnd: 16r7F.
+	^ ((((offset1 >> 6 bitAnd: 16r1) << 12) "12"
+	  bitOr: ((offset2 bitAnd: 16r1) << 11)) "11"
+	  bitOr: ((offset2 bitAnd: 16r3F) << 5)) "10:5"
+	  bitOr: ((offset1 >> 1 bitAnd: 16rF) << 1) "4:1"
+	  
 ]
 
 { #category : #'inline cacheing' }
@@ -4693,6 +4733,25 @@ CogRiscV64Compiler >> extractOffsetFromJALR: instruction [
 
 	self flag: #TODO.
 	^ self signExtendValue: ((instruction >> 20) bitAnd: 16rFFF) forSize: 12
+]
+
+{ #category : #'calculating offsets' }
+CogRiscV64Compiler >> extractOffsetFromLongJump: jumpAddress [ 
+
+	| instLUI offsetLUI instADDIW offsetADDIW |
+	"A long jump expands to offset loading + jump register 
+	 and the offset loading expands to lui + addiw (we need to go other the jump to reach those"
+	self flag: #TODO.	
+	"LUI"
+	instLUI := objectMemory long32At: jumpAddress - 8.
+	self assert: (self instructionIsLUI: instLUI).
+	offsetLUI := self signExtendValue: (instLUI >> 12 bitAnd: 16rfffff) << 12 forSize: 32. "20 upper bits"
+	"ADDIW"
+	instADDIW := objectMemory long32At: jumpAddress - 4.
+	self assert: (self instructionIsADDI: instADDIW).
+	offsetADDIW := self signExtendValue: (instADDIW >> 20 bitAnd: 16rfff) forSize: 12. "12 lower bits"
+	
+	^ offsetLUI + offsetADDIW
 ]
 
 { #category : #'machine code instruction' }
@@ -5653,10 +5712,10 @@ CogRiscV64Compiler >> jumpLongByteSize [
 	displacement for the same reason, but they must be able to span the full (32-bit or 64-bit) address space because
 	they are used to call code in the C runtime, which may be distant from the code zone"
 	
-	"Jump long will load a value within 32-bits (enough for the 16mb required for the code space) then jump 
-	 using a total of three instructions: lui + addiw + jr"
+	"Jump long will load a pc-relative offset within 32-bits (enough for the 16mb required for the code space) then jump 
+	 using a total of two instructions: auipc + jalr (same as call but does not store the return address)"
 	self flag: #TODO.
-	^12
+	^8
 ]
 
 { #category : #'concretization helpers - mc size' }
@@ -5670,21 +5729,8 @@ CogRiscV64Compiler >> jumpLongConditionalByteSize [
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> jumpLongTargetBeforeFollowingAddress: mcpc [ 
 	"Answer the target address for the long jump immediately preceding mcpc"
-	"Answer the address that the call immediately preceding callSiteReturnAddress will jump to."
-	| jumpAddress jumpInstruction jumpDistance |
 	self flag: #TODO.
-	"1halt."
-	jumpAddress := self instructionAddressBefore: mcpc.
-	jumpInstruction := objectMemory long32At: jumpAddress.
-	"Check if the instruction is a nop, in that case take the one before"
-	(self instructionIsNOP: jumpInstruction) ifTrue: [ 
-		jumpAddress := jumpAddress - 4.
-		jumpInstruction := objectMemory long32At: jumpAddress ].
-	"Note that jr is a pseudo-instruction that expands to jalr x0, 0(reg)"
-	self assert: (self instructionIsJALR: jumpInstruction).
-	jumpDistance := self extractOffsetFromLongJump: jumpAddress.
-		
-	^ jumpAddress + jumpDistance signedIntFromLong
+	^self callTargetFromReturnAddress: mcpc
 ]
 
 { #category : #disassembly }
@@ -6556,12 +6602,42 @@ CogRiscV64Compiler >> rewriteCPICJumpAt: callSiteReturnAddress target: callTarge
 
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> rewriteCallAt: callSiteReturnAddress target: callTargetAddress [
-	"Rewrite a call instruction to call a different target.  This variant is used to link PICs
-	 in ceSendMiss et al,.   
-	Answer the extent of the code change which is used to compute the range of the icache to flush."
+	"Rewrite a call/jump instruction to call a different target.  This variant is used to link PICs
+	 in ceSendMiss et al, and to rewrite call/jumps in CPICs.
+	Answer the extent of
+	 the code change which is used to compute the range of the icache to flush."
 	<var: #callSiteReturnAddress type: #usqInt>
 	<var: #callTargetAddress type: #usqInt>
-	^self rewriteTransferAt: callSiteReturnAddress target: callTargetAddress
+	| callDistance offsetLow offsetHigh instr |
+
+	self flag: #TODO.
+	callTargetAddress >= cogit minCallAddress
+		ifFalse: [self error: 'linking callsite to invalid address'].
+
+	callDistance := (callTargetAddress - (callSiteReturnAddress - 8 "return offset")).
+	self assert: (self isInImmediateCallRange: callDistance). "we don't support long call updates, yet"
+
+	instr := self instructionBeforeAddress: callSiteReturnAddress.
+	self assert: (self instructionIsJALR: instr).
+	"Need to modify the whole instructions -> auipc + jalr"
+	"This mangling avoid having to bias the 11th bit in case of a negative value
+	 it is also used in loadImmediate:inRegister:"
+	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
+	offsetLow := self computeSignedValue64Bits: (callDistance bitAnd: 16rFFF).
+	offsetHigh := (((self computeSignedValue64Bits: callDistance) + 16r800) >> 12) bitAnd: 16rFFFFF.
+
+	"auipc"
+	objectMemory
+		long32At: (self instructionAddressBefore: callSiteReturnAddress - 4)
+		put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+	"jalr"
+	objectMemory
+		long32At: (self instructionAddressBefore: callSiteReturnAddress)
+		put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
+
+	self assert: (self callTargetFromReturnAddress: callSiteReturnAddress) = callTargetAddress.
+
+	^8
 ]
 
 { #category : #'inline cacheing' }
@@ -6586,11 +6662,11 @@ CogRiscV64Compiler >> rewriteConditionalJumpLongAt: callSiteReturnAddress target
 	<var: #callSiteReturnAddress type: #usqInt>
 	<var: #callTargetAddress type: #usqInt>
 	| callDistance instr |
-
+	1halt.
 	callTargetAddress >= cogit minCallAddress
 		ifFalse: [self error: 'linking callsite to invalid address'].
 
-	callDistance := (callTargetAddress - (callSiteReturnAddress - 4 "return offset")).
+	callDistance := (callTargetAddress - (callSiteReturnAddress - 12 "return offset")).
 	self assert: (self isInImmediateJumpRange: callDistance). "we don't support long call updates, yet"
 
 	instr := self instructionBeforeAddress: callSiteReturnAddress.
@@ -6637,13 +6713,41 @@ CogRiscV64Compiler >> rewriteJumpFullAt: callSiteReturnAddress target: callTarge
 ]
 
 { #category : #'inline cacheing' }
-CogRiscV64Compiler >> rewriteJumpLongAt: callSiteReturnAddress target: callTargetAddress [
-	"Rewrite a jump instruction to call a different target.  This variant is used to reset the 
-	jumps in the prototype CPIC to suit each use,.   
-	Answer the extent of the code change which is used to compute the range of the icache to flush."
+CogRiscV64Compiler >> rewriteJumpLongAt: jumpReturnAddress target: jumpTargetAddress [
+	"Rewrite a jump instruction to call a different target.  This variant is used to link PICs 
+	 in ceSendMiss et al, and to rewrite jumps in CPICs.
+	 Answer the extent of the code change which is used to compute the range of the icache to flush."
 	<var: #callSiteReturnAddress type: #usqInt>
 	<var: #callTargetAddress type: #usqInt>
-	^self rewriteTransferAt: callSiteReturnAddress target: callTargetAddress
+	| jumpDistance offsetLow offsetHigh instr |
+	self flag: #TODO.
+	jumpTargetAddress >= cogit minCallAddress
+		ifFalse: [self error: 'linking callsite to invalid address'].
+	jumpDistance := (jumpTargetAddress - (jumpReturnAddress - 8 "return offset")).
+	self assert: (self isInImmediateJumpRange: jumpDistance). "we don't support long jump updates, yet"
+
+	instr := self instructionBeforeAddress: jumpReturnAddress.
+	self assert: (self instructionIsJALR: instr).
+	"Need to modify the whole instructions -> auipc + jalr"
+	
+	"This mangling avoid having to bias the 11th bit in case of a negative value
+	 it is also used in loadImmediate:inRegister:"
+	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
+	offsetLow := self computeSignedValue64Bits: (jumpDistance bitAnd: 16rFFF).
+	offsetHigh := (((self computeSignedValue64Bits: jumpDistance) + 16r800) >> 12) bitAnd: 16rFFFFF.
+
+	"auipc"
+	objectMemory
+		long32At: (self instructionAddressBefore: jumpReturnAddress - 4)
+		put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+	"jalr"
+	objectMemory
+		long32At: (self instructionAddressBefore: jumpReturnAddress)
+		put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
+
+	self assert: (self jumpLongTargetBeforeFollowingAddress: jumpReturnAddress) = jumpTargetAddress.
+	
+	^8
 ]
 
 { #category : #'inline cacheing' }
@@ -7276,6 +7380,14 @@ CogRiscV64Compiler >> value: value isContainedIn: size [
 	value >= 0 
 		ifTrue: [ ^ (value bitAnd: mask) = value ]
 		ifFalse: [ ^ (twosComplement >= 0 and: twosComplement <= mask) ]	
+]
+
+{ #category : #instruction }
+CogRiscV64Compiler >> zeroConditionalBranch: condition withOffset: offset [ 
+
+	"Return a bnez or beqz comparing with the zero flag register"
+	self flag: #TODO.
+	^ self branchTo: offset ifCondition: condition betweenRegister: ConcreteZeroReg andRegister: X0
 ]
 
 { #category : #'inline cacheing' }
