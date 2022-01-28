@@ -77,6 +77,12 @@ UnicornSimulator >> finishMappingMemory [
 	"Do nothing in the case of Unicorn, is useful if the simulator used has to map memory by hand"
 ]
 
+{ #category : #initialization }
+UnicornSimulator >> getReturnAddress [ 
+
+ self subclassResponsibility 
+]
+
 { #category : #'handling invalid accesses' }
 UnicornSimulator >> handleInvalidAccess: invalidAccess [
 
@@ -132,11 +138,48 @@ UnicornSimulator >> invalidAccessHandler: aFullBlockClosure [
 ]
 
 { #category : #initialization }
+UnicornSimulator >> postCallArgumentsNumArgs: numArgs "<Integer>" in: aMemory [ "<ByteArray|Bitmap>"
+
+	self flag: #TODO.
+	"1halt."
+	^(1 to: numArgs) collect: [:i |
+		i < 5 
+			ifTrue: [self perform: (self registerStateGetters at: i)]
+			"ARM uses a full descending stack. Directly after calling a procedure, nothing but the arguments are pushed."
+			ifFalse: [memory unsignedLongAt: self sp + (i-5)*4 bigEndian: false]].	
+]
+
+{ #category : #initialization }
 UnicornSimulator >> registerHook: aBlock atAddress: anAddress [
 
 	simulator
 		registerInvalidMemoryAccessHook: UcHookType fetchingAccess value
 		doing: [ :type :address :size :value | address = anAddress ifTrue: aBlock ]
+]
+
+{ #category : #executing }
+UnicornSimulator >> retpcIn: aMemory [ 
+
+	self subclassResponsibility 
+
+]
+
+{ #category : #initialization }
+UnicornSimulator >> simulateJumpCallOf: anInteger memory: aSpurSimulatedMemory [
+
+	^ self subclassResponsibility 
+]
+
+{ #category : #initialization }
+UnicornSimulator >> simulateReturnIn: aMemory [
+
+	self subclassResponsibility 
+]
+
+{ #category : #initialization }
+UnicornSimulator >> smashCallerSavedRegistersWithValuesFrom: base by: step in: aMemory [ 
+
+	self subclassResponsibility 
 ]
 
 { #category : #executing }

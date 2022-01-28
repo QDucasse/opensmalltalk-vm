@@ -309,6 +309,12 @@ UnicornProcessor >> s2: anInteger [
 	machineSimulator s2: anInteger
 ]
 
+{ #category : #registers }
+UnicornProcessor >> s6: anInteger [
+	
+	machineSimulator s6: anInteger
+]
+
 { #category : #'as yet unclassified' }
 UnicornProcessor >> s7: anInteger [ 
 	

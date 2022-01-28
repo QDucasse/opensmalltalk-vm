@@ -471,6 +471,19 @@ UnicornRISCVSimulator >> registerList [
 ]
 
 { #category : #'machine registers' }
+UnicornRISCVSimulator >> registerStateGetters [
+	
+	self flag: #TODO.
+	^#(x10 x11 x12 x13 x14 x15 x16 x17 sp lr pc)
+]
+
+{ #category : #'c calling convention' }
+UnicornRISCVSimulator >> retpcIn: aMemory [ 
+
+	^ memory longAt: self fp + 8
+]
+
+{ #category : #'machine registers' }
 UnicornRISCVSimulator >> s0 [
 
 	^ self readRegister: UcRISCVRegisters s0
@@ -492,6 +505,18 @@ UnicornRISCVSimulator >> s2 [
 UnicornRISCVSimulator >> s2: aValue [
 
 	^ self writeRegister: UcRISCVRegisters s2 value: aValue
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> s6 [
+
+	^ self readRegister: UcRISCVRegisters s6
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> s6: aValue [
+
+	^ self writeRegister: UcRISCVRegisters s6 value: aValue
 ]
 
 { #category : #'machine registers' }
@@ -536,11 +561,51 @@ UnicornRISCVSimulator >> sendNumberOfArgumentsRegister [
 	^ UcRISCVRegisters x25
 ]
 
+{ #category : #initialization }
+UnicornRISCVSimulator >> simulateJumpCallOf: address memory: aMemory [
+	"Simulate a frame-building jump of address. 
+	 Build a frame since this is used for calls 
+	 into the run-time which are unlikely to be leaf-calls"
+	
+	"Check how this would apply to RISCV 
+	  |
+	  v"
+	"This method builds a stack frame as expected by the simulator, not as defined by ARM aapcs-abi.
+	In ARM aapcs, every method can define for itself, wether it wants to push lr (nextpc), and wether it 
+	uses a frame pointer. The standard never mentions a fp. It merely defines r4-r11 to be callee-saved."
+	
+	self assert: self sp \\ 8 = 0. "This check ensures, that we conform with RISCV abi. Before doing anything to the stack, we ensure 2-word alignment."
+
+	self pushWord: self linkRegisterValue.
+	self pushWord: self fp.
+	self framePointerRegisterValue: self stackPointerRegisterValue.
+
+	self instructionPointerRegisterValue: address
+]
+
 { #category : #'as yet unclassified' }
 UnicornRISCVSimulator >> simulateLeafCallOf: destinationAddress nextpc: returnAddress memory: anUndefinedObject [ 
 
 	self linkRegisterValue: returnAddress.
 	self instructionPointerRegisterValue: destinationAddress
+]
+
+{ #category : #initialization }
+UnicornRISCVSimulator >> simulateReturnIn: aMemory [
+
+	self framePointerRegisterValue: self popWord.
+	self linkRegisterValue: self popWord.
+
+	self instructionPointerRegisterValue: self linkRegisterValue
+
+]
+
+{ #category : #disassembling }
+UnicornRISCVSimulator >> smashCallerSavedRegistersWithValuesFrom: base by: step in: aMemory [
+
+	#(lr: x10: x11: x12: x13: x14: x15: x16: x17:) withIndexDo:
+		[:accessor :index|
+		self perform: accessor with: index - 1 * step + base]
 ]
 
 { #category : #registers }
@@ -671,9 +736,21 @@ UnicornRISCVSimulator >> x10 [
 ]
 
 { #category : #'machine registers' }
+UnicornRISCVSimulator >> x10: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x10 value: aValue
+]
+
+{ #category : #'machine registers' }
 UnicornRISCVSimulator >> x11 [
 
 	^ self readRegister: UcRISCVRegisters x11
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> x11: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x11 value: aValue
 ]
 
 { #category : #'machine registers' }
@@ -683,9 +760,21 @@ UnicornRISCVSimulator >> x12 [
 ]
 
 { #category : #'machine registers' }
+UnicornRISCVSimulator >> x12: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x12 value: aValue
+]
+
+{ #category : #'machine registers' }
 UnicornRISCVSimulator >> x13 [
 
 	^ self readRegister: UcRISCVRegisters x13
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> x13: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x13 value: aValue
 ]
 
 { #category : #'machine registers' }
@@ -695,9 +784,21 @@ UnicornRISCVSimulator >> x14 [
 ]
 
 { #category : #'machine registers' }
+UnicornRISCVSimulator >> x14: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x14 value: aValue
+]
+
+{ #category : #'machine registers' }
 UnicornRISCVSimulator >> x15 [
 
 	^ self readRegister: UcRISCVRegisters x15
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> x15: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x15 value: aValue
 ]
 
 { #category : #'machine registers' }
@@ -707,15 +808,33 @@ UnicornRISCVSimulator >> x16 [
 ]
 
 { #category : #'machine registers' }
+UnicornRISCVSimulator >> x16: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x16 value: aValue
+]
+
+{ #category : #'machine registers' }
 UnicornRISCVSimulator >> x17 [
 
 	^ self readRegister: UcRISCVRegisters x17
 ]
 
 { #category : #'machine registers' }
+UnicornRISCVSimulator >> x17: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x17 value: aValue
+]
+
+{ #category : #'machine registers' }
 UnicornRISCVSimulator >> x18 [
 
 	^ self readRegister: UcRISCVRegisters x18
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> x18: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x18 value: aValue
 ]
 
 { #category : #'machine registers' }
