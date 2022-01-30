@@ -236,13 +236,21 @@ CogOutOfLineLiteralsRiscV64Compiler >> relocateMethodReferenceBeforeAddress: pc 
 	"A push expands to addi sp -8 then sd rd 0(sp)"
 	pcFollowingLoad := ((self instructionIsSD: (self instructionBeforeAddress: pc)) and: 
 								(self instructionIsADDI: (self instructionBeforeAddress: pc - 4)))
-							ifTrue: [1halt. pc - 8]
+							ifTrue: [pc-8]
 							ifFalse: [pc].
 	"If the load is not done via pc-relative addressing we have to relocate."
-	(self isRelativeLiteralLoad: pcFollowingLoad) ifTrue:
-		[litAddr := self pcRelativeAddressAt: pcFollowingLoad - self loadLiteralByteSize.
-		 reference := objectMemory long64At: litAddr.
-		 objectMemory long64At: litAddr put: reference + delta - 4]
+	(self isRelativeLiteralLoad: pcFollowingLoad) 
+		ifTrue: "auipc + sd"
+			[litAddr := self pcRelativeAddressAt: pcFollowingLoad - self loadLiteralByteSize.
+		 	reference := objectMemory long64At: litAddr.
+		 	objectMemory long64At: litAddr put: reference + delta - 4]
+		ifFalse: "auipc + addi"
+			[ self assert: (self instructionIsAUIPC: (self instructionBeforeAddress: pcFollowingLoad - 4)). 
+		     self assert: (self instructionIsADDI: (self instructionBeforeAddress: pcFollowingLoad)) ]
+	
+
+
+
 ]
 
 { #category : #'inline cacheing' }
@@ -253,9 +261,9 @@ CogOutOfLineLiteralsRiscV64Compiler >> rewriteFullTransferAt: callSiteReturnAddr
 	 Answer the extent of the code change which is used to compute the range of the icache to flush."
 	<var: #callSiteReturnAddress type: #usqInt>
 	<var: #callTargetAddress type: #usqInt>
-	1halt.
+	"1halt."
 	self assert: (self instructionBeforeAddress: callSiteReturnAddress) = expectedInstruction.
-	objectMemory longAt: (self pcRelativeAddressAt: callSiteReturnAddress - 8) put: callTargetAddress.
+	objectMemory longAt: (self pcRelativeAddressAt: callSiteReturnAddress - 12) put: callTargetAddress.
 	"self cCode: ''
 		inSmalltalk: [cogit disassembleFrom: callSiteReturnAddress - 8 to: (self pcRelativeAddressAt: callSiteReturnAddress - 8)]."
 	^0
@@ -268,21 +276,18 @@ CogOutOfLineLiteralsRiscV64Compiler >> rewriteInlineCacheAt: callSiteReturnAddre
 	 change which is used to compute the range of the icache to flush."
 	<var: #callSiteReturnAddress type: #usqInt>
 	<var: #callTargetAddress type: #usqInt>
-	| call callDistance |
+	| codeChange |
+	"1halt."
 	self flag: #TODO.
-	callTargetAddress >= cogit minCallAddress ifFalse:
-		[self error: 'linking callsite to invalid address'].
-	callDistance := (callTargetAddress - (callSiteReturnAddress - 4 "return offset")).
-	self assert: (self isInImmediateJumpRange: callDistance). "we don't support long call updates here"
-	call := self jumpToOffset: callDistance andStorePreviousPCPlus4in: LR.
+	codeChange := self rewriteCallAt: callSiteReturnAddress target: callTargetAddress.
 	objectMemory
-		long32At: (self instructionAddressBefore: callSiteReturnAddress) put: call;
 		longAt: (self pcRelativeAddressAt: callSiteReturnAddress - self callInstructionByteSize - self loadLiteralByteSize) 
 		put: cacheTag signedIntToLong64.
+
 	self assert: (self inlineCacheTagAt: callSiteReturnAddress) = cacheTag  signedIntToLong64.
 	"self cCode: ''
 		inSmalltalk: [cogit disassembleFrom: callSiteReturnAddress - 8 to: (self pcRelativeAddressAt: callSiteReturnAddress - 8)]."
-	^4
+	^ codeChange
 ]
 
 { #category : #'inline cacheing' }
