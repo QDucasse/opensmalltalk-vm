@@ -455,6 +455,18 @@ UnicornRISCVSimulator >> mstatusRegisterValue: aValue [
 	^ self writeRegister: self mstatus value: aValue
 ]
 
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> ra [
+
+	^ self readRegister: UcRISCVRegisters x1
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> ra: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x1 value: aValue
+]
+
 { #category : #registers }
 UnicornRISCVSimulator >> receiverRegister [
 	

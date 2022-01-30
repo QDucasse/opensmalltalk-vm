@@ -1504,7 +1504,7 @@ CogRiscV64Compiler >> concretizeAddCqR [
 		^ machineCodeSize := flagOffset + overflowOffset + 4 ].
 
 	"Otherwise, use the provided literal"
-	loadOffset := self loadCwInto: ConcreteIPReg.
+	loadOffset := self moveCw: cq intoR: ConcreteIPReg.
 	"Perform the actual ADD operation"
 	self machineCodeAt: loadOffset put: (self
 			 addRegister: sourceReg
@@ -1538,7 +1538,7 @@ CogRiscV64Compiler >> concretizeAddCwR [
 	self assert: dependent notNil.
 	sourceReg := destReg := operands at: 1.	
 	"Load Cw in register then perform the add"
-	loadOffset := self loadCwInto: ConcreteIPReg.
+	loadOffset := self moveCw: (operands at: 0) intoR: ConcreteIPReg.
 
 	"Perform the actual ADD operation"
 	self machineCodeAt: loadOffset put: (self
@@ -2482,7 +2482,7 @@ CogRiscV64Compiler >> concretizeJumpLongNonZero [
 	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
 	
 	"Branch over the jump if the condition is not met"
-	self machineCodeAt: 0 put: (self  branchTo: 12 ifRegisterValueIsEqualToZero: ConcreteZeroReg "should jump after the jump").
+	self machineCodeAt: 0 put: (self  branchTo: 12 ifRegisterValueIsNotEqualToZero: ConcreteZeroReg "should jump after the jump").
 	"Perform the actual jump"
 	self machineCodeAt: 4 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
 	self machineCodeAt: 8 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
@@ -2509,7 +2509,7 @@ CogRiscV64Compiler >> concretizeJumpLongZero [
 	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
 	
 	"Branch over the jump if the condition is not met"
-	self machineCodeAt: 0 put: (self  branchTo: 12 ifRegisterValueIsNotEqualToZero: ConcreteZeroReg "should jump after the jump").
+	self machineCodeAt: 0 put: (self  branchTo: 12 ifRegisterValueIsEqualToZero: ConcreteZeroReg "should jump after the jump").
 	"Perform the actual jump"
 	self machineCodeAt: 4 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
 	self machineCodeAt: 8 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
@@ -2899,6 +2899,8 @@ CogRiscV64Compiler >> concretizeMoveAwR [
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeMoveC32R [
+	
+	self flag: #TODO.
 	self shouldBeImplemented.
 ]
 
@@ -3932,7 +3934,7 @@ CogRiscV64Compiler >> concretizePushCw [
 	| word instrOffset pushOffset |
 	self flag: #TODO.
 	word := operands at: 0.
-	self assert: dependent isNotNil.
+	"self assert: dependent isNotNil."
 	instrOffset := self loadCwInto: ConcreteIPReg.
 	pushOffset := self machineCodeWriteInstructions: (self pushFromRegister: ConcreteIPReg) startingAtIndex: instrOffset.
 	^ machineCodeSize := instrOffset + pushOffset
@@ -4402,24 +4404,6 @@ CogRiscV64Compiler >> concretizeXorRdRd [
 	
 ]
 
-{ #category : #testing }
-CogRiscV64Compiler >> conditionIsNotNever: instr [
-	"test for the NV condition code; this isn't allowed as an actual condition and is used to encdoe many of the newer instructions"
-	^instr >> 28 < 16rF 
-]
-
-{ #category : #accessing }
-CogRiscV64Compiler >> conditionOrNil [
-"has to be named oddly like this to satisfay i-var code gen translating rules"
-	^conditionOrNil
-]
-
-{ #category : #accessing }
-CogRiscV64Compiler >> conditionOrNil: condCode [
-"has to be named oddly like this to satisfay i-var code gen translating rules"
-	^conditionOrNil := condCode
-]
-
 { #category : #'machine code instruction' }
 CogRiscV64Compiler >> csr: csr readValueIn: destReg andWriteValueFromRegister: srcReg [ 
 
@@ -4673,6 +4657,7 @@ CogRiscV64Compiler >> enableFloatingPoint [
 { #category : #'instruction detection' }
 CogRiscV64Compiler >> extractConditionFromZeroConditionalBranch: instruction [ 
 
+	self flag: #TODO.
 	^ instruction >> 12 bitAnd: 16r7
 ]
 
@@ -4707,6 +4692,7 @@ CogRiscV64Compiler >> extractOffsetFromConditionalBranch: instruction [
 	"Branch instruction encode the offset from bits 31->25 as 12|10:5 
 	                                  and from bits 11->7  as 4:1|11"
 	| offset1 offset2 |
+	self flag: #TODO.
 	offset1 := instruction >> 7 bitAnd: 16r1F.
 	offset2 := instruction >> 25 bitAnd: 16r7F.
 	^ ((((offset1 >> 6 bitAnd: 16r1) << 12) "12"
@@ -5424,6 +5410,8 @@ CogRiscV64Compiler >> generalPurposeRegisterMap [
 { #category : #'method entry' }
 CogRiscV64Compiler >> generateAlignmentNopsForEntry [
 
+	"This is needed to provide a mislignment between the entry and no entry in a cog method"
+	self flag: #DONE.
 	cogit Nop.
 	cogit Nop.
 
@@ -5454,7 +5442,7 @@ CogRiscV64Compiler >> hasDoublePrecisionFloatingPointSupport [
 
 { #category : #testing }
 CogRiscV64Compiler >> hasLinkRegister [
-	^true "lr"
+	^true "x1/ra"
 ]
 
 { #category : #testing }
@@ -5472,8 +5460,8 @@ CogRiscV64Compiler >> hasThreeAddressArithmetic [
 { #category : #testing }
 CogRiscV64Compiler >> hasVarBaseRegister [
 	"Answer if the processor has a dedicated callee-saved register to point to
-	 the base of commonly-accessed variables. On ARM we use R10 for this."
-	^true "r10/sl"
+	 the base of commonly-accessed variables. On RISCV we use X26 for this."
+	^true "x26/s10"
 ]
 
 { #category : #initialization }
@@ -5529,32 +5517,6 @@ CogRiscV64Compiler >> instructionIsAUIPC: instruction [
 
 ]
 
-{ #category : #testing }
-CogRiscV64Compiler >> instructionIsB: instr [
-	"is this a B <label> instruction?"
-	self seeAlso: #b:.
-	^ (instr bitAnd: 16r3f << 26) = (2r000101 << 26)
-]
-
-{ #category : #testing }
-CogRiscV64Compiler >> instructionIsBL: instr [
-	"is this a BL <label> instruction?"
-	self seeAlso: #bl:.
-	^ instr allMask: 2r100101 << 26
-]
-
-{ #category : #testing }
-CogRiscV64Compiler >> instructionIsBLX: instr [
-"is this a BLX <targetReg> instruction?"
-	^(self conditionIsNotNever: instr)  and: [(instr bitAnd: 16r0FFFFFF0) = 16r12FFF30]
-]
-
-{ #category : #testing }
-CogRiscV64Compiler >> instructionIsBX: instr [
-"is this a BX <targetReg> instruction?"
-	^(self conditionIsNotNever: instr) and: [(instr bitAnd: 16r0FFFFFF0) = 16r12FFF10]
-]
-
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> instructionIsConditionalBranch: instruction [
 	
@@ -5591,7 +5553,7 @@ CogRiscV64Compiler >> instructionIsJALR: instruction [
 { #category : #'instruction decoding' }
 CogRiscV64Compiler >> instructionIsLD: instruction [ 
 
-
+	self flag: #TODO.
 	^ ((instruction >> 12 bitAnd: 2r111) = 2r011) and: ((instruction bitAnd: 2r1111111) = 2r0000011)
 ]
 
@@ -5610,14 +5572,6 @@ CogRiscV64Compiler >> instructionIsNOP: instruction [
 
 ]
 
-{ #category : #testing }
-CogRiscV64Compiler >> instructionIsPush: instr [
-	"is this a push R str r??, [sp, #-8] -  instruction?"
-	<var: #instr type: #'uint32_t'> 
-	
-	^ (self pushR: 0) = (instr bitAnd: 16rFFFFFFFFFFFFFFE0)
-]
-
 { #category : #'instruction detection' }
 CogRiscV64Compiler >> instructionIsSD: instruction [  
 
@@ -5630,27 +5584,6 @@ CogRiscV64Compiler >> instructionSizeAt: pc [
 	"Answer the instruction size at pc"
 	self flag: #DONE.
 	^4
-]
-
-{ #category : #'helpers - size sign' }
-CogRiscV64Compiler >> is12BitValue: constant ifTrue: aTrueBlock ifFalse: aFalseBlock [ 
-	
-	<inline: true>
-	
-	^ constant abs <= 2047 "(2 raisedTo: 11) - 1"
-		ifTrue: [ | twoComplement |
-			"Two complement using 12 bits"
-			twoComplement := constant >= 0
-				ifTrue: [ constant ]
-				ifFalse: [ 16rfff - constant abs + 1 ].
-			aTrueBlock value: constant >= 0 value: twoComplement ]
-		ifFalse: [aFalseBlock value]
-]
-
-{ #category : #'private-bit-manipulation' }
-CogRiscV64Compiler >> is64bitMask64: aMask [
-
-	^ aMask ~= 0 and: [ ((aMask + 1) bitAnd: aMask) == 0 ]
 ]
 
 { #category : #'helpers - size sign' }
@@ -5724,26 +5657,15 @@ CogRiscV64Compiler >> isJumpAt: pc [
 ]
 
 { #category : #testing }
-CogRiscV64Compiler >> isPCRelativeValueLoad: instr [
-	<var: 'instr' type: #'unsigned int'>
-	"If ADR <Xd>, <label>"
-	
-	^ (instr bitAnd: 2r10011111 << 24) = (1 << 28)
-]
-
-{ #category : #testing }
 CogRiscV64Compiler >> isRelativeLiteralLoad: followingAddress [
+	
+	"Need renaming"
 
 	self flag: #TODO.
 	"1halt."
+	
 	^ (self instructionIsAUIPC: (self instructionBeforeAddress: followingAddress - 4)) 
 		and: (self instructionIsLD: (self instructionBeforeAddress: followingAddress))
-]
-
-{ #category : #'private-bit-manipulation' }
-CogRiscV64Compiler >> isShiftedMask: aMask [
-
-	^ aMask ~= 0 and: [ self is64bitMask64: ((aMask - 1) bitOr: aMask) ]
 ]
 
 { #category : #'concretization helpers - mc size' }
@@ -6066,8 +5988,9 @@ CogRiscV64Compiler >> loadLiteralInRegister: destReg [
 CogRiscV64Compiler >> loadPICLiteralByteSize [
 	"Answer the byte size of a MoveCwR opcode's corresponding machine code
 	 when the argument is a PIC.  This is for the self-reference at the end of a
-	 closed PIC.  On ARM this is a single instruction pc-relative register load."
-	^4
+	 closed PIC.  On RISC-V this is a two instructions pc-relative register load."
+	self flag: #TODO.
+	^8
 ]
 
 { #category : #'machine code instruction' }

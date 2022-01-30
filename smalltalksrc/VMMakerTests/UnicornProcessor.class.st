@@ -241,6 +241,12 @@ UnicornProcessor >> r9b: anInteger [
 ]
 
 { #category : #registers }
+UnicornProcessor >> ra: anInteger [ 
+
+	^ machineSimulator ra: anInteger
+]
+
+{ #category : #registers }
 UnicornProcessor >> rax: anInteger [ 
 	
 	machineSimulator rax: anInteger
