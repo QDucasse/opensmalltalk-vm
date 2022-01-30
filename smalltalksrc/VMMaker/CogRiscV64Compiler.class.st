@@ -6477,14 +6477,13 @@ CogRiscV64Compiler >> recursiveLoadImmediate: anImmediate inRegister: aRegister 
 
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> relocateCallBeforeReturnPC: retpc by: delta [
-	| instr distanceDiv4 |
+	
+	| offset |
+	"1halt."
 	self assert: delta \\ 4 = 0.
 	delta ~= 0 ifTrue:
-		[instr := self instructionBeforeAddress: retpc.
-		 self assert: ((self instructionIsB: instr) or: [self instructionIsBL: instr]).
-		 distanceDiv4 := instr bitAnd: 16rFFFFFF.
-		 distanceDiv4 := distanceDiv4 + (delta // 4).
-		 objectMemory long32At: (self instructionAddressBefore: retpc ) put: ((instr bitAnd: 16rFF000000) bitOr: (distanceDiv4 bitAnd: 16rFFFFFF))]
+		[ offset := self callTargetFromReturnAddress: retpc.
+		  self rewriteCallAt: retpc target: offset + delta]
 ]
 
 { #category : #'machine code instruction' }
@@ -6527,29 +6526,39 @@ CogRiscV64Compiler >> returnFromCallCFunctionInSmalltalkStack: anObject [
 ]
 
 { #category : #'inline cacheing' }
-CogRiscV64Compiler >> rewriteCPICJumpAt: callSiteReturnAddress target: callTargetAddress [
+CogRiscV64Compiler >> rewriteCPICJumpAt: jumpReturnAddress target: jumpTargetAddress [
+
 	"Rewrite a jump instruction to call a different target.  This variant is used to reset the 
 	jumps in the prototype CPIC to suit each use,.   
 	Answer the extent of the code change which is used to compute the range of the icache to flush."
-	<var: #callSiteReturnAddress type: #usqInt>
-	<var: #callTargetAddress type: #usqInt>
-	| callDistance instr |
 
-	callTargetAddress >= cogit minCallAddress
-		ifFalse: [self error: 'linking callsite to invalid address'].
+	<var: #jumpReturnAddress type: #usqInt>
+	<var: #jumpTargetAddress type: #usqInt>
+	| jumpDistance instr |
+	self flag: #TODO.
+	"1halt."
+	jumpTargetAddress >= cogit minCallAddress ifFalse: [ 
+		self error: 'linking callsite to invalid address' ].
 
-	callDistance := (callTargetAddress - (callSiteReturnAddress - 4 "return offset")).
-	self assert: (self isInImmediateJumpRange: callDistance). "we don't support long call updates, yet"
+	jumpDistance := jumpTargetAddress - (jumpReturnAddress - 12). "return offset"
+	self assert: (self isInImmediateJumpRange: jumpDistance). "we don't support long call updates, yet"
 
-	instr := self instructionBeforeAddress: callSiteReturnAddress.
+	instr := self instructionBeforeAddress: jumpReturnAddress.
 	self assert: (self instructionIsConditionalBranch: instr).
+	self assert: (self instructionIsConditionalZeroBranch: instr).
 
 	objectMemory
-		long32At: (self instructionAddressBefore: callSiteReturnAddress)
-		put: (self branchCondition: (self extractConditionFromB: instr) offset: callDistance).
+		long32At: (self instructionAddressBefore: jumpReturnAddress)
+		put: (self
+				 zeroConditionalBranch:
+				 (self extractConditionFromZeroConditionalBranch: instr)
+				 withOffset: jumpDistance).
 
-	self assert: (self extractOffsetFromConditionalBranch: ((self branchCondition: (self extractConditionFromB: instr) offset: callDistance))) = callDistance.
-	^4
+	self assert: (self extractOffsetFromConditionalBranch: (self
+				  zeroConditionalBranch:
+				  (self extractConditionFromZeroConditionalBranch: instr)
+				  withOffset: jumpDistance)) = jumpDistance.
+	^ 4
 ]
 
 { #category : #'inline cacheing' }
@@ -6594,13 +6603,20 @@ CogRiscV64Compiler >> rewriteCallAt: callSiteReturnAddress target: callTargetAdd
 
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> rewriteCallFullAt: callSiteReturnAddress target: callTargetAddress [
-	"Rewrite a callFull instruction to jump to a different target.  This variant
+	"Rewrite a full call instruction to jump to a different target.  This variant
 	 is used to rewrite cached primitive calls where we load the target address into ip
-	and use the 'blx ip' instruction for the actual call.
-	Answer the extent of the
-	 code change which is used to compute the range of the icache to flush."
+	 and use the 'blx ip' instruction for the actual call.
+	 Answer the extent of the code change which is used to compute the range of the icache to flush."
+
+	"This is the assembled instruction jr ip. 
+	 This will break if we change the assignment of registers
+	 It can be obtained with 
+		self jumpTo: ConcreteIPReg withOffset: 0 andStorePreviousPCPlus4in: LR"
+
 	<inline: true>
-	^self
+	
+	1halt.
+	^ self
 		rewriteFullTransferAt: callSiteReturnAddress
 		target: callTargetAddress
 		expectedInstruction: 16rE12FFF3C
@@ -6650,18 +6666,25 @@ CogRiscV64Compiler >> rewriteInlineCacheAt: callSiteReturnAddress tag: cacheTag 
 ]
 
 { #category : #'inline cacheing' }
-CogRiscV64Compiler >> rewriteJumpFullAt: callSiteReturnAddress target: callTargetAddress [
+CogRiscV64Compiler >> rewriteJumpFullAt: jumpFullReturnAddress target: jumpFullTargetAddress [
 	"Rewrite a full jump instruction to jump to a different target.  This variant
 	 is used to rewrite cached primitive calls where we load the target address into ip
-	and use the 'bx ip' instruction for the actual jump.
-	Answer the extent of the
-	 code change which is used to compute the range of the icache to flush."
+	 and use the 'jr ip' instruction for the actual jump.
+	 Answer the extent of the code change which is used to compute the range of the icache to flush."
+	
+	"This is the assembled instruction jr ip. 
+	 This will break if we change the assignment of registers
+	 It can be obtained with 
+		self jumpToRegisterValue: ConcreteIPReg."
+		
 	<inline: true>
-	1halt.
-	^self
-		rewriteFullTransferAt: callSiteReturnAddress
-		target: callTargetAddress
-		expectedInstruction: 16rD61F0200 "This is the assembled instruction br x16. This will break if we change the assignment of registers"
+	self flag: #TODO.
+	"1halt."
+	^ self
+		rewriteFullTransferAt: jumpFullReturnAddress 
+		target: jumpFullTargetAddress
+		expectedInstruction: 16r00028067 
+
 ]
 
 { #category : #'inline cacheing' }
@@ -7048,6 +7071,8 @@ CogRiscV64Compiler >> stop [
 
 { #category : #'concretization helpers' }
 CogRiscV64Compiler >> stopsFrom: startAddr to: endAddr [
+
+	self flag: #TODO.
 	self assert: endAddr - startAddr + 1 \\ 4 = 0.
 	startAddr to: endAddr by: 4 do: 
 		[:addr | objectMemory long32At: addr put: self stop].
