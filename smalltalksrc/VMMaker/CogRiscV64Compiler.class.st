@@ -1389,14 +1389,8 @@ CogRiscV64Compiler >> computeMaximumSize [
 			"Data movement - Absolute addresses"
 			([ MoveAwR ] -> [ 
 			 (self isAddressRelativeToVarBase: (operands at: 0))
-				 ifTrue: [ 
-					 (operands at: 1) = SP
-						 ifTrue: [ ^ 8 ]
-						 ifFalse: [ ^ 4 ] ]
-				 ifFalse: [ 
-					 dependent
-						 ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 0)) + 8 ]
-						 ifNotNil: [ ^ self literalLoadInstructionBytes + 8 ] ] ]). "TODO"
+				 ifTrue: [ ^ 4 ]
+				 ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]).
 			([ MoveRAw ] -> [ 
 			 dependent
 				 ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 1)) + 4 ]
@@ -2916,6 +2910,7 @@ CogRiscV64Compiler >> concretizeMoveAbR [
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeMoveAwR [
+
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
@@ -2923,39 +2918,22 @@ CogRiscV64Compiler >> concretizeMoveAwR [
 	self flag: #TODO.
 	srcAddr := operands at: 0.
 	destReg := operands at: 1.
-	(self isAddressRelativeToVarBase: srcAddr) ifTrue: [ 
-		| actualDestination |
-		"If the destination register is SP, it is first moved to an ipreg and then moved to SP"
-		actualDestination := destReg = SP
-			ifTrue: [ ConcreteIPReg ]
-			ifFalse: [ destReg ].
-		"Direct encoding as offset"
+	(self isAddressRelativeToVarBase: srcAddr) ifTrue: [ "Direct encoding as offset"
 		self machineCodeAt: 0 put: (self
-				loadDoubleWordFromAddressInRegister: ConcreteVarBaseReg 
-				withOffset: srcAddr - cogit varBaseAddress 
-				toRegister: actualDestination).
-		"Move the result to SP"
-		destReg = SP ifTrue: [ 
-			self machineCodeAt: 4 put: (self moveRegister: actualDestination toRegister: SP).
-			^ machineCodeSize := 8.
-		].
-
+				 loadDoubleWordFromAddressInRegister: ConcreteVarBaseReg
+				 withOffset: srcAddr - cogit varBaseAddress
+				 toRegister: destReg).
 		^ machineCodeSize := 4 ].
-	
+
 	"load the address into ConcreteIPReg"
-	"Missing SP case?"
-	dependent 
-		ifNil: [ instrOffset := self machineCodeWriteInstructions: (self loadImmediate: srcAddr inRegister: ConcreteIPReg) ]		
-		ifNotNil: [ instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
-		
-	self machineCodeAt: instrOffset put: (self 
-			loadDoubleWordFromAddressInRegister: ConcreteIPReg 
-			withOffset: 0 
-			toRegister: ConcreteIPReg).
-	self
-		machineCodeAt: instrOffset + 4
-		put: (self moveRegister: ConcreteIPReg toRegister: destReg).
-	^ machineCodeSize := instrOffset + 8
+	instrOffset := self moveCw: srcAddr intoR: ConcreteIPReg.
+
+	self machineCodeAt: instrOffset put: (self
+			 loadDoubleWordFromAddressInRegister: ConcreteIPReg
+			 withOffset: 0
+			 toRegister: destReg).
+
+	^ machineCodeSize := instrOffset + 4
 ]
 
 { #category : #concretization }
