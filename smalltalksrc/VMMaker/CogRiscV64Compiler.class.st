@@ -1392,9 +1392,9 @@ CogRiscV64Compiler >> computeMaximumSize [
 				 ifTrue: [ ^ 4 ]
 				 ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]).
 			([ MoveRAw ] -> [ 
-			 dependent
-				 ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 1)) + 4 ]
-				 ifNotNil: [ ^ self literalLoadInstructionBytes + 4 ] ]). "TODO check if SP"
+			 (self isAddressRelativeToVarBase: (operands at: 1))
+				 ifTrue: [ ^ 4 ]
+				 ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]). 
 			([ MoveAbR ] -> [ 
 			 (self isAddressRelativeToVarBase: (operands at: 0))
 				 ifTrue: [ 
@@ -3234,26 +3234,27 @@ CogRiscV64Compiler >> concretizeMoveRAb [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeMoveRAw [
 
-	"Stores a word (64 bits) from memory where the address is an absolute address
-	 Expands to: 
-	load address in register	
-	sd ConcreteIPReg, 0(rs1)
-	"
+	"Stores a word (64 bits) from memory where the address is an absolute address. 
+	 Tries to use var base first otherwise use the provided literal"
 
-	"Issues with SP?"
 	<inline: true>
 	| srcReg destAddress instrOffset |
 	self flag: #TODO.
 	srcReg := operands at: 0.
 	destAddress := operands at: 1.
-	dependent 
-		ifNil: [ instrOffset := self machineCodeWriteInstructions: (self loadImmediate: destAddress inRegister: ConcreteIPReg) ]
-		ifNotNil: [ instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
+	(self isAddressRelativeToVarBase: destAddress) ifTrue: [ 
+		self machineCodeAt: 0 put: (self
+				 storeDoubleWordFromRegister: srcReg
+				 toAddressInRegister: ConcreteVarBaseReg
+				 withOffset: destAddress - cogit varBaseAddress).
+		^ machineCodeSize := 4 ].
+	"Load provided literal"
+	instrOffset := self moveCw: destAddress intoR: ConcreteIPReg.
 	self machineCodeAt: instrOffset put: (self
 			 storeDoubleWordFromRegister: srcReg
 			 toAddressInRegister: ConcreteIPReg
 			 withOffset: 0).
-	^ machineCodeSize := instrOffset + 4	
+	^ machineCodeSize := instrOffset + 4
 ]
 
 { #category : #concretization }

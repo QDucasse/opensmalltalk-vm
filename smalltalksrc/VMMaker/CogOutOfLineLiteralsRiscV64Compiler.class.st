@@ -414,7 +414,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[XorCwR]		-> [^true].
 		"Data Movement"						
 		[MoveCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveC32R]  -> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		[MoveC32R]  -> [ self shouldBeImplemented ]. "TODO"
 
 		[MoveCwR]		-> [^(self inCurrentCompilation: (operands at: 0)) not].
 		[MoveAwR]		-> [^(self isAddressRelativeToVarBase: (operands at: 0)) ifTrue: [false] ifFalse: [true]].
