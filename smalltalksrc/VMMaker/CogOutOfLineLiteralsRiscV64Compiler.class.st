@@ -423,8 +423,9 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[MoveRAb]		-> [^(self isAddressRelativeToVarBase: (operands at: 1)) ifTrue: [false] ifFalse: [true]].
 	
 
-		[MoveRM32r]	-> [^ false]. "#TODO"
-
+		[MoveRM32r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
+		[MoveM32rR] -> [^ false]. "#TODO"
+	
 		[MoveRMwr]	-> [^ false]. "#TODO"
 
 		[MoveRsM32r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 												
@@ -436,8 +437,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[MoveRM16r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[MoveM32rRs]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[MoveM64rRd]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
-			
-		[MoveM32rR] -> [^ false]. "#TODO"
 
 		[MoveMwrR]	-> [
 			offset := (operands at: 0).

@@ -910,20 +910,13 @@ CogRiscV64Compiler >> bytesForDataLoadOperationOfSize: operationSize andImmediat
 { #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> bytesForDataStoreOperationOfSize: operationSize andImmediateOperationSize: immOperationSize [
 	
-	"When loading, the offset is operands at 0"
+	"When loading, the offset is operands at 1"
 	self flag: #TODO.
 	dependent
 		ifNil: [ 
-			| offset |
-			offset := operands at: 1.
-			((self computeSignedValueOf: offset ofSize: 12) bitAnd: 16rfff) = offset
-				ifTrue: [ "Immediate that can be encoded in andi" 
-					^ immOperationSize ]
-				ifFalse: [ 
-					^ (self bytesToLoadImmediate: (operands at: 0))
-					  + operationSize ] "Immediate loaded in a register" ]
-		ifNotNil: [ "Literal load" 
-			^ self literalLoadInstructionBytes + operationSize ]
+			self assertValue: (operands at: 1) isContainedIn: 12.
+			^ immOperationSize ].
+	^ self literalLoadInstructionBytes + operationSize 
 ]
 
 { #category : #'concretization helpers - mc size' }
@@ -1377,7 +1370,8 @@ CogRiscV64Compiler >> computeMaximumSize [
 			"Data Movement - Basic"
 			([ MoveCqR ] -> [ 
 			 dependent
-				 ifNil: [ | cq |
+				 ifNil: [ 
+					 | cq |
 					 cq := operands at: 0.
 					 self assertValue: cq isContainedIn: 12.
 					 ^ self bytesToLoadImmediate: cq ]
@@ -1394,7 +1388,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ MoveRAw ] -> [ 
 			 (self isAddressRelativeToVarBase: (operands at: 1))
 				 ifTrue: [ ^ 4 ]
-				 ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]). 
+				 ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]).
 			([ MoveAbR ] -> [ 
 			 (self isAddressRelativeToVarBase: (operands at: 0))
 				 ifTrue: [ ^ 4 ]
@@ -1418,7 +1412,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 				   bytesForDataStoreOperationOfSize: 8
 				   andImmediateOperationSize: 4 ]). "DONE"
 			([ MoveRM32r ] -> [ 
-			 ^ self
+			^ self
 				   bytesForDataStoreOperationOfSize: 8
 				   andImmediateOperationSize: 4 ]). "DONE"
 			([ MoveRMwr ] -> [ 
@@ -2860,8 +2854,9 @@ CogRiscV64Compiler >> concretizeLogicalShiftRightRR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeMoveAbR [
 
-	"Will get inlined into concretizeAt: switch."
-
+	"Loads a byte (8 bits) from memory where the address is an absolute address. 
+	 Tries to use var base first otherwise use the provided literal"
+	
 	<inline: true>
 	| srcAddr destReg instrOffset |
 	self flag: #TODO.
@@ -2887,7 +2882,8 @@ CogRiscV64Compiler >> concretizeMoveAbR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeMoveAwR [
 
-	"Will get inlined into concretizeAt: switch."
+	"Loads a word (64 bits) from memory where the address is an absolute address. 
+	 Tries to use var base first otherwise use the provided literal"
 
 	<inline: true>
 	| srcAddr destReg instrOffset |
@@ -3283,37 +3279,32 @@ CogRiscV64Compiler >> concretizeMoveRM32r [
 	 Expands to: sw rs2, offset(rs1)"
 
 	<inline: true>
-	| srcReg offset baseReg instrOffset |
+	| srcReg offset baseReg loadOffset |
 	self flag: #TODO.
 	srcReg := operands at: 0.
 	offset := operands at: 1.
 	baseReg := operands at: 2.
 	dependent 
 		ifNil: [ 
-			self assertValue: offset isContainedIn: 12 
-				ifTrue: [ self machineCodeAt: 0 put: (self
-								 storeWordFromRegister: srcReg
-			 					 toAddressInRegister: baseReg
-			 					 withOffset: offset).
-							 ^ machineCodeSize := 4 ] 
-				ifFalse: [ "Load offset as an immediate in a register"
-					instrOffset := self machineCodeWriteInstructions: (self 
-						loadImmediate: offset inRegister: ConcreteIPReg) ]
-			]
-		ifNotNil: [ "Load literal"
-			instrOffset := self machineCodeWriteInstructions: (self 
-				loadLiteralInRegister: ConcreteIPReg) ].
+			self assertValue: offset isContainedIn: 12.
+			self machineCodeAt: 0 put: (self
+				 storeWordFromRegister: srcReg
+				 toAddressInRegister: baseReg
+				 withOffset: offset).
+			^ machineCodeSize := 4 ].
+	"Use the provided literal"
+	loadOffset := self moveCw: offset intoR: ConcreteIPReg.
 	"Add the offset to the base address register"
-	self machineCodeAt: instrOffset put: (self 
+	self machineCodeAt: loadOffset put: (self 
 			addRegister: baseReg 
 			toRegister: ConcreteIPReg 
 			inRegister: ConcreteIPReg).
 	"Load the value"
-	self machineCodeAt: instrOffset + 4 put: (self
+	self machineCodeAt: loadOffset + 4 put: (self
 			 storeWordFromRegister: srcReg
 			 toAddressInRegister: ConcreteIPReg
 			 withOffset: 0).
-	^ machineCodeSize := instrOffset + 8
+	^ machineCodeSize := loadOffset + 8
 ]
 
 { #category : #concretization }
