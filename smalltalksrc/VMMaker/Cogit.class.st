@@ -5031,6 +5031,7 @@ Cogit >> cogOpenPICSelector: selector numArgs: numArgs [
 
 	self enableCodeZoneWriteDuring: [ 
 		end := self outputInstructionsAt: startAddress + (self sizeof: CogMethod).
+		"1halt."
 		pic := self
 			fillInOPICHeader: (self cCoerceSimple: startAddress to: #'CogMethod *')
 			numArgs: numArgs
@@ -6498,7 +6499,6 @@ Cogit >> expectedClosedPICPrototype: cPIC [
 		classTag := backEnd literal32BeforeFollowingAddress: classTagPC.
 		(self asserta: classTag = (16rBABE1F15 + i)) ifFalse:
 			[errors := errors bitOr: 8].
-
 		entryPoint := backEnd jumpLongConditionalTargetBeforeFollowingAddress: pc.
 		(self asserta: entryPoint = (self cPICPrototypeCaseOffset + 16rCA5E10 + (i * 16))) ifFalse:
 			[errors := errors bitOr: 16].
@@ -6665,6 +6665,7 @@ Cogit >> fillInMethodHeader: method size: size selector: selector [
 	method stackCheckOffset: (needsFrame
 								ifTrue: [stackCheckLabel address - method asInteger]
 								ifFalse: [0]).
+	"1halt."
 	self assert: (backEnd callTargetFromReturnAddress: method asInteger + missOffset)
 				= (self methodAbortTrampolineFor: method cmNumArgs).
 	self assert: size = (methodZone roundUpLength: size).
@@ -6677,6 +6678,7 @@ Cogit >> fillInOPICHeader: pic numArgs: numArgs selector: selector [
 	<returnTypeC: #'CogMethod *'>
 	<var: #pic type: #'CogMethod *'>
 	<inline: true>
+	"1halt."
 	pic cmType: CMOpenPIC.
 	pic objectHeader: 0.
 	pic blockSize: openPICSize.
@@ -8536,9 +8538,8 @@ Cogit >> handleABICallOrJumpSimulationTrap: aProcessorSimulationTrap evaluable: 
 Cogit >> handleCallOrJumpSimulationTrap: aProcessorSimulationTrap [
 	<doNotGenerate>
 	| evaluable function memory result savedFramePointer savedStackPointer savedArgumentCount rpc |
-
 	evaluable := simulatedTrampolines at: aProcessorSimulationTrap address.
-
+	"1halt."
 	(evaluable isBlock not and: [self isPrimitiveRunningInSmalltalkStack: evaluable selector]) 
 		ifTrue: [ self assertCStackWellAligned ]. 
 
@@ -8601,7 +8602,8 @@ Cogit >> handleCallOrJumpSimulationTrap: aProcessorSimulationTrap [
 				[self assert: savedFramePointer = coInterpreter framePointer.
 				 self assert: savedStackPointer = coInterpreter stackPointer]].
 	result ~~ #continueNoReturn ifTrue:
-		[self recordInstruction: {'(simulated return to '. processor retpcIn: memory. ')'}.
+		[		"1halt."
+		 self recordInstruction: {'(simulated return to '. processor retpcIn: memory. ')'}.
 		 rpc := processor retpcIn: memory.
 		 self assert: (rpc >= codeBase and: [rpc < methodZone freeStart]).
 		 processor
@@ -11970,6 +11972,7 @@ Cogit >> simulateEnilopmart: enilopmartAddress numArgs: n [
 	 the interpreter) or return to the simulation (if we're in the run-time
 	 called from machine code. We should also smash the register state
 	 since, being an abnormal entry, no saved registers will be restored."
+	"1halt."
 	self assert: (coInterpreter isOnRumpCStack: processor sp).
 	self assert: ((coInterpreter stackValue: n) between: guardPageSize and: methodZone freeStart - 1).
 	"As a convenience for stack printing, nil localFP so we know we're in machine code."

@@ -1234,207 +1234,280 @@ CogRiscV64Compiler >> codeGranularity [
 
 { #category : #concretization }
 CogRiscV64Compiler >> computeMaximumSize [
+
 	"Because we don't use Thumb, each ARM instruction has 4 bytes. Many
 	 abstract opcodes need more than one instruction. Instructions that refer
 	 to constants and/or literals depend on literals being stored in-line or out-of-line.
 
 	 N.B.  The ^N forms are to get around the bytecode compiler's long branch
 	 limits which are exceeded when each case jumps around the otherwise."
-	self flag: #TODO.
-	opcode
-		caseOf: {
-		"Noops & Pseudo Ops"
-		[Label]			  -> [ ^ 0 ]. 
-		[Literal]			  -> [ ^ 8 ]. 
-		[AlignmentNops]	  -> [ ^ (operands at: 0) - 4 ]. 
-		[Fill32]			  -> [ ^ 4 ]. "DONE"
-		[Nop]				  -> [ ^ 4 ]. "DONE"
-		"Control"
-		[Call]					   -> [ ^ self callInstructionByteSize ]. "TODO"
-		[CallFull]				-> [ ^ self literalLoadInstructionBytes + 4 ]. "TODO"
-		[JumpR]					-> [ ^ 4 ]. "DONE"
-		[Jump]					   -> [ ^ 4 ]. "DONE"
-		[JumpFull]				-> [ ^ self literalLoadInstructionBytes + 4 ]. "TODO"
-		[JumpLong]				-> [ ^ self jumpLongByteSize ]. "TODO"
-		[JumpZero]				-> [ ^ 4 ]. "DONE"
-		[JumpNonZero]			-> [ ^ 4 ]. "DONE"
-		[JumpNegative]			-> [ ^ 4 ]. "DONE"
-		[JumpNonNegative]		-> [ ^ 4 ]. "DONE"
-		[JumpOverflow]			-> [ ^ 4 ]. "DONE"
-		[JumpNoOverflow]		-> [ ^ 4 ]. "DONE"
-		[JumpCarry]		      	-> [ ^ 4 ]. "DONE"
-		[JumpNoCarry]			-> [ ^ 4 ]. "DONE"
-		[JumpLess]				-> [ ^ 4 ]. "DONE"
-		[JumpGreaterOrEqual]	-> [ ^ 4 ]. "DONE"
-		[JumpGreater]			-> [ ^ 12 ]. "DONE"
-		[JumpLessOrEqual]		-> [ ^ 12 ]. "DONE"
-		[JumpBelow]			   -> [ ^ 4 ]. "DONE"
-		[JumpAboveOrEqual]   	-> [ ^ 4 ]. "DONE"
-		[JumpAbove]			   -> [ ^ 8 ]. "DONE"
-		[JumpBelowOrEqual]	   -> [ ^ 8 ]. "DONE"
-		[JumpLongZero]			-> [ ^ self jumpLongConditionalByteSize ]. "TODO"
-		[JumpLongNonZero]		-> [ ^ self jumpLongConditionalByteSize ]. "TODO"
-		[JumpFPEqual]			 	-> [ ^ 4 ]. "DONE"
-		[JumpFPNotEqual]		 	-> [ ^ 4 ]. "DONE"
-		[JumpFPLess]			   	 	-> [ ^ 4 ]. "DONE"
-		[JumpFPGreaterOrEqual] 	-> [ ^ 4 ]. "DONE"
-		[JumpFPGreater]		    	-> [ ^ 8 ]. "DONE"
-		[JumpFPLessOrEqual]	 	-> [ ^ 8 ]. "TODO"
-		[JumpFPOrdered]		   		-> [ ^ self notYetImplemented ]. "TODO"
-		[JumpFPUnordered]			-> [ ^ self notYetImplemented ]. "TODO"
-		[RetN]					-> [ ^ (operands at: 0) = 0 ifTrue: [ 4 ] ifFalse: [ 8 ]]. "DONE"
-		[Stop]					-> [ ^ 4 ]. "DONE"
 
-		"Logic"
-		[AndCqR]  ->	 [ ^ self bytesForLogicCqOperation ]. "DONE"
-		[AndCqRR]	 -> [ ^ self bytesForLogicCqOperation ]. "DONE"
-		[OrCqR]   ->	 [ ^ self bytesForLogicCqOperation ]. "DONE"
-		[TstCqR]  ->	 [ ^ self bytesForLogicCqOperation ]. "DONE"
-		[XorCqR]  ->	 [ ^ self bytesForLogicCqOperation ]. "DONE"
-		
-		"Arithmetic"
-		[AddCqR]	 ->	 [ ^ self bytesForADDCq ]. "DONE"
-		[CmpCqR]  ->	 [ ^ self bytesForCMPCq ]. "DONE"
-		[CmpC32R] ->	 [ ^ self bytesForCMPCq ]. "DONE"
-		[SubCqR]  ->	 [ ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdateWithMov + 4 ]. "DONE"
-		[LoadEffectiveAddressMwrR] -> [ ^ self bytesForLoadEffectiveAddress  ]. "DONE"
-		
-		"Arithmetic with an ensured literal load"
-		[AddCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForADDOverflowCheck + self bytesForArithmeticFlagUpdateWithMov + 4 ]. "DONE"
-		[SubCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdateWithMov + 4 ]. "DONE"
-		[CmpCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdate + 4 ]. "DONE"
-		[AndCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate + 4 ].      "DONE"
-		[OrCwR]  -> [ ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate + 4 ].      "DONE"
-		[XorCwR] -> [ ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate + 4 ].      "DONE"
-		
-		"Arithmetic Register-Only"
-		[AddRR]			   	-> [ ^ self bytesForADDOverflowCheck + self bytesForArithmeticFlagUpdateWithMov + 4 ]. "DONE"
-		[SubRR]				-> [ ^ self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdateWithMov + 4 ]. "DONE"
-		[CmpRR]				-> [ ^ self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdate + 4 ]. "DONE"
-		[AndRR]				-> [ ^ self bytesForLogicFlagUpdate + 4 ].      "DONE"
-		[OrRR]					-> [ ^ self bytesForLogicFlagUpdate + 4 ].      "DONE"
-		[XorRR]				-> [ ^ self bytesForLogicFlagUpdate + 4 ].      "DONE"
-		[MulRR]    	      -> [ ^ 28 ]. "TODO" 
-		[DivRR]           	-> [ ^ 4 ]. "TODO"
-		[RemRR]          	-> [ ^ 4 ]. "TODO"
-		[NegateR]				-> [ ^ 4 ]. "DONE"
-	
-		"Bit shifts"
-		[LogicalShiftLeftCqR]     -> [ ^ self bytesForLogicCqOperation ]. "DONE"
-		[LogicalShiftRightCqR]    -> [ ^ self bytesForLogicCqOperation].  "DONE"
-		[ArithmeticShiftRightCqR] -> [ ^ self bytesForLogicCqOperation ]. "DONE"
-	
-		[LogicalShiftLeftRR]		 -> [^ self bytesForLogicFlagUpdate + 4 ]. "DONE"
-		[LogicalShiftRightRR]		 -> [^ self bytesForLogicFlagUpdate + 4 ]. "DONE"
-		[ArithmeticShiftRightRR]	 -> [^ self bytesForLogicFlagUpdate + 4 ]. "DONE"
-		
-		"Rotates"
-		[RotateLeftCqR]				 -> [ ^ self bytesForLogicCqOperationOfSize: 16 andImmediateOperationSize: 12 ]. "DONE"
-		[RotateRightCqR]			 -> [ ^ self bytesForLogicCqOperationOfSize: 16 andImmediateOperationSize: 12 ]. "DONE"
-	
-		"Floating point operations"
-		[AddRdRd]					-> [ ^ self bytesForFloatingPointADDOverflowCheck + 12 ]. "DONE"
-		[SubRdRd]					-> [ ^ self bytesForFloatingPointSUBOverflowCheck + 12 ]. "DONE"
-		[CmpRdRd]					-> [ ^ 8 ]. "DONE"
-		[MulRdRd]					-> [ ^ 8 ]. "DONE"
-		[DivRdRd]					-> [ ^ 8 ]. "DONE"
-		[SqrtRd]					-> [ ^ 4]. "DONE"
-		[XorRdRd]					-> [ ^ 4]. "DONE"
-				
-		"Data Movement - Basic"						
-		[MoveCqR]				-> [ dependent 
-										ifNil:[ ^ (self bytesToLoadImmediate: (operands at: 0)) ]
-						   				ifNotNil: [^ self literalLoadInstructionBytes ] ]. "DONE"
-		[MoveC32R]			-> [ ^ self shouldBeImplemented ]. "DONE"
-		[MoveCwR]				-> [ ^ 8 "always a auipc addi/ld sequence" ]. "DONE"
-		[MoveRR]				-> [ ^ 4 ]. "DONE"
-		
-		"Data movement - Absolute addresses"
-		[MoveAwR]				-> [
-				(self isAddressRelativeToVarBase: (operands at: 0))
-					ifTrue: [(operands at: 1) = SP
-						ifTrue: [ ^ 8 ]
-						ifFalse: [ ^ 4 ] 
-					]
-					ifFalse: [	
-						dependent 
-							ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 0)) + 8 ]
-							ifNotNil: [ ^ self literalLoadInstructionBytes + 8 ].
-					]
-				]. "TODO"
-		[MoveRAw]				-> [
-						dependent 
-							ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 1)) + 4 ]
-							ifNotNil: [ ^ self literalLoadInstructionBytes + 4].
-				]. "TODO check if SP"
-		[MoveAbR]				-> [
-				(self isAddressRelativeToVarBase: (operands at: 0))
-					ifTrue: [(operands at: 1) = SP
-						ifTrue: [ ^ 8 ]
-						ifFalse: [ ^ 4 ] 
-					]
-					ifFalse: [	
-						dependent 
-							ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 0)) + 8 ]
-							ifNotNil: [ ^ self literalLoadInstructionBytes  ].
-					]
-				]. "TODO"	
-		[MoveRAb]			-> [
-						dependent 
-							ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 1)) + 4 ]
-							ifNotNil: [ ^ self literalLoadInstructionBytes + 4].
-				]. "TODO"	
-		
-		"Data Movement - Stores"
-		[MoveRM8r]        	-> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
-		[MoveRMbr]			-> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
-		[MoveRM16r]			-> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
-		[MoveRM32r]			-> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
-		[MoveRMwr]			-> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
-		[MoveRsM32r]			-> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
-		[MoveRdM64r]		   -> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
-			
-		"Data Movement - Loads"
-		[MoveM8rR]		 	-> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
-		[MoveMbrR]		 	-> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
-		[MoveM16rR]			-> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
-		[MoveM32rR]			-> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
-		[MoveMwrR]			-> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
-		[MoveM32rRs]			-> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
-		[MoveM64rRd]			-> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]. "DONE"
-				
-		"Data Movement - Relative addresses with multiply"
-		[MoveXbrRR]			-> [ ^ 8 ]. "DONE"
-		[MoveX32rRR]			-> [ ^ 12 ]. "DONE"
-		[MoveXwrRR]			-> [ ^ 12 ]. "DONE"
-		[MoveRX32rR]			-> [ ^ 12 ]. "DONE"
-		[MoveRXbrR]			-> [ ^ 8 ]. "DONE"
-		[MoveRXwrR]			-> [ ^ 12 ]. "DONE"
-		
-		"Pop/Push"
-		[PopR]					-> [ ^ 8 ]. "DONE"
-		[PushR]				-> [ ^ 8 ]. "DONE"
-		[PushCw]				-> [^ self literalLoadInstructionBytes + 8 ]. "DONE"
-		[PushCq]			   -> [
-						dependent 
-							ifNil:[ ^ (self bytesToLoadImmediate: (operands at: 0)) + 8 ]
-                     	ifNotNil: [^ self literalLoadInstructionBytes + 8 ] "literal load"
-						]. "DONE"	
-			
-		"Conversion"
-		[ConvertRdRs]		-> [ ^ 4 ]. "DONE"
-		[ConvertRsRd]		-> [ ^ 4 ]. "DONE"
-		[ConvertRRd]			-> [ ^ 4 ]. "DONE"
-		[MoveRdR]				-> [ ^ 4 ]. "DONE"
-		[MoveRRd]				-> [ ^ 4 ]. "DONE"
-				
-		"Prefetch operation"
-		[PrefetchAw] -> [ ^0 ].
-				
-		"This is a fixed size instruction using a literal. We need exactly 2 instructions to move a literal from a PC relative position, so this takes ALWAYS 2 instructions of 4 bytes"
-		[MovePatcheableC32R] -> [ ^ 8 ] "DONE"
-		}.
-	^0 "to keep C compiler qui Unmatched " 
+	self flag: #TODO.
+	opcode caseOf: { 
+			([ Label ] -> [ ^ 0 ]).
+			([ Literal ] -> [ ^ 8 ]).
+			([ AlignmentNops ] -> [ ^ (operands at: 0) - 4 ]).
+			([ Fill32 ] -> [ ^ 4 ]). "DONE"
+			([ Nop ] -> [ ^ 4 ]). "DONE"
+			"Control"
+			([ Call ] -> [ ^ self callInstructionByteSize ]). "TODO"
+			([ CallFull ] -> [ ^ self literalLoadInstructionBytes + 4 ]). "TODO"
+			([ JumpR ] -> [ ^ 4 ]). "DONE"
+			([ Jump ] -> [ ^ 4 ]). "DONE"
+			([ JumpFull ] -> [ ^ self literalLoadInstructionBytes + 4 ]). "TODO"
+			([ JumpLong ] -> [ ^ self jumpLongByteSize ]). "TODO"
+			([ JumpZero ] -> [ ^ 4 ]). "DONE"
+			([ JumpNonZero ] -> [ ^ 4 ]). "DONE"
+			([ JumpNegative ] -> [ ^ 4 ]). "DONE"
+			([ JumpNonNegative ] -> [ ^ 4 ]). "DONE"
+			([ JumpOverflow ] -> [ ^ 4 ]). "DONE"
+			([ JumpNoOverflow ] -> [ ^ 4 ]). "DONE"
+			([ JumpCarry ] -> [ ^ 4 ]). "DONE"
+			([ JumpNoCarry ] -> [ ^ 4 ]). "DONE"
+			([ JumpLess ] -> [ ^ 4 ]). "DONE"
+			([ JumpGreaterOrEqual ] -> [ ^ 4 ]). "DONE"
+			([ JumpGreater ] -> [ ^ 12 ]). "DONE"
+			([ JumpLessOrEqual ] -> [ ^ 12 ]). "DONE"
+			([ JumpBelow ] -> [ ^ 4 ]). "DONE"
+			([ JumpAboveOrEqual ] -> [ ^ 4 ]). "DONE"
+			([ JumpAbove ] -> [ ^ 8 ]). "DONE"
+			([ JumpBelowOrEqual ] -> [ ^ 8 ]). "DONE"
+			([ JumpLongZero ] -> [ ^ self jumpLongConditionalByteSize ]). "TODO"
+			([ JumpLongNonZero ] -> [ ^ self jumpLongConditionalByteSize ]). "TODO"
+			([ JumpFPEqual ] -> [ ^ 4 ]). "DONE"
+			([ JumpFPNotEqual ] -> [ ^ 4 ]). "DONE"
+			([ JumpFPLess ] -> [ ^ 4 ]). "DONE"
+			([ JumpFPGreaterOrEqual ] -> [ ^ 4 ]). "DONE"
+			([ JumpFPGreater ] -> [ ^ 8 ]). "DONE"
+			([ JumpFPLessOrEqual ] -> [ ^ 8 ]). "TODO"
+			([ JumpFPOrdered ] -> [ ^ self notYetImplemented ]). "TODO"
+			([ JumpFPUnordered ] -> [ ^ self notYetImplemented ]). "TODO"
+			([ RetN ] -> [ 
+			 ^ (operands at: 0) = 0
+				   ifTrue: [ 4 ]
+				   ifFalse: [ 8 ] ]). "DONE"
+			([ Stop ] -> [ ^ 4 ]). "DONE"
+
+			"Logic"
+			([ AndCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
+			([ AndCqRR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
+			([ OrCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
+			([ TstCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
+			([ XorCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
+
+			"Arithmetic"
+			([ AddCqR ] -> [ ^ self bytesForADDCq ]). "DONE"
+			([ CmpCqR ] -> [ ^ self bytesForCMPCq ]). "DONE"
+			([ CmpC32R ] -> [ ^ self bytesForCMPCq ]). "DONE"
+			([ SubCqR ] -> [ 
+			 ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck
+			   + self bytesForArithmeticFlagUpdateWithMov + 4 ]). "DONE"
+			([ LoadEffectiveAddressMwrR ]
+			 -> [ ^ self bytesForLoadEffectiveAddress ]). "DONE"
+
+			"Arithmetic with an ensured literal load"
+			([ AddCwR ] -> [ 
+			 ^ self literalLoadInstructionBytes + self bytesForADDOverflowCheck
+			   + self bytesForArithmeticFlagUpdateWithMov + 4 ]). "DONE"
+			([ SubCwR ] -> [ 
+			 ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck
+			   + self bytesForArithmeticFlagUpdateWithMov + 4 ]). "DONE"
+			([ CmpCwR ] -> [ 
+			 ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck
+			   + self bytesForArithmeticFlagUpdate + 4 ]). "DONE"
+			([ AndCwR ] -> [ 
+			 ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate
+			   + 4 ]). "DONE"
+			([ OrCwR ] -> [ 
+			 ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate
+			   + 4 ]). "DONE"
+			([ XorCwR ] -> [ 
+			 ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate
+			   + 4 ]). "DONE"
+
+			"Arithmetic Register-Only"
+			([ AddRR ] -> [ 
+			 ^ self bytesForADDOverflowCheck
+			   + self bytesForArithmeticFlagUpdateWithMov + 4 ]). "DONE"
+			([ SubRR ] -> [ 
+			 ^ self bytesForSUBOverflowCheck
+			   + self bytesForArithmeticFlagUpdateWithMov + 4 ]). "DONE"
+			([ CmpRR ] -> [ 
+			 ^ self bytesForSUBOverflowCheck
+			   + self bytesForArithmeticFlagUpdate + 4 ]). "DONE"
+			([ AndRR ] -> [ ^ self bytesForLogicFlagUpdate + 4 ]). "DONE"
+			([ OrRR ] -> [ ^ self bytesForLogicFlagUpdate + 4 ]). "DONE"
+			([ XorRR ] -> [ ^ self bytesForLogicFlagUpdate + 4 ]). "DONE"
+			([ MulRR ] -> [ ^ 28 ]). "TODO"
+			([ DivRR ] -> [ ^ 4 ]). "TODO"
+			([ RemRR ] -> [ ^ 4 ]). "TODO"
+			([ NegateR ] -> [ ^ 4 ]). "DONE"
+
+			"Bit shifts"
+			([ LogicalShiftLeftCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
+			([ LogicalShiftRightCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
+			([ ArithmeticShiftRightCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
+
+			([ LogicalShiftLeftRR ] -> [ ^ self bytesForLogicFlagUpdate + 4 ]). "DONE"
+			([ LogicalShiftRightRR ] -> [ ^ self bytesForLogicFlagUpdate + 4 ]). "DONE"
+			([ ArithmeticShiftRightRR ]
+			 -> [ ^ self bytesForLogicFlagUpdate + 4 ]). "DONE"
+
+			"Rotates"
+			([ RotateLeftCqR ] -> [ 
+			 ^ self
+				   bytesForLogicCqOperationOfSize: 16
+				   andImmediateOperationSize: 12 ]). "DONE"
+			([ RotateRightCqR ] -> [ 
+			 ^ self
+				   bytesForLogicCqOperationOfSize: 16
+				   andImmediateOperationSize: 12 ]). "DONE"
+
+			"Floating point operations"
+			([ AddRdRd ]
+			 -> [ ^ self bytesForFloatingPointADDOverflowCheck + 12 ]). "DONE"
+			([ SubRdRd ]
+			 -> [ ^ self bytesForFloatingPointSUBOverflowCheck + 12 ]). "DONE"
+			([ CmpRdRd ] -> [ ^ 8 ]). "DONE"
+			([ MulRdRd ] -> [ ^ 8 ]). "DONE"
+			([ DivRdRd ] -> [ ^ 8 ]). "DONE"
+			([ SqrtRd ] -> [ ^ 4 ]). "DONE"
+			([ XorRdRd ] -> [ ^ 4 ]). "DONE"
+
+			"Data Movement - Basic"
+			([ MoveCqR ] -> [ 
+			 dependent
+				 ifNil: [ | cq |
+					 cq := operands at: 0.
+					 self assertValue: cq isContainedIn: 12.
+					 ^ self bytesToLoadImmediate: cq ]
+				 ifNotNil: [ "Literal load" ^ self literalLoadInstructionBytes ] ]). "DONE"
+			([ MoveC32R ] -> [ ^ self shouldBeImplemented ]). "DONE"
+			([ MoveCwR ] -> [ ^ 8 "always a auipc addi/ld sequence" ]). "DONE"
+			([ MoveRR ] -> [ ^ 4 ]). "DONE"
+
+			"Data movement - Absolute addresses"
+			([ MoveAwR ] -> [ 
+			 (self isAddressRelativeToVarBase: (operands at: 0))
+				 ifTrue: [ 
+					 (operands at: 1) = SP
+						 ifTrue: [ ^ 8 ]
+						 ifFalse: [ ^ 4 ] ]
+				 ifFalse: [ 
+					 dependent
+						 ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 0)) + 8 ]
+						 ifNotNil: [ ^ self literalLoadInstructionBytes + 8 ] ] ]). "TODO"
+			([ MoveRAw ] -> [ 
+			 dependent
+				 ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 1)) + 4 ]
+				 ifNotNil: [ ^ self literalLoadInstructionBytes + 4 ] ]). "TODO check if SP"
+			([ MoveAbR ] -> [ 
+			 (self isAddressRelativeToVarBase: (operands at: 0))
+				 ifTrue: [ 
+					 (operands at: 1) = SP
+						 ifTrue: [ ^ 8 ]
+						 ifFalse: [ ^ 4 ] ]
+				 ifFalse: [ 
+					 dependent
+						 ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 0)) + 8 ]
+						 ifNotNil: [ ^ self literalLoadInstructionBytes ] ] ]). "TODO"
+			([ MoveRAb ] -> [ 
+			 dependent
+				 ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 1)) + 4 ]
+				 ifNotNil: [ ^ self literalLoadInstructionBytes + 4 ] ]). "TODO"
+
+			"Data Movement - Stores"
+			([ MoveRM8r ] -> [ 
+			 ^ self
+				   bytesForDataStoreOperationOfSize: 8
+				   andImmediateOperationSize: 4 ]). "DONE"
+			([ MoveRMbr ] -> [ 
+			 ^ self
+				   bytesForDataStoreOperationOfSize: 8
+				   andImmediateOperationSize: 4 ]). "DONE"
+			([ MoveRM16r ] -> [ 
+			 ^ self
+				   bytesForDataStoreOperationOfSize: 8
+				   andImmediateOperationSize: 4 ]). "DONE"
+			([ MoveRM32r ] -> [ 
+			 ^ self
+				   bytesForDataStoreOperationOfSize: 8
+				   andImmediateOperationSize: 4 ]). "DONE"
+			([ MoveRMwr ] -> [ 
+			 ^ self
+				   bytesForDataStoreOperationOfSize: 8
+				   andImmediateOperationSize: 4 ]). "DONE"
+			([ MoveRsM32r ] -> [ 
+			 ^ self
+				   bytesForDataStoreOperationOfSize: 8
+				   andImmediateOperationSize: 4 ]). "DONE"
+			([ MoveRdM64r ] -> [ 
+			 ^ self
+				   bytesForDataStoreOperationOfSize: 8
+				   andImmediateOperationSize: 4 ]). "DONE"
+
+			"Data Movement - Loads"
+			([ MoveM8rR ] -> [ 
+			 ^ self
+				   bytesForDataLoadOperationOfSize: 8
+				   andImmediateOperationSize: 4 ]). "DONE"
+			([ MoveMbrR ] -> [ 
+			 ^ self
+				   bytesForDataLoadOperationOfSize: 8
+				   andImmediateOperationSize: 4 ]). "DONE"
+			([ MoveM16rR ] -> [ 
+			 ^ self
+				   bytesForDataLoadOperationOfSize: 8
+				   andImmediateOperationSize: 4 ]). "DONE"
+			([ MoveM32rR ] -> [ 
+			 ^ self
+				   bytesForDataLoadOperationOfSize: 8
+				   andImmediateOperationSize: 4 ]). "DONE"
+			([ MoveMwrR ] -> [ 
+			 ^ self
+				   bytesForDataLoadOperationOfSize: 8
+				   andImmediateOperationSize: 4 ]). "DONE"
+			([ MoveM32rRs ] -> [ 
+			 ^ self
+				   bytesForDataLoadOperationOfSize: 8
+				   andImmediateOperationSize: 4 ]). "DONE"
+			([ MoveM64rRd ] -> [ 
+			 ^ self
+				   bytesForDataLoadOperationOfSize: 8
+				   andImmediateOperationSize: 4 ]). "DONE"
+
+			"Data Movement - Relative addresses with multiply"
+			([ MoveXbrRR ] -> [ ^ 8 ]). "DONE"
+			([ MoveX32rRR ] -> [ ^ 12 ]). "DONE"
+			([ MoveXwrRR ] -> [ ^ 12 ]). "DONE"
+			([ MoveRX32rR ] -> [ ^ 12 ]). "DONE"
+			([ MoveRXbrR ] -> [ ^ 8 ]). "DONE"
+			([ MoveRXwrR ] -> [ ^ 12 ]). "DONE"
+
+			"Pop/Push"
+			([ PopR ] -> [ ^ 8 ]). "DONE"
+			([ PushR ] -> [ ^ 8 ]). "DONE"
+			([ PushCw ] -> [ ^ self literalLoadInstructionBytes + 8 ]). "DONE"
+			([ PushCq ] -> [ 
+			 dependent
+				 ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 0)) + 8 ]
+				 ifNotNil: [ "literal load" 
+				 ^ self literalLoadInstructionBytes + 8 ] ]). "DONE"
+
+			"Conversion"
+			([ ConvertRdRs ] -> [ ^ 4 ]). "DONE"
+			([ ConvertRsRd ] -> [ ^ 4 ]). "DONE"
+			([ ConvertRRd ] -> [ ^ 4 ]). "DONE"
+			([ MoveRdR ] -> [ ^ 4 ]). "DONE"
+			([ MoveRRd ] -> [ ^ 4 ]). "DONE"
+
+			"Prefetch operation"
+			([ PrefetchAw ] -> [ ^ 0 ]).
+
+			"This is a fixed size instruction using a literal. We need exactly 2 instructions to move a literal from a PC relative position, so this takes ALWAYS 2 instructions of 4 bytes"
+			([ MovePatcheableC32R ] -> [ "DONE" ^ 8 ]) }.
+	"Noops & Pseudo Ops"
+	^ 0 "to keep C compiler qui Unmatched "
 ]
 
 { #category : #'machine code instruction' }
@@ -2896,18 +2969,17 @@ CogRiscV64Compiler >> concretizeMoveC32R [
 CogRiscV64Compiler >> concretizeMoveCqR [
 
 	<inline: true>
-	| cq reg instrOffset |
+	| cq reg |
 	self flag: #TODO.
 	cq := operands at: 0.
 	reg := operands at: 1.
-	dependent
-		ifNil: [ "Immediate value"
-			instrOffset := self machineCodeWriteInstructions:
-				               (self loadImmediate: cq inRegister: reg) ]
-		ifNotNil: [ "Literal"
-			instrOffset := self machineCodeWriteInstructions:
-				               (self loadLiteralInRegister: reg) ].
-	^ machineCodeSize := instrOffset
+	dependent ifNil: [ "Immediate value"
+		self assertValue: cq isContainedIn: 12.
+		^ machineCodeSize := self machineCodeWriteInstructions:
+			                     (self loadImmediate: cq inRegister: reg) ].
+	"use the provided literal"
+	^ machineCodeSize := self machineCodeWriteInstructions:
+		                     (self loadLiteralInRegister: reg)
 ]
 
 { #category : #concretization }

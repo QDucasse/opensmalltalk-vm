@@ -404,6 +404,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[SubCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 
 		[TstCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[XorCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
+		[LoadEffectiveAddressMwrR] -> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 
 		"CwR operations use a word size value and need a full literal load"
 		[AddCwR]		-> [^true].
 		[AndCwR]		-> [^true].
@@ -411,9 +412,8 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[OrCwR]		-> [^true].
 		[SubCwR]		-> [^true].
 		[XorCwR]		-> [^true].
-		[LoadEffectiveAddressMwrR] -> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 
 		"Data Movement"						
-		[MoveCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		[MoveCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[MoveC32R]  -> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 
 		[MoveCwR]		-> [^(self inCurrentCompilation: (operands at: 0)) not].
