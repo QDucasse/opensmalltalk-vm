@@ -426,7 +426,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[MoveRM8r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[MoveRM16r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[MoveRM32r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveRMwr]	-> [^ false]. "#TODO"
+		[MoveRMwr]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[MoveRsM32r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 												
 		[MoveRdM64r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 
 		"Data Movement - Loads"
