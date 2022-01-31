@@ -412,32 +412,28 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[OrCwR]		-> [^true].
 		[SubCwR]		-> [^true].
 		[XorCwR]		-> [^true].
-		"Data Movement"						
+		"Data Movement - Moves"						
 		[MoveCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[MoveC32R]  -> [ self shouldBeImplemented ].
-
+		"Data Movement - Absolute addresses"
 		[MoveCwR]		-> [^(self inCurrentCompilation: (operands at: 0)) not].
 		[MoveAwR]		-> [^(self isAddressRelativeToVarBase: (operands at: 0)) ifTrue: [false] ifFalse: [true]].
 		[MoveRAw]		-> [^(self isAddressRelativeToVarBase: (operands at: 1)) ifTrue: [false] ifFalse: [true]].
 		[MoveAbR]		-> [^(self isAddressRelativeToVarBase: (operands at: 0)) ifTrue: [false] ifFalse: [true]].
 		[MoveRAb]		-> [^(self isAddressRelativeToVarBase: (operands at: 1)) ifTrue: [false] ifFalse: [true]].
-	
-
-		[MoveRM32r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveM32rR] -> [^ false]. "#TODO"
-	
-		[MoveRMwr]	-> [^ false]. "#TODO"
-
-		[MoveRsM32r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 												
-		[MoveRdM64r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 
-		[MoveMbrR]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
+		"Data Movement - Stores"
 		[MoveRMbr]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[MoveRM8r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveM16rR]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[MoveRM16r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveM32rRs]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveM64rRd]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
-
+		[MoveRM32r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
+		[MoveRMwr]	-> [^ false]. "#TODO"
+		[MoveRsM32r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 												
+		[MoveRdM64r]	-> [self assertValue: (operands at: 1) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 
+		"Data Movement - Loads"
+		[MoveMbrR]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
+		[MoveM8rR]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
+		[MoveM16rR]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
+		[MoveM32rR] -> [^ false]. "#TODO"
 		[MoveMwrR]	-> [
 			offset := (operands at: 0).
 			(offset >= 0 and: [ (offset bitAnd: 16rFFF) = offset ]) 
@@ -446,6 +442,8 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 									is9BitValue: offset
 										ifTrue: [ :v | ^ false ] 
 										ifFalse: [^ true ] ]].
+		[MoveM32rRs]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
+		[MoveM64rRd]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 								
 		[PushCw]		-> [^(self inCurrentCompilation: (operands at: 0)) not].
 		[PushCq]		-> [^ ((operands at: 0) bitAnd: 16rfff) ~= (operands at: 0)].
