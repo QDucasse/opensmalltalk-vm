@@ -1397,18 +1397,12 @@ CogRiscV64Compiler >> computeMaximumSize [
 				 ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]). 
 			([ MoveAbR ] -> [ 
 			 (self isAddressRelativeToVarBase: (operands at: 0))
-				 ifTrue: [ 
-					 (operands at: 1) = SP
-						 ifTrue: [ ^ 8 ]
-						 ifFalse: [ ^ 4 ] ]
-				 ifFalse: [ 
-					 dependent
-						 ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 0)) + 8 ]
-						 ifNotNil: [ ^ self literalLoadInstructionBytes ] ] ]). "TODO"
+				 ifTrue: [ ^ 4 ]
+				 ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]).
 			([ MoveRAb ] -> [ 
-			 dependent
-				 ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 1)) + 4 ]
-				 ifNotNil: [ ^ self literalLoadInstructionBytes + 4 ] ]). "TODO"
+			 (self isAddressRelativeToVarBase: (operands at: 1))
+				 ifTrue: [ ^ 4 ]
+				 ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]).
 
 			"Data Movement - Stores"
 			([ MoveRM8r ] -> [ 
@@ -2865,47 +2859,29 @@ CogRiscV64Compiler >> concretizeLogicalShiftRightRR [
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeMoveAbR [
+
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
 	| srcAddr destReg instrOffset |
 	self flag: #TODO.
 	srcAddr := operands at: 0.
-	destReg := operands at: 1.		
-	(self isAddressRelativeToVarBase: srcAddr) ifTrue: [ 
-		| actualDestination |
-		"If the destination register is SP, it is first moved to an ipreg and then moved to SP"
-		actualDestination := destReg = SP
-			ifTrue: [ ConcreteIPReg ]
-			ifFalse: [ destReg ].
-		"Direct encoding as offset"
+	destReg := operands at: 1.
+	(self isAddressRelativeToVarBase: srcAddr) ifTrue: [ "Direct encoding as offset"
 		self machineCodeAt: 0 put: (self
-				loadByteFromAddressInRegister: ConcreteVarBaseReg 
-				withOffset: srcAddr - cogit varBaseAddress 
-				toRegister: actualDestination).
-		machineCodeSize := 4.
-		"Move the result to SP"
-		destReg = SP ifTrue: [ 
-			self machineCodeAt: 4 put: (self moveRegister: actualDestination toRegister: SP).
-			machineCodeSize := machineCodeSize + 4.
-		].
+				 loadByteFromAddressInRegister: ConcreteVarBaseReg
+				 withOffset: srcAddr - cogit varBaseAddress
+				 toRegister: destReg).
+		^ machineCodeSize := 4 ].
 
-		^ machineCodeSize ].
-	
-	"load the address into ConcreteIPReg"
-	"Missing SP case?"
-	dependent 
-		ifNil: [ instrOffset := self machineCodeWriteInstructions: (self loadImmediate: srcAddr inRegister: ConcreteIPReg) ]		
-		ifNotNil: [ instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
-		
-	self machineCodeAt: instrOffset put: (self 
-			loadByteFromAddressInRegister: ConcreteIPReg 
-			withOffset: 0 
-			toRegister: ConcreteIPReg).
-	self
-		machineCodeAt: instrOffset + 4
-		put: (self moveRegister: ConcreteIPReg toRegister: destReg).
-	^ machineCodeSize := instrOffset + 8
+	"Use the provided literal"
+	instrOffset := self moveCw: srcAddr intoR: ConcreteIPReg.
+
+	self machineCodeAt: instrOffset put: (self
+			 loadByteFromAddressInRegister: ConcreteIPReg
+			 withOffset: 0
+			 toRegister: destReg).
+	^ machineCodeSize := instrOffset + 4
 ]
 
 { #category : #concretization }
@@ -3210,25 +3186,27 @@ CogRiscV64Compiler >> concretizeMoveMwrR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeMoveRAb [
 
-	"Stores a byte (8 bits) from memory where the address is an absolute address
-	 Expands to: 
-	load address in register	
-	sb ConcreteIPReg, 0(rs1)
-	"
+	"Stores a byte (8 bits) from memory where the address is an absolute address. 
+	 Tries to use var base first otherwise use the provided literal"
 
 	<inline: true>
 	| srcReg destAddress instrOffset |
 	self flag: #TODO.
 	srcReg := operands at: 0.
 	destAddress := operands at: 1.
-	dependent 
-		ifNil: [ instrOffset := self machineCodeWriteInstructions: (self loadImmediate: destAddress inRegister: ConcreteIPReg) ]
-		ifNotNil: [ instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
+	(self isAddressRelativeToVarBase: destAddress) ifTrue: [ 
+		self machineCodeAt: 0 put: (self
+				 storeByteFromRegister: srcReg
+				 toAddressInRegister: ConcreteVarBaseReg
+				 withOffset: destAddress - cogit varBaseAddress).
+		^ machineCodeSize := 4 ].
+	"Load provided literal"
+	instrOffset := self moveCw: destAddress intoR: ConcreteIPReg.
 	self machineCodeAt: instrOffset put: (self
 			 storeByteFromRegister: srcReg
 			 toAddressInRegister: ConcreteIPReg
 			 withOffset: 0).
-	^ machineCodeSize := instrOffset + 4	
+	^ machineCodeSize := instrOffset + 4
 ]
 
 { #category : #concretization }
