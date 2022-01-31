@@ -59,7 +59,7 @@ VMPrimitiveCallingTest >> testCallingNamedPrimitiveTakingTracesWithInvalidNumber
 	callingMethod := self jitMethod: (self findMethod: #methodThatCallNamedPrimitive:).
 
 	self initStack.	
-
+self openMachineDebugger. 1halt.
 	self 
 		callCogMethod: callingMethod 
 		receiver: memory nilObject 
@@ -513,7 +513,6 @@ VMPrimitiveCallingTest >> testPrimitiveCallSetsNewMethod [
 	callingMethod := self jitMethod: (self findMethod: #methodThatCallPrimitive1:).
 
 	self initStack.	
-
 	self 
 		callCogMethod: callingMethod 
 		receiver: memory nilObject 

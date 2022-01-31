@@ -185,6 +185,7 @@ VMSimpleStackBasedCogitMegamorphicPICTest >> testRelinkCallSiteToMegamorphicPICC
 
 	createdPic := cogit cogOpenPICSelector: selector numArgs: 1.
 
+
 	"We call to get to the send trampoline"
 	self runFrom: patchedCogMethod asInteger + cogit noCheckEntryOffset until: sendTrampolineAddress. 
 
@@ -201,6 +202,7 @@ VMSimpleStackBasedCogitMegamorphicPICTest >> testRelinkCallSiteToMegamorphicPICC
 				target: createdPic asInteger + cogit entryOffset.
 
 	"Let's rerun it to check if it gets to the patched address openPic"
+	self machineSimulator flushICacheFrom: patchedCogMethod address + cogit noCheckEntryOffset to: patchedCogMethod address + cogit noCheckEntryOffset + 32.
 	self 
 		runFrom: patchedCogMethod address + cogit noCheckEntryOffset 
 		until: createdPic asInteger + cogit entryOffset. 

@@ -401,7 +401,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[CmpCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. "no subi but load with immediate embedded if small"
 		[CmpC32R]		-> [^ true]. 
 		[OrCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
-		[SubCqR]		-> [^ true]. 
+		[SubCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 
 		[TstCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[XorCqR]		-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		"CwR operations use a word size value and need a full literal load"
@@ -411,8 +411,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[OrCwR]		-> [^true].
 		[SubCwR]		-> [^true].
 		[XorCwR]		-> [^true].
-		[LoadEffectiveAddressMwrR]
-						-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
+		[LoadEffectiveAddressMwrR] -> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]]. 
 		"Data Movement"						
 		[MoveCqR]		-> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"
 		[MoveC32R]  -> [dependent ifNil:[^ false] ifNotNil: [^ true] ]. "TODO"

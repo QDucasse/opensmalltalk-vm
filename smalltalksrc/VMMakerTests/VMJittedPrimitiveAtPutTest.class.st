@@ -46,7 +46,6 @@ VMJittedPrimitiveAtPutTest >> testPrimitiveAtPut32bitIndexableWithLargeNumberSho
 		arguments: { memory integerObjectOf: offset. memory integerObjectOf: expectedValue }.
 
 	machineSimulator baseRegisterValue: cogit varBaseAddress.
-
 	self runUntilReturn.
 
 	self

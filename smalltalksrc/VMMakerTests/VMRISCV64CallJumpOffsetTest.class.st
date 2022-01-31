@@ -4,6 +4,14 @@ Class {
 	#category : #'VMMakerTests-JitTests'
 }
 
+{ #category : #tests }
+VMRISCV64CallJumpOffsetTest class >> testParameters [
+
+	^ ParametrizedTestMatrix new
+		addCase: { #ISA -> #'riscv64' . #wordSize -> 8};
+		yourself
+]
+
 { #category : #running }
 VMRISCV64CallJumpOffsetTest >> testCallBigPositiveOffset [
 

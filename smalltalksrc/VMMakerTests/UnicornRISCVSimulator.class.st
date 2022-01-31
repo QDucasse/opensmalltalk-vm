@@ -455,6 +455,21 @@ UnicornRISCVSimulator >> mstatusRegisterValue: aValue [
 	^ self writeRegister: self mstatus value: aValue
 ]
 
+{ #category : #initialization }
+UnicornRISCVSimulator >> postCallArgumentsNumArgs: numArgs "<Integer>" in: aMemory [ "<ByteArray|Bitmap>"
+	"Answer an argument vector of the requested size after a vanilla
+	 ABI call. For ARM the Procedure Calling Specification can be found in IHI0042D_aapcs.pdf.
+	On ARM this typically means accessing r0 through r3 and fetching additional arguments from the stack, acording to pages 20f. aapcs.
+	We assume that all arguments are single word arguments, which can not be supplied on co-processor-registers.
+	 For compatibility with Cog/Slang we answer unsigned values."
+	"1halt."
+	^(1 to: numArgs) collect: [:i |
+		i < 9 
+			ifTrue: [self perform: (self registerStateGetters at: i)]
+			"ARM uses a full descending stack. Directly after calling a procedure, nothing but the arguments are pushed."
+			ifFalse: [memory unsignedLongAt: self sp + (i-5)*4 bigEndian: false]].
+]
+
 { #category : #'machine registers' }
 UnicornRISCVSimulator >> ra [
 
@@ -486,7 +501,7 @@ UnicornRISCVSimulator >> registerList [
 UnicornRISCVSimulator >> registerStateGetters [
 	
 	self flag: #TODO.
-	^#(x10 x11 x12 x13 x14 x15 x16 x17 sp lr pc)
+	^#(x12 x13 x14 x15 x16 x17 x10 x11 sp lr pc)
 ]
 
 { #category : #'c calling convention' }
@@ -856,6 +871,12 @@ UnicornRISCVSimulator >> x19 [
 ]
 
 { #category : #'machine registers' }
+UnicornRISCVSimulator >> x1: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x1 value: aValue
+]
+
+{ #category : #'machine registers' }
 UnicornRISCVSimulator >> x2 [
 
 	^ self readRegister: UcRISCVRegisters x2
@@ -916,9 +937,21 @@ UnicornRISCVSimulator >> x28 [
 ]
 
 { #category : #'machine registers' }
+UnicornRISCVSimulator >> x28: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x28 value: aValue
+]
+
+{ #category : #'machine registers' }
 UnicornRISCVSimulator >> x29 [
 
 	^ self readRegister: UcRISCVRegisters x29
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> x29: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x29 value: aValue
 ]
 
 { #category : #'machine registers' }
@@ -934,9 +967,21 @@ UnicornRISCVSimulator >> x30 [
 ]
 
 { #category : #'machine registers' }
+UnicornRISCVSimulator >> x30: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x30 value: aValue
+]
+
+{ #category : #'machine registers' }
 UnicornRISCVSimulator >> x31 [
 
 	^ self readRegister: UcRISCVRegisters x31
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> x31: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x31 value: aValue
 ]
 
 { #category : #'machine registers' }
@@ -952,15 +997,33 @@ UnicornRISCVSimulator >> x5 [
 ]
 
 { #category : #'machine registers' }
+UnicornRISCVSimulator >> x5: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x5 value: aValue
+]
+
+{ #category : #'machine registers' }
 UnicornRISCVSimulator >> x6 [
 
 	^ self readRegister: UcRISCVRegisters x6
 ]
 
 { #category : #'machine registers' }
+UnicornRISCVSimulator >> x6: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x6 value: aValue
+]
+
+{ #category : #'machine registers' }
 UnicornRISCVSimulator >> x7 [
 
 	^ self readRegister: UcRISCVRegisters x7
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> x7: aValue [
+
+	^ self writeRegister: UcRISCVRegisters x7 value: aValue
 ]
 
 { #category : #'machine registers' }

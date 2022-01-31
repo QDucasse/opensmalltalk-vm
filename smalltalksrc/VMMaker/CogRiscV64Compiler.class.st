@@ -962,12 +962,10 @@ CogRiscV64Compiler >> bytesForLoadEffectiveAddress [
 	| cq |
 	self flag: #TODO.	
 	cq := operands at: 0.
-	dependent
-		ifNil: [   
-			self assertValue: cq isContainedIn: 12
-				ifTrue: [ ^ 4 ]
-				ifFalse: [ ^ (self bytesToLoadImmediate: (operands at: 0)) + 4 ] "Immediate loaded in a register" ]
-		ifNotNil: [ ^ self literalLoadInstructionBytes + 4 ]	
+	dependent ifNil: [   
+			self assertValue: cq isContainedIn: 12.
+			^ 4 ] .
+	^ self literalLoadInstructionBytes + 4
 ]
 
 { #category : #'concretization helpers - mc size' }
@@ -2639,30 +2637,20 @@ CogRiscV64Compiler >> concretizeLoadEffectiveAddressMwrR [
 	offset := operands at: 0.
 	sourceReg := operands at: 1.
 	destReg := operands at: 2.
-	dependent
-		ifNil: [ 
-			 self assertValue: offset isContainedIn: 12
-				ifTrue: [ "Direct encoding as an immediate"
-					self machineCodeAt: 0 put: (self
-							 addImmediate: offset
-							 toRegister: sourceReg
-							 inRegister: destReg).
-					^ machineCodeSize := 4 ]
-				ifFalse: [ "Load the immediate to a register"
-					loadOffset := self machineCodeWriteInstructions: (self loadImmediate: offset inRegister: ConcreteIPReg).
-					self machineCodeAt: loadOffset put: (self
-							 addRegister: sourceReg
-							 toRegister: ConcreteIPReg
-							 inRegister: destReg).
-					^ machineCodeSize := loadOffset + 4 ] 
-				]
-		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
-			loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
-			self machineCodeAt: loadOffset put: (self
-					 addRegister: sourceReg
-					 toRegister: ConcreteIPReg
+	dependent ifNil: [ 
+			self assertValue: offset isContainedIn: 12.
+			self machineCodeAt: 0 put: (self
+					 addImmediate: offset
+					 toRegister: sourceReg
 					 inRegister: destReg).
-			^ machineCodeSize := loadOffset + 4 ].
+			^ machineCodeSize := 4 ].
+	"Literal -> compute the distance, load the actual value then and between the 2 registers"
+	loadOffset := self moveCw: offset intoR: ConcreteIPReg.
+	self machineCodeAt: loadOffset put: (self
+			 addRegister: sourceReg
+			 toRegister: ConcreteIPReg
+			 inRegister: destReg).
+	^ machineCodeSize := loadOffset + 4.
 ]
 
 { #category : #concretization }
@@ -4138,8 +4126,39 @@ CogRiscV64Compiler >> concretizeSubCqR [
 	 Since no subi exist in RISC-V, it will always load the value to a register then sub the registers."
 
 	<inline: true>
+	| cq destReg sourceReg loadOffset flagOffset overflowOffset |
 	self flag: #TODO.
-	^ self concretizeSubCwR
+	cq := operands at: 0.
+	sourceReg := destReg := operands at: 1.
+	
+	"Load the Cq"
+	dependent
+		ifNil: [  "Immediate load in a register"
+			self assertValue: cq isContainedIn: 12.
+			loadOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg) ]
+		ifNotNil: [ "Literal -> compute the distance then load the actual value in a register"
+			loadOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg) ].
+
+	"Perform the SUB operation to a temp register (as operands AND result are needed for overflow check)"
+	self machineCodeAt: loadOffset put: (self
+					 subtractRegister: ConcreteIPReg
+					 fromRegister: sourceReg
+					 intoRegister: ConcreteZeroReg).
+					
+	"Check for overflow"
+	overflowOffset := self machineCodeWriteInstructions: (self
+		checkSUBOverflowWithSourceReg1: sourceReg 
+		sourceReg2: ConcreteIPReg 
+		andResultReg: ConcreteZeroReg
+	) startingAtIndex: loadOffset + 4.
+
+	"Update flag registers"
+	flagOffset := self machineCodeWriteInstructions: (self 
+			updateFlagsSUBForSourceReg: sourceReg 
+			resultReg: ConcreteZeroReg 
+			andMoveResultTo: destReg
+	) startingAtIndex: loadOffset + overflowOffset + 4.
+	^ machineCodeSize := loadOffset + flagOffset + overflowOffset + 4
 ]
 
 { #category : #concretization }

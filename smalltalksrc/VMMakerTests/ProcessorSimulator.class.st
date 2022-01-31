@@ -679,7 +679,7 @@ ProcessorSimulator >> register: anIndex readInto: aByteArray [
 { #category : #registers }
 ProcessorSimulator >> register: aRegisterIndex write: aByteArray [
 
-	simulator register: aRegisterIndex readInto: aByteArray
+	simulator register: aRegisterIndex write: aByteArray
 ]
 
 { #category : #registers }

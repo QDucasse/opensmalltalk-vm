@@ -140,13 +140,7 @@ UnicornSimulator >> invalidAccessHandler: aFullBlockClosure [
 { #category : #initialization }
 UnicornSimulator >> postCallArgumentsNumArgs: numArgs "<Integer>" in: aMemory [ "<ByteArray|Bitmap>"
 
-	self flag: #TODO.
-	"1halt."
-	^(1 to: numArgs) collect: [:i |
-		i < 5 
-			ifTrue: [self perform: (self registerStateGetters at: i)]
-			"ARM uses a full descending stack. Directly after calling a procedure, nothing but the arguments are pushed."
-			ifFalse: [memory unsignedLongAt: self sp + (i-5)*4 bigEndian: false]].	
+	self subclassResponsibility 
 ]
 
 { #category : #initialization }

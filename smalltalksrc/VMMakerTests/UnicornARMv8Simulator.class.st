@@ -13,19 +13,7 @@ UnicornARMv8Simulator >> arg0Register [
 { #category : #registers }
 UnicornARMv8Simulator >> arg1Register [
 	
-	^ UcARM64Registers x1
-]
-
-{ #category : #registers }
-UnicornARMv8Simulator >> arg2Register [
-	
-	^ UcARM64Registers x2
-]
-
-{ #category : #registers }
-UnicornARMv8Simulator >> arg3Register [
-	
-	^ UcARM64Registers x3
+	^ UcARM64Registers x4
 ]
 
 { #category : #registers }
@@ -150,16 +138,28 @@ UnicornARMv8Simulator >> hasLinkRegister [
 ]
 
 { #category : #initialization }
-UnicornARMv8Simulator >> initializeRegisterAliases [
+UnicornARMv8Simulator >> initializeRegisterSmalltalkAliases [
 
-	registerAliases
-		at: #x22 put: #classRegister;
-		at: #x23 put: #receiverRegister;
-		at: #x25 put: #sendNumberOfArgumentsRegister;
-		at: #x24 put: #baseRegister;
-		at: #x28 put: #vmStackPointer;
-		at: #x29 put: #framePointerRegister;
-		at: #x30 put: #linkRegister
+	registerSmalltalkAliases
+		at: #x0  put: #carg0;
+		at: #x1  put: #carg1;
+		at: #x2  put: #carg2;
+		at: #x3  put: #'carg3/arg0';
+		at: #x4  put: #arg1;
+		at: #x15 put: #pc;
+		at: #x16 put: #ip1;
+		at: #x17 put: #ip2;
+		at: #x19 put: #extra0;
+		at: #x20 put: #extra1;
+		at: #x21 put: #extra2;
+		at: #x22 put: #class;
+		at: #x23 put: #receiver;
+		at: #x24 put: #varbase;
+		at: #x25 put: #nargs;
+		at: #x24 put: #base;
+		at: #x28 put: #vmsp;
+		at: #x29 put: #fp;
+		at: #x30 put: #lr
 ]
 
 { #category : #registers }
@@ -199,6 +199,7 @@ UnicornARMv8Simulator >> postCallArgumentsNumArgs: numArgs "<Integer>" in: aMemo
 	On ARM this typically means accessing r0 through r3 and fetching additional arguments from the stack, acording to pages 20f. aapcs.
 	We assume that all arguments are single word arguments, which can not be supplied on co-processor-registers.
 	 For compatibility with Cog/Slang we answer unsigned values."
+	"1halt."
 	^(1 to: numArgs) collect: [:i |
 		i < 5 
 			ifTrue: [self perform: (self registerStateGetters at: i)]
