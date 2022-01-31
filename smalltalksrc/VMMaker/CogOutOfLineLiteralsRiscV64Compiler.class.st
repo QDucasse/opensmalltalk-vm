@@ -433,15 +433,8 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[MoveMbrR]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[MoveM8rR]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[MoveM16rR]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveM32rR] -> [^ false]. "#TODO"
-		[MoveMwrR]	-> [
-			offset := (operands at: 0).
-			(offset >= 0 and: [ (offset bitAnd: 16rFFF) = offset ]) 
-				ifTrue: [ ^ false ]
-				ifFalse: [ 	self
-									is9BitValue: offset
-										ifTrue: [ :v | ^ false ] 
-										ifFalse: [^ true ] ]].
+		[MoveM32rR] -> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
+		[MoveMwrR]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[MoveM32rRs]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 		[MoveM64rRd]	-> [self assertValue: (operands at: 0) isContainedIn: 12 ifTrue:[^ false] ifFalse: [^ true]].
 								
