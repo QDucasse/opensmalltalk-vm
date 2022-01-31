@@ -5964,27 +5964,40 @@ CogRiscV64Compiler >> loadByteFromAddressInRegister: baseRegister withOffset: of
 { #category : #concretization }
 CogRiscV64Compiler >> loadCwInto: destReg [
 
-	| operand distance offsetLow offsetHigh|
+	| operand distance offsetLow offsetHigh |
 	self flag: #TODO.
 	operand := operands at: 0.
-	self cCode:[] inSmalltalk:[operand := operand bitAnd: 16rFFFFFFFF]. "Need to clamp the value to a word size since one or two usages actually generate double sized values and rely upon the C code to narrow it within the running VM"
-	(self isAnInstruction: (cogit cCoerceSimple: operand to: #'AbstractInstruction *')) ifTrue:
-		[operand := (cogit cCoerceSimple: operand to: #'AbstractInstruction *') address].
+	self
+		cCode: [  ]
+		inSmalltalk: [ operand := operand bitAnd: 16rFFFFFFFF ]. "Need to clamp the value to a word size since one or two usages actually generate double sized values and rely upon the C code to narrow it within the running VM"
+	(self isAnInstruction:
+		 (cogit cCoerceSimple: operand to: #'AbstractInstruction *')) 
+		ifTrue: [ 
+			operand := (cogit
+				            cCoerceSimple: operand
+				            to: #'AbstractInstruction *') address ].
 	"Try to encode the Cw as a pc-relative first"
-	(cogit addressIsInCurrentCompilation: operand) ifTrue: [
-		distance := operand - address.
-		"Check if the absolute distance fits in 12 bits or produce a way to split the distance between the two instructions
+	(cogit addressIsInCurrentCompilation: operand)
+		ifTrue: [ 
+			distance := operand signedIntFromLong - address signedIntFromLong.
+			"Check if the absolute distance fits in 12 bits or produce a way to split the distance between the two instructions
 		 https://forums.sifive.com/t/bit-11-of-jalr-sign-extened-for-call-auipc-jalr/1950"
-		self assertValue: distance isContainedIn: 12
-			ifTrue: [ offsetLow := distance.
-				       offsetHigh := 0 ]
-			ifFalse: [ offsetLow := ((distance << 20) bitAnd: 16rFFFFFFFF) >> 20. 
-				        offsetHigh := (distance - offsetLow signedIntFromChar) >> 12. ].
-		"Generate the auipc addi sequence"
-		self machineCodeAt: 0 put: (self addUpperImmediateToPC: offsetHigh toRegister: destReg).
-		self machineCodeAt: 4 put: (self addImmediate: offsetLow toRegister: destReg inRegister:  destReg).
-		^ machineCodeSize := 8
-		].
+			self
+				assertValue: distance isContainedIn: 32.
+					"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
+			offsetLow := self computeSignedValue64Bits: (distance  bitAnd: 16rFFF).
+			offsetHigh := (((self computeSignedValue64Bits: distance) + 16r800) >> 12) bitAnd: 16rFFFFF.
+			self
+				machineCodeAt: 0
+				put: (self addUpperImmediateToPC: offsetHigh toRegister: destReg).
+			self
+				machineCodeAt: 4
+				put:
+				(self
+					 addImmediate: offsetLow
+					 toRegister: destReg
+					 inRegister: destReg).
+			^ machineCodeSize := 8 ].
 	"Otherwise, load the literal in a register"
 	^ self moveCw: operand intoR: destReg
 ]
