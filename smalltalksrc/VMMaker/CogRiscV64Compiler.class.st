@@ -171,6 +171,7 @@ CogRiscV64Compiler class >> initialize [
 
 	SP := X2. "Stack Pointer"
 	LR := X1. "Link Register"
+	FP := X8. "Frame Pointer"
 	
 	"RISCV Floating Point Registers"
 	F0 := 0.
@@ -182,11 +183,12 @@ CogRiscV64Compiler class >> initialize [
 	F6 := 6.
 	F7 := 7.
 	"Function arguments registers"
-	CArg0Reg := X12.
-	CArg1Reg := X13.
-	CArg2Reg := X14.
-	CArg3Reg := X15.
+	CArg0Reg := X10.
+	CArg1Reg := X11.
+	CArg2Reg := X12.
+	CArg3Reg := X13.
 	
+	ConcretePCReg := PC.
 	"Base register that will serve as anchor to trampoline between stacks"
 	ConcreteVarBaseReg := X26.
 	"X5 and X6 are temporary registers used as the intra procedural scratch registers, they are not preserved accross calls"
@@ -246,24 +248,25 @@ CogRiscV64Compiler class >> initializeAbstractRegisters [
 	X8 is SP."
 	
 	self flag: #TODO.
-	CallerSavedRegisterMask := self registerMaskFor: 10 and: 11.
+	CallerSavedRegisterMask := self registerMaskFor: 13 and: 14.
 
 	TempReg := X22.
 	ClassReg := X23.
 	ReceiverResultReg := X24.
 	SendNumArgsReg := X25.
-	SPReg := X2. "X2 as the same stack pointer"
-	FPReg := X8. "X8 as the frame pointer"
-	Arg0Reg := X10.	 "X10/X11 function argument" 	
-	Arg1Reg := X11.
+	SPReg := SP. "X2 is the machine stack pointer, we use the same" self assert: SP = X2.
+	FPReg := FP. "X8 as the frame pointer" self assert: FP = X8.
+	Arg0Reg := X13.	 "Overlaps with last CArg" 	
+	Arg1Reg := X14.
 	Extra0Reg := X18.  "These are callee saved registers"
 	Extra1Reg := X19.
 	Extra2Reg := X20.
 	VarBaseReg := X26. self assert: ConcreteVarBaseReg = X26. "Base address for calls from machine code. Must be callee saved"
 	RISCTempReg := X5. self assert: ConcreteIPReg = X5.
-	LinkReg := X1. "X1 is ra"
+	LinkReg := LR. "X1 is ra" self assert: LR = X1.
+	PCReg := PC. "PC has its dedicated register "
 
-	NumRegisters := 14.
+	NumRegisters := 16.
 
 	DPFPReg0 := F0.
 	DPFPReg1 := F1.
@@ -5286,16 +5289,17 @@ CogRiscV64Compiler >> genRestoreRegs: regMask [
 	"Restore the registers in regMask as saved by genSaveRegs:."
 	<inline: true>
 	| registerCount |
-	self assert: (X12 > X1 and: [X12 - X1 + 1 = 12]).
-	self deny: (regMask anyMask: (cogit registerMaskFor: SPReg and: FPReg)).
+	self flag: #TODO.
+	self assert: (X17 > X10 and: [X17 - X10 + 1 = 8]).
+	"self deny: (regMask anyMask: (cogit registerMaskFor: SPReg and: FPReg))."
 	
 	registerCount := 0.
-	X1 to: X12 do:
+	X10 to: X17 do:
 		[:reg|
 		 (regMask anyMask: (cogit registerMaskFor: reg)) ifTrue:
 			[registerCount := registerCount + 1]].
 	
-	X1 to: X12 do:
+	X10 to: X17 do:
 		[:reg|
 		 (regMask anyMask: (cogit registerMaskFor: reg)) ifTrue:
 			[cogit PopR: reg]].
@@ -5321,11 +5325,12 @@ CogRiscV64Compiler >> genSaveRegs: regMask [
 	"Save the registers in regMask for a call into the C run-time from a trampoline"
 	<inline: true>
 	| registerCount |
-	self assert: (X12 > X1 and: [X12 - X1 + 1 = 12]).
+	self flag: #TODO.
+	self assert: (X17 > X10 and: [X17 - X10 + 1 = 8]).
 	self deny: (regMask anyMask: (cogit registerMaskFor: SPReg and: FPReg)).
 	
 	registerCount := 0.
-	X12 to: X1 by: -1 do:
+	X17 to: X10 by: -1 do:
 		[:reg|
 		 (regMask anyMask: (cogit registerMaskFor: reg)) ifTrue:
 			[registerCount := registerCount + 1]].
@@ -5335,7 +5340,7 @@ CogRiscV64Compiler >> genSaveRegs: regMask [
 	registerCount \\ 2 == 0
 		ifFalse: [ cogit PushCq: 16rBEEF "Marker smallinteger to generate a valid stack" ].
 	
-	X12 to: X1 by: -1 do:
+	X17 to: X10 by: -1 do:
 		[:reg|
 		 (regMask anyMask: (cogit registerMaskFor: reg)) ifTrue:
 			[cogit PushR: reg]].

@@ -7,13 +7,13 @@ Class {
 { #category : #registers }
 UnicornRISCVSimulator >> arg0Register [
 
-	^ UcRISCVRegisters x10
+	^ UcRISCVRegisters x13
 ]
 
 { #category : #registers }
 UnicornRISCVSimulator >> arg1Register [
 
-	^ UcRISCVRegisters x11
+	^ UcRISCVRegisters x14
 ]
 
 { #category : #registers }
@@ -25,31 +25,31 @@ UnicornRISCVSimulator >> baseRegister [
 { #category : #'c calling convention' }
 UnicornRISCVSimulator >> cResultRegister [
 
-	^ UcRISCVRegisters x12
+	^ UcRISCVRegisters x10
 ]
 
 { #category : #'c calling convention' }
 UnicornRISCVSimulator >> carg0Register [
 
-	^ UcRISCVRegisters x12
+	^ UcRISCVRegisters x10
 ]
 
 { #category : #'c calling convention' }
 UnicornRISCVSimulator >> carg1Register [
 
-	^ UcRISCVRegisters x13
+	^ UcRISCVRegisters x11
 ]
 
 { #category : #'c calling convention' }
 UnicornRISCVSimulator >> carg2Register [
 
-	^ UcRISCVRegisters x14
+	^ UcRISCVRegisters x12
 ]
 
 { #category : #'c calling convention' }
 UnicornRISCVSimulator >> carg3Register [
 
-	^ UcRISCVRegisters x15
+	^ UcRISCVRegisters x13
 ]
 
 { #category : #registers }
@@ -405,12 +405,11 @@ UnicornRISCVSimulator >> initializeRegisterSmalltalkAliases [
 		at: #x6  put: #ip2;
 		at: #x7  put: #ip3;
 		at: #x8  put: #fp;
-		at: #x10 put: #arg0;
-		at: #x11 put: #arg1;
-		at: #x12 put: #carg0;
-		at: #x13 put: #carg1;
-		at: #x14 put: #carg2;
-		at: #x15 put: #carg3;
+		at: #x10 put: #carg0;
+		at: #x11 put: #carg1;
+		at: #x12 put: #carg2;
+		at: #x13 put: #'carg3/arg0';
+		at: #x14 put: #arg1;
 		at: #x18 put: #extra0;
 		at: #x19 put: #extra1;
 		at: #x20 put: #extra2;
@@ -457,17 +456,15 @@ UnicornRISCVSimulator >> mstatusRegisterValue: aValue [
 
 { #category : #initialization }
 UnicornRISCVSimulator >> postCallArgumentsNumArgs: numArgs "<Integer>" in: aMemory [ "<ByteArray|Bitmap>"
-	"Answer an argument vector of the requested size after a vanilla
-	 ABI call. For ARM the Procedure Calling Specification can be found in IHI0042D_aapcs.pdf.
-	On ARM this typically means accessing r0 through r3 and fetching additional arguments from the stack, acording to pages 20f. aapcs.
-	We assume that all arguments are single word arguments, which can not be supplied on co-processor-registers.
+	"Answer an argument vector of the requested size after a vanilla ABI call." 
+	"On RISCV, this means accessing the argument registers a0-a7 (x12-x17)
+	 We assume that all arguments are single word arguments, which can not be supplied on co-processor-registers.
 	 For compatibility with Cog/Slang we answer unsigned values."
-	"1halt."
 	^(1 to: numArgs) collect: [:i |
 		i < 9 
 			ifTrue: [self perform: (self registerStateGetters at: i)]
-			"ARM uses a full descending stack. Directly after calling a procedure, nothing but the arguments are pushed."
-			ifFalse: [memory unsignedLongAt: self sp + (i-5)*4 bigEndian: false]].
+			"RISCV uses a full descending stack. Directly after calling a procedure, nothing but the arguments are pushed."
+			ifFalse: [ memory unsignedLongAt: self sp + (i-5)*4 bigEndian: false]].
 ]
 
 { #category : #'machine registers' }
@@ -501,12 +498,14 @@ UnicornRISCVSimulator >> registerList [
 UnicornRISCVSimulator >> registerStateGetters [
 	
 	self flag: #TODO.
-	^#(x12 x13 x14 x15 x16 x17 x10 x11 sp lr pc)
+	"Argument registers"
+	^#(x10 x11 x12 x13 x14 x15 x16 x17)
 ]
 
 { #category : #'c calling convention' }
 UnicornRISCVSimulator >> retpcIn: aMemory [ 
-
+	"The return address is on the stack, having been pushed by either
+	 simulateCallOf:nextpc:memory: or simulateJumpCallOf:memory:"
 	^ memory longAt: self fp + 8
 ]
 
@@ -520,6 +519,18 @@ UnicornRISCVSimulator >> s0 [
 UnicornRISCVSimulator >> s0: aValue [
 
 	^ self writeRegister: UcRISCVRegisters s0 value: aValue
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> s1 [
+
+	^ self readRegister: UcRISCVRegisters s1
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> s1: aValue [
+
+	^ self writeRegister: UcRISCVRegisters s1 value: aValue
 ]
 
 { #category : #'machine registers' }
@@ -602,44 +613,39 @@ UnicornRISCVSimulator >> simulateJumpCallOf: address memory: aMemory [
 	uses a frame pointer. The standard never mentions a fp. It merely defines r4-r11 to be callee-saved."
 	
 	self assert: self sp \\ 8 = 0. "This check ensures, that we conform with RISCV abi. Before doing anything to the stack, we ensure 2-word alignment."
-
-	self pushWord: self linkRegisterValue.
+	self pushWord: self lr.
 	self pushWord: self fp.
-	self framePointerRegisterValue: self stackPointerRegisterValue.
-
-	self instructionPointerRegisterValue: address
+	self fp: self sp.
+	self pc: address
 ]
 
 { #category : #'as yet unclassified' }
-UnicornRISCVSimulator >> simulateLeafCallOf: destinationAddress nextpc: returnAddress memory: anUndefinedObject [ 
+UnicornRISCVSimulator >> simulateLeafCallOf: address nextpc: nextpc memory: aMemory [
 
-	self linkRegisterValue: returnAddress.
-	self instructionPointerRegisterValue: destinationAddress
+	self lr: nextpc.
+	self pc: address
 ]
 
 { #category : #initialization }
 UnicornRISCVSimulator >> simulateReturnIn: aMemory [
 
-	self framePointerRegisterValue: self popWord.
-	self linkRegisterValue: self popWord.
-
-	self instructionPointerRegisterValue: self linkRegisterValue
+	self fp: self popWord.
+	self lr: self popWord.
+	self pc: self lr
 
 ]
 
 { #category : #disassembling }
 UnicornRISCVSimulator >> smashCallerSavedRegistersWithValuesFrom: base by: step in: aMemory [
 
-	#(lr: x10: x11: x12: x13: x14: x15: x16: x17:) withIndexDo:
-		[:accessor :index|
-		self perform: accessor with: index - 1 * step + base]
+	self smashRegistersWithValuesFrom: base by: step
 ]
 
 { #category : #registers }
 UnicornRISCVSimulator >> smashRegisterAccessors [
 	
 	"Caller saved registers to smash"
-	^#( x1: x5: x6: x7: x10: x11: x12: x13: x14: x15: x16: x17: x28: x29: x30: x31:)
+	^#(x1: x5: x6: x7: x10: x11: x12: x13: x14: x15: x16: x17: x28: x29: x30: x31:)
 ]
 
 { #category : #registers }
