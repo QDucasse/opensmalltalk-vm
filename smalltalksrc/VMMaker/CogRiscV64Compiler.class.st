@@ -33,6 +33,7 @@ Class {
 		'F5',
 		'F6',
 		'F7',
+		'FP',
 		'GE',
 		'GEU',
 		'LR',
@@ -1953,7 +1954,7 @@ CogRiscV64Compiler >> concretizeCallFull [
 	self flag: #TODO.
 	jumpTarget := self longJumpTargetAddress.
 	instrOffset := self machineCodeWriteInstructions: (self loadLiteralInRegister: ConcreteIPReg).
-	self machineCodeAt: instrOffset put: (self jumpToRegisterValue: ConcreteIPReg).
+	self machineCodeAt: instrOffset put: (self jumpTo: ConcreteIPReg withOffset: 0 andStorePreviousPCPlus4in: LR). 
 	^ machineCodeSize := instrOffset + 4
 ]
 
