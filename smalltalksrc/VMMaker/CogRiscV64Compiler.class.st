@@ -3936,7 +3936,7 @@ CogRiscV64Compiler >> concretizeRetN [
 	offset = 0
 	   ifTrue: [ self machineCodeAt: 0 put: self ret.
 		          ^ machineCodeSize := 4 ].
-	self machineCodeAt: 0 put: (self addImmediate: offset toRegister: SP inRegister: SP).
+	self machineCodeAt: 0 put: (self addImmediate: offset toRegister: SPReg inRegister: SPReg).
 	self machineCodeAt: 4 put: self ret.
 	^ machineCodeSize := 8
 ]
@@ -5579,8 +5579,9 @@ CogRiscV64Compiler >> isCallPrecedingReturnPC: mcpc [
 	"Assuming mcpc is a send return pc answer if the instruction before it is a call (not a CallFull)."
 	"There are two types of calls: BL and/BLX encoding"
 	| call |
+	self flag: #TODO.
 	call := self instructionBeforeAddress: mcpc.
-	^(self instructionIsBL: call) or:[self instructionIsBLX: call]
+	^(self instructionIsJALR: call)
 ]
 
 { #category : #testing }
@@ -5602,6 +5603,7 @@ CogRiscV64Compiler >> isInImmediateJumpRange: operand [
 { #category : #testing }
 CogRiscV64Compiler >> isJumpAt: pc [
 	| instr |
+	1halt.
 	instr := objectMemory long32At: pc.
 	^(self instructionIsB: instr)
 	  or: [self instructionIsBX: instr]
@@ -5611,10 +5613,7 @@ CogRiscV64Compiler >> isJumpAt: pc [
 CogRiscV64Compiler >> isRelativeLiteralLoad: followingAddress [
 	
 	"Need renaming"
-
-	self flag: #TODO.
-	"1halt."
-	
+	self flag: #TODO.	
 	^ (self instructionIsAUIPC: (self instructionBeforeAddress: followingAddress - 4)) 
 		and: (self instructionIsLD: (self instructionBeforeAddress: followingAddress))
 ]
