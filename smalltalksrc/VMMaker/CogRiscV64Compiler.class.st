@@ -87,7 +87,6 @@ Class {
 
 { #category : #accessing }
 CogRiscV64Compiler class >> IPReg [
-	"Answer the number of the general temp reg in the ARM APCS convention, IP"
 	^ConcreteIPReg
 ]
 
@@ -287,7 +286,7 @@ CogRiscV64Compiler class >> isAbstract [
 CogRiscV64Compiler class >> isRISCTempRegister: reg [
 	"For tests to filter-out bogus values left in the RISCTempRegister, if any."
 	self flag: #TODO.
-	^ ((reg = ConcreteIPReg) or: (reg = ConcreteIPReg2)) or: (reg = ConcreteIPReg3)
+	^ (reg = ConcreteIPReg) or: [(reg = ConcreteIPReg2) or: (reg = ConcreteIPReg3)]
 ]
 
 { #category : #translation }
@@ -4416,9 +4415,6 @@ CogRiscV64Compiler >> dispatchConcretize [
 	 to get around the branch size limits in the SqueakV3 (blue book derived)
 	 bytecode set."
 	<returnTypeC: #void>
-	conditionOrNil ifNotNil:
-		[self error: 'RV64G does not support conditions encoded in the instruction'.
-		 ^self].
 	self flag: #TODO.
 	opcode caseOf: {
 		"Noops & Pseudo Ops"
@@ -5279,7 +5275,7 @@ CogRiscV64Compiler >> genPushRegisterArgsForNumArgs: numArgs scratchReg: ignored
 
 { #category : #abi }
 CogRiscV64Compiler >> genRemoveNArgsFromStack: n [
-	"This is a no-op on ARM since the ABI passes up to 4 args in registers and trampolines currently observe that limit."
+	"This is a no-op on RISCV since the ABI passes up to 8 args in registers and trampolines currently observe that limit."
 	<inline: true>
 	self assert: n <= 4.
 	^0
@@ -5562,28 +5558,6 @@ CogRiscV64Compiler >> instructionSizeAt: pc [
 	^4
 ]
 
-{ #category : #'helpers - size sign' }
-CogRiscV64Compiler >> is9BitValue: originalConstant ifTrue: aTrueBlock ifFalse: aFalseBlock [ 
-	
-	| constant |
-	
-	<inline: true>
-	<var: #constant type: 'sqInt'>
-	
-	"This is needed to force the type conversion in an inlined function.
-	If not... the variable is removed and using the parameter of the call site."
-	constant := self cCoerce: originalConstant to: #'sqInt'.
-	
-	^ (constant abs <= 255 or: [ constant = -256 ]) "9 bits go from -256..255"
-		ifTrue: [ | twoComplement |
-			"Two complement using 9 bits"
-			twoComplement := constant >= 0
-				ifTrue: [ constant ]
-				ifFalse: [ 16r1ff - constant abs + 1 ].
-			aTrueBlock value: twoComplement ]
-		ifFalse: [ aFalseBlock value ]
-]
-
 { #category : #testing }
 CogRiscV64Compiler >> isAddressRelativeToVarBase: varAddress [
 	<inline: true>
@@ -5596,6 +5570,7 @@ CogRiscV64Compiler >> isAddressRelativeToVarBase: varAddress [
 
 { #category : #testing }
 CogRiscV64Compiler >> isBigEndian [
+	"RISCV is little endian"
 	^false
 ]
 
@@ -6336,8 +6311,8 @@ CogRiscV64Compiler >> popToRegister: destReg [
 	self flag: #TODO.
 	offset := self computeSignedValueOf: 8 ofSize: 12.
 	^ { 
-	  self loadDoubleWordFromAddressInRegister: SP withOffset: 0 toRegister: destReg .	
-	  self addImmediate: offset toRegister: SP inRegister: SP
+	  self loadDoubleWordFromAddressInRegister: SPReg withOffset: 0 toRegister: destReg .	
+	  self addImmediate: offset toRegister: SPReg inRegister: SPReg
 	}
 ]
 
@@ -6387,8 +6362,8 @@ CogRiscV64Compiler >> pushFromRegister: destReg [
 	self flag: #TODO.
 	offset := self computeSignedValueOf: -8 ofSize: 12.		
 	^ { 
-	 self addImmediate: offset toRegister: SP inRegister: SP.
-    self storeDoubleWordFromRegister: destReg toAddressInRegister: SP withOffset: 0
+	 self addImmediate: offset toRegister: SPReg inRegister: SPReg.
+    self storeDoubleWordFromRegister: destReg toAddressInRegister: SPReg withOffset: 0
    }
 ]
 
