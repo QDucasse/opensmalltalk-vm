@@ -159,7 +159,8 @@ UnicornARMv8Simulator >> initializeRegisterSmalltalkAliases [
 		at: #x24 put: #base;
 		at: #x28 put: #vmsp;
 		at: #x29 put: #fp;
-		at: #x30 put: #lr
+		at: #x30 put: #lr;
+		at: #x31 put: #sp
 ]
 
 { #category : #registers }
@@ -246,12 +247,10 @@ UnicornARMv8Simulator >> simulateJumpCallOf: address memory: aMemory [
 	uses a frame pointer. The standard never mentions a fp. It merely defines r4-r11 to be callee-saved."
 	
 	self assert: self sp \\ 8 = 0. "This check ensures, that we conform with ARM abi. Before doing anything to the stack, we ensure 2-word alignment."
-
-	self pushWord: self linkRegisterValue.
+	self pushWord: self lr.
 	self pushWord: self fp.
-	self framePointerRegisterValue: self stackPointerRegisterValue.
-
-	self instructionPointerRegisterValue: address
+	self fp: self sp.
+	self pc: address
 ]
 
 { #category : #'as yet unclassified' }
@@ -264,10 +263,9 @@ UnicornARMv8Simulator >> simulateLeafCallOf: address nextpc: nextpc memory: aMem
 { #category : #'as yet unclassified' }
 UnicornARMv8Simulator >> simulateReturnIn: aSpurSimulatedMemory [ 
 
-	self framePointerRegisterValue: self popWord.
-	self linkRegisterValue: self popWord.
-
-	self instructionPointerRegisterValue: self linkRegisterValue
+	self fp: self popWord.
+	self lr: self popWord.
+	self pc: self lr
 
 ]
 
@@ -280,16 +278,14 @@ UnicornARMv8Simulator >> smalltalkStackPointerRegister [
 { #category : #'as yet unclassified' }
 UnicornARMv8Simulator >> smashCallerSavedRegistersWithValuesFrom: base by: step in: aMemory [
 
-	#(x0: x1: x2: x3: x4: x5: lr:) withIndexDo:
-		[:accessor :index|
-		self perform: accessor with: index - 1 * step + base]
+	self smashRegistersWithValuesFrom: base by: step
 ]
 
 { #category : #'as yet unclassified' }
 UnicornARMv8Simulator >> smashRegisterAccessors [
 	
 	"Caller saved registers to smash"
-	^#( x0: x1: x2: x3: x4: x5: x6: x7: x8: x9: x10: x11: x12: )
+	^#( x0: x1: x2: x3: x4: x5: x6: x7: x8: x9: x10: x11: x12: lr:)
 ]
 
 { #category : #registers }
