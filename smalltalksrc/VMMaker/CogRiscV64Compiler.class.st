@@ -5106,25 +5106,7 @@ CogRiscV64Compiler >> fullCallsAreRelative [
 { #category : #abi }
 CogRiscV64Compiler >> genCaptureCStackPointers: captureFramePointer [
 
-	"Save the register to a caller-saved register.
-	The caller may have been using the same register for something else.
-	So we need to save it and restore it later.
-	Make sure to reuse a caller-saved register: we can reuse it freely"
-	self hasVarBaseRegister ifTrue:
-		[cogit
-			MoveR: VarBaseReg R: CArg0Reg;
-			MoveCq: cogit varBaseAddress R: VarBaseReg].
-	captureFramePointer ifTrue:
-		[cogit MoveR: FPReg Aw: cogit cFramePointerAddress].
-
-	"Capture the stack pointer prior to the call"
-	cogit MoveR: self cStackPointer Aw: cogit cStackPointerAddress.
-	
-	"Restore the base register for our caller"
-	self hasVarBaseRegister ifTrue:
-		[cogit MoveR: CArg0Reg R: VarBaseReg].
-
-	cogit RetN: 0.
+	super genCaptureCStackPointers: captureFramePointer 
 ]
 
 { #category : #'abstract instructions' }
@@ -6323,16 +6305,13 @@ CogRiscV64Compiler >> popToRegister: destReg [
 { #category : #'calling C function in Smalltalk stack' }
 CogRiscV64Compiler >> prepareStackToCallCFunctionInSmalltalkStack: anObject [ 
 
-	"In ARMv8 we are using an alternative SPReg that is not the machine SP.
-	We need to sync the SP register to the Smalltalk stackPointer, so the called function 
-	will execute correctly."
-	
+	self flag: #TODO.
+	1halt.
 	cogit MoveR: SPReg R: Extra2Reg.
-
-	"ARMv8 should be aligned to 16 bytes"
-
-	cogit AndCq: ((1 << 64) - 16) R: Extra2Reg. 
-	cogit MoveR: Extra2Reg R: SP.
+	"RISCV64 should be aligned to 16 bytes"
+	cogit AndCq: ((1 << 64) - 16) R: SPReg. 
+	"Save Original Stack Pointer"
+	cogit PushR: Extra2Reg.
 ]
 
 { #category : #concretization }
@@ -6489,7 +6468,9 @@ CogRiscV64Compiler >> ret [
 { #category : #'calling C function in Smalltalk stack' }
 CogRiscV64Compiler >> returnFromCallCFunctionInSmalltalkStack: anObject [ 
 
-	"In ARMv8 I don't need to do nothing"
+	self flag: #TODO.
+	cogit PopR: Arg0Reg.
+	cogit MoveR: Arg0Reg R: SPReg. 
 
 ]
 
