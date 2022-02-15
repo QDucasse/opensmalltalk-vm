@@ -1032,7 +1032,7 @@ CogRiscV64Compiler >> bytesToLoadImmediate: anImmediate [
 CogRiscV64Compiler >> cResultRegister [
 	"Answer the register through which C funcitons return integral results."
 	<inline: true>
-	^X12
+	^X10
 ]
 
 { #category : #accessing }
@@ -5129,7 +5129,7 @@ CogRiscV64Compiler >> genLoadCStackPointer [
 	"Load the stack pointer register with that of the C stack, effecting
 	 a switch to the C stack.  Used when machine code calls into the
 	 CoInterpreter run-time (e.g. to invoke interpreter primitives)."
-	cogit MoveAw: cogit cStackPointerAddress R: SP.
+	cogit MoveAw: cogit cStackPointerAddress R: SPReg.
 	^0
 ]
 
@@ -5138,7 +5138,7 @@ CogRiscV64Compiler >> genLoadCStackPointers [
 	"Load the frame and stack pointer registers with those of the C stack,
 	 effecting a switch to the C stack.  Used when machine code calls into
 	 the CoInterpreter run-time (e.g. to invoke interpreter primitives)."
-	cogit MoveAw: cogit cStackPointerAddress R: SP.
+	cogit MoveAw: cogit cStackPointerAddress R: SPReg.
 	cogit MoveAw: cogit cFramePointerAddress R: FPReg.
 	^0
 ]
@@ -5926,7 +5926,7 @@ CogRiscV64Compiler >> loadLiteralInRegister: destReg [
 	self assert: (cogit addressIsInCurrentCompilation: dependent address).
 	literalAddress := (cogit cCoerceSimple: dependent to: #'AbstractInstruction *') address.
 	distance := literalAddress - address.
-	self assert: distance abs < (1 << 12).
+	self assertValue: distance isContainedIn: 12.
 	^ {  
 		self addUpperImmediateToPC: 0 toRegister: destReg.
    		self loadDoubleWordFromAddressInRegister: destReg withOffset: distance toRegister: destReg
@@ -6269,7 +6269,7 @@ CogRiscV64Compiler >> numICacheFlushOpcodes [
 
 { #category : #accessing }
 CogRiscV64Compiler >> numIntRegArgs [
-	^4
+	^8
 ]
 
 { #category : #'concretization helpers' }
@@ -6308,10 +6308,8 @@ CogRiscV64Compiler >> prepareStackToCallCFunctionInSmalltalkStack: anObject [
 	self flag: #TODO.
 	1halt.
 	cogit MoveR: SPReg R: Extra2Reg.
-	"RISCV64 should be aligned to 16 bytes"
-	cogit AndCq: ((1 << 64) - 16) R: SPReg. 
-	"Save Original Stack Pointer"
-	cogit PushR: Extra2Reg.
+	cogit AndCq: ((1 << 64) - 16) R: Extra2Reg. 
+	cogit MoveR: Extra2Reg R: SP.
 ]
 
 { #category : #concretization }
@@ -6466,11 +6464,10 @@ CogRiscV64Compiler >> ret [
 ]
 
 { #category : #'calling C function in Smalltalk stack' }
-CogRiscV64Compiler >> returnFromCallCFunctionInSmalltalkStack: anObject [ 
-
-	self flag: #TODO.
-	cogit PopR: Arg0Reg.
-	cogit MoveR: Arg0Reg R: SPReg. 
+CogRiscV64Compiler >> returnFromCallCFunctionInSmalltalkStack: anObject [
+	
+	1halt.
+	cogit MoveR: Extra2Reg R: SPReg.
 
 ]
 

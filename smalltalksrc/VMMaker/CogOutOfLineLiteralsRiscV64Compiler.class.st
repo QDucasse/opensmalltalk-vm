@@ -71,29 +71,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> configureStackAlignment [
 	cogit setStackAlignment: 16 expectedSPOffset: 0 expectedFPOffset: 0.
 ]
 
-{ #category : #'inline cacheing' }
-CogOutOfLineLiteralsRiscV64Compiler >> extractLiteralFromCMP32: instrAddress [
-	"Return the literal referenced by the instruction immediately preceding followingAddress.
-	 Used for CMP32."
-	| instLUI instADDIW instSLLI instADDI offsetLUI offsetADDIW shiftAmount offsetADDI |
-	self flag: #TODO.
-	1halt.
-	"Extract LUI"
-	instLUI := objectMemory long32At: instrAddress.
-	offsetLUI := self signExtendValue: (instLUI >> 12 bitAnd: 16rfffff) << 12 forSize: 20. "20 upper bits"
-	"Extract ADDIW"
-	instADDIW := objectMemory long32At: instrAddress + 4.
-	offsetADDIW := self signExtendValue: (instADDIW >> 20 bitAnd: 16rfff) forSize: 12. "12 lower bits"
-	"Extract SLLI"
-	instSLLI := objectMemory long32At: instrAddress + 8.
-	shiftAmount := instSLLI >> 20 bitAnd: 16r3F. "shift by shift amount (13)"
-	"Extract ADDI"
-	instADDI := objectMemory long32At: instrAddress + 12.
-	offsetADDI := self signExtendValue: (instADDI >> 20 bitAnd: 16rfff) forSize: 12. "12 lower bits"
-	"Each offset is sign-extended then added"
-	^ (offsetLUI + offsetADDIW) << shiftAmount + offsetADDI
-]
-
 { #category : #accessing }
 CogOutOfLineLiteralsRiscV64Compiler >> getDefaultCogCodeSize [
 	"Return the default number of bytes to allocate for native code at startup.
@@ -232,7 +209,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> relocateMethodReferenceBeforeAddress: pc 
 	 or a register load.  If a push, then there is a register load, but in the instruction
 	 before."
 	| pcFollowingLoad reference litAddr |
-	"1halt."
+	self flag: #TODO.
 	"A push expands to addi sp -8 then sd rd 0(sp)"
 	pcFollowingLoad := ((self instructionIsSD: (self instructionBeforeAddress: pc)) and: 
 								(self instructionIsADDI: (self instructionBeforeAddress: pc - 4)))
