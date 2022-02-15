@@ -11,9 +11,12 @@ Class {
 		'machineState',
 		'initialInstructionToDisassemble',
 		'stack',
-		'ipInput',
 		'jumpToButton',
-		'abstractInstructions'
+		'abstractInstructions',
+		'disassembleAtSPButton',
+		'setSPToButton',
+		'pcInput',
+		'spInput'
 	],
 	#category : #'VMMaker-Tools'
 }
@@ -29,11 +32,15 @@ VMMachineCodeDebugger class >> defaultSpec [
 			add: #stack expand: true fill: true padding: 5; 
 			yourself) expand: true fill: true padding: 5;
 		add: (SpBoxLayout newHorizontal 
-			add: (SpBoxLayout newVertical
-				add: #ipInput;
-				add: #jumpToButton) expand: true fill: true padding: 5;
 			add: #stepButton expand: true fill: true padding: 5;
-			add: #disassembleAtPCButton expand: true fill: true padding: 5) width: 200;
+			add: (SpBoxLayout newVertical
+				add: #pcInput;
+				add: #jumpToButton) expand: true fill: true padding: 5;
+			add: #disassembleAtPCButton expand: true fill: true padding: 5;
+			add: (SpBoxLayout newVertical
+				add: #spInput;
+				add: #setSPToButton) expand: true fill: true padding: 5;
+			add: #disassembleAtSPButton expand: true fill: true padding: 5) width: 200;
 		yourself
 ]
 
@@ -80,7 +87,9 @@ VMMachineCodeDebugger >> connectButtons [
 
 	stepButton action: [ self step ].
 	disassembleAtPCButton action: [ self disassembleAtPC ].
-	jumpToButton action: [ self jump ]
+	jumpToButton action: [ self jump ].
+	disassembleAtSPButton action: [ self disassembleAtSP ].
+	setSPToButton action: [ self setSPTo ].
 ]
 
 { #category : #initialization }
@@ -172,6 +181,12 @@ VMMachineCodeDebugger >> disassembleAtPC [
 
 	self initialInstructionToDisassemble:  machineSimulator instructionPointerRegisterValue.
 	self refreshInstructions.
+]
+
+{ #category : #actions }
+VMMachineCodeDebugger >> disassembleAtSP [
+
+	self refreshStack.
 ]
 
 { #category : #showing }
@@ -294,9 +309,15 @@ VMMachineCodeDebugger >> initializeButtons [
 	stepButton label: 'Step'.
 	disassembleAtPCButton := self newButton.
 	disassembleAtPCButton label: 'Disassemble at PC'.
-	ipInput := self newTextInput.
+	pcInput := self newTextInput.
 	jumpToButton := self newButton.
-	jumpToButton label: 'Jump to'
+	jumpToButton label: 'Jump to'.
+	disassembleAtSPButton := self newButton.
+	disassembleAtSPButton label: 'Disassemble at SP'.
+	spInput := self newTextInput.
+	setSPToButton := self newButton.
+	setSPToButton label: 'Set SP to'.
+	
 ]
 
 { #category : #initialization }
@@ -440,7 +461,7 @@ VMMachineCodeDebugger >> irinstructions: aCollection [
 { #category : #actions }
 VMMachineCodeDebugger >> jump [
 
-	machineSimulator instructionPointerRegisterValue: (NumberParser parse: ipInput text).
+	machineSimulator instructionPointerRegisterValue: (NumberParser parse: pcInput text).
 	self refreshInstructions.
 	self refreshRegisters.
 ]
@@ -526,6 +547,14 @@ VMMachineCodeDebugger >> selectedInstruction [
 VMMachineCodeDebugger >> setInstructionPointerToSelectedInstruction [
 
 	machineSimulator instructionPointerRegisterValue: instructions selection selectedItem address
+]
+
+{ #category : #actions }
+VMMachineCodeDebugger >> setSPTo [
+
+	machineSimulator smalltalkStackPointerRegisterValue: (NumberParser parse: spInput text).
+	self refreshStack.
+	self refreshRegisters.
 ]
 
 { #category : #actions }
