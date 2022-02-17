@@ -20,8 +20,8 @@ VMPrimitiveCallingTest >> initStack [
 	machineSimulator framePointerRegisterValue: interpreter framePointer.
 	machineSimulator baseRegisterValue: cogit varBaseAddress.
 	
-	cogit setCStackPointer: interpreter rumpCStackAddress.
-	cogit setCFramePointer: interpreter rumpCStackAddress.
+	"cogit setCStackPointer: interpreter rumpCStackAddress.
+	cogit setCFramePointer: interpreter rumpCStackAddress."
 
 ]
 
