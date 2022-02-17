@@ -1055,9 +1055,6 @@ CogRiscV64Compiler >> callTargetFromReturnAddress: callSiteReturnAddress [
 	self flag: #TODO.
 	callAddress := self instructionAddressBefore: callSiteReturnAddress.
 	callInstruction := objectMemory long32At: callAddress.
-	"Check if the instruction is a nop, in that case take the one before"
-	(self instructionIsNOP: callInstruction) ifTrue: 
-		[ 1halt. callInstruction := objectMemory long32At: callAddress - 4].
 	self assert: (self instructionIsJALR: callInstruction).
 	callDistance := self extractOffsetFromCall: callAddress.
 	^ callAddress + callDistance - 4
@@ -5590,10 +5587,10 @@ CogRiscV64Compiler >> isInImmediateJumpRange: operand [
 { #category : #testing }
 CogRiscV64Compiler >> isJumpAt: pc [
 	| instr |
-	1halt.
+	self flag: #TODO.
 	instr := objectMemory long32At: pc.
-	^(self instructionIsB: instr)
-	  or: [self instructionIsBX: instr]
+	^(self instructionIsJAL: instr)
+	  or: [self instructionIsJALR: instr]
 ]
 
 { #category : #testing }
