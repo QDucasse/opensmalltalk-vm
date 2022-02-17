@@ -79,7 +79,9 @@ VMMachineCodeDebugger >> cogit [
 
 { #category : #accessing }
 VMMachineCodeDebugger >> cogit: anObject [
-	cogit := anObject
+	cogit := anObject.
+	self abstractInstructions: ((0 to: cogit getOpcodeIndex - 1)
+			collect: [ :i | cogit abstractOpcodes at: i ])
 ]
 
 { #category : #initialization }
