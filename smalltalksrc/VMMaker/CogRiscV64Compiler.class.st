@@ -6303,7 +6303,6 @@ CogRiscV64Compiler >> popToRegister: destReg [
 CogRiscV64Compiler >> prepareStackToCallCFunctionInSmalltalkStack: anObject [ 
 
 	self flag: #TODO.
-	1halt.
 	cogit MoveR: SPReg R: Extra2Reg.
 	cogit AndCq: ((1 << 64) - 16) R: Extra2Reg. 
 	cogit MoveR: Extra2Reg R: SP.
@@ -6462,8 +6461,7 @@ CogRiscV64Compiler >> ret [
 
 { #category : #'calling C function in Smalltalk stack' }
 CogRiscV64Compiler >> returnFromCallCFunctionInSmalltalkStack: anObject [
-	
-	1halt.
+
 	cogit MoveR: Extra2Reg R: SPReg.
 
 ]

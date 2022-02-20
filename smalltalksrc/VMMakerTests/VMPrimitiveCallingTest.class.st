@@ -59,7 +59,6 @@ VMPrimitiveCallingTest >> testCallingNamedPrimitiveTakingTracesWithInvalidNumber
 	callingMethod := self jitMethod: (self findMethod: #methodThatCallNamedPrimitive:).
 
 	self initStack.	
-self openMachineDebugger. 1halt.
 	self 
 		callCogMethod: callingMethod 
 		receiver: memory nilObject 
