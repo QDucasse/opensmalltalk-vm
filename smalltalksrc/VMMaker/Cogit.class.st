@@ -8105,37 +8105,24 @@ Cogit >> generateInstructionsAt: eventualAbsoluteAddress [
 	 Compute backward branches based on actual address.
 	 Reuse the fixups array to record the pc-dependent instructions that need to have
 	 their code generation postponed until after the others."
-	| absoluteAddress pcDependentIndex abstractInstruction fixup previousOperands previousOpcode |
+	| absoluteAddress pcDependentIndex abstractInstruction fixup |
 	<var: #abstractInstruction type: #'AbstractInstruction *'>
 	<var: #fixup type: #'BytecodeFixup *'>
 	absoluteAddress := eventualAbsoluteAddress.
 	pcDependentIndex := 0.
-	previousOperands := nil.
-	previousOpcode := 0.
 	0 to: opcodeIndex - 1 do:
 		[:i|
 		self maybeBreakGeneratingAt: absoluteAddress.
 		abstractInstruction := self abstractInstructionAt: i.
-		abstractInstruction needsPreviousInfo
-			ifTrue: [ abstractInstruction previousOperands: previousOperands.
-						 abstractInstruction previousOpcode: previousOpcode ].
 		abstractInstruction isPCDependent
 			ifTrue:
 				[abstractInstruction sizePCDependentInstructionAt: absoluteAddress.
-
 				 fixup := self fixupAtIndex: pcDependentIndex.
 				 pcDependentIndex := pcDependentIndex + 1.
 				 fixup instructionIndex: i.
-				 absoluteAddress := absoluteAddress + abstractInstruction machineCodeSize.
-				 ]
+				 absoluteAddress := absoluteAddress + abstractInstruction machineCodeSize]
 			ifFalse:
-				[absoluteAddress := abstractInstruction concretizeAt: absoluteAddress].
-			"If the concretized instruction was not a pseudo operation, store it"
-			({Stop . Label . Literal . AlignmentNops . Nop} includes: abstractInstruction opcode)
-				ifFalse: [ 			
-					previousOperands := abstractInstruction operands.
-					previousOpcode := abstractInstruction opcode ].
-		].
+				[absoluteAddress := abstractInstruction concretizeAt: absoluteAddress]].
 	0 to: pcDependentIndex - 1 do:
 		[:j|
 		fixup := self fixupAtIndex: j.

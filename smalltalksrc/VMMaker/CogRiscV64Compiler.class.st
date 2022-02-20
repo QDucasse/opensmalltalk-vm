@@ -4378,35 +4378,6 @@ CogRiscV64Compiler >> concretizeXorRdRd [
 	
 ]
 
-{ #category : #'machine code instruction' }
-CogRiscV64Compiler >> csr: csr readValueIn: destReg andWriteValueFromRegister: srcReg [ 
-
-	"csrrw: Copy x[rs1] to the csr then write t to x[rd].
-	
-		 31           20 19    15 14  12 11     7 6         0
-	|        csr       |  rs1   |  001  |   rd   |  1110011  |"
-	self flag: #TODO.
-	^ (((((csr << 20)
-	  bitOr: (srcReg << 15))
-	  bitOr: (2r001 << 12))
-	  bitOr: (destReg << 7))
-	  bitOr: 2r1110011)
-]
-
-{ #category : #'machine code instruction' }
-CogRiscV64Compiler >> csrMSTATUSReadValueIn: destReg andWriteValueFromRegister: srcReg [ 
-
-	self flag: #TODO.
-	^ self csr: MSTATUS readValueIn: destReg andWriteValueFromRegister: srcReg
-]
-
-{ #category : #'machine code instruction' }
-CogRiscV64Compiler >> csrMSTATUSWriteValueFromRegister: srcReg [ 
-
-	self flag: #TODO.
-	^ self csr: MSTATUS readValueIn: X0 andWriteValueFromRegister: srcReg
-]
-
 { #category : #concretization }
 CogRiscV64Compiler >> dispatchConcretize [
 	"Attempt to generate concrete machine code for the instruction at address.
@@ -4610,19 +4581,6 @@ CogRiscV64Compiler >> divideRegisterValueUnsigned: srcReg1 byRegisterValueUnsign
 	  bitOr: (destReg bitAnd: 16r1f) << 7)
 	  bitOr: 2r0110011 
 
-]
-
-{ #category : #'machine code instruction' }
-CogRiscV64Compiler >> enableFloatingPoint [
-
-	"Enabling floating point operations means writing to MSTATUS.FS 
-	 Setting FS to DIRTY means writing 0x6000 to the MSTATUS csr"
-	
-	| instructions |
-	self flag: #TODO.
-	instructions := (self loadImmediate: 16r6000 inRegister: ConcreteIPReg) asOrderedCollection.
-	instructions add: (self csrMSTATUSWriteValueFromRegister: ConcreteIPReg).
-	^ instructions
 ]
 
 { #category : #'instruction detection' }
