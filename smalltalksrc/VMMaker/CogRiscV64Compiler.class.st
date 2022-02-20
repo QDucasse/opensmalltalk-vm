@@ -3815,11 +3815,13 @@ CogRiscV64Compiler >> concretizePopR [
 	"
 
 	<inline: true>
-	| destReg |
+	| destReg offset |
 	self flag: #TODO.
 	destReg := operands at: 0.
-	^ machineCodeSize := self machineCodeWriteInstructions: (self popToRegister: destReg).
-	
+	offset := self computeSignedValueOf: 8 ofSize: 12.
+	self machineCodeAt: 0 put: (self loadDoubleWordFromAddressInRegister: SPReg withOffset: 0 toRegister: destReg).	
+	self machineCodeAt: 4 put: (self addImmediate: offset toRegister: SPReg inRegister: SPReg).
+	^ machineCodeSize := 8
 ]
 
 { #category : #concretization }
@@ -3849,7 +3851,7 @@ CogRiscV64Compiler >> concretizePushCq [
 	   sd  ConcreteIPReg, 0(sp)
 		"
 	<inline: true>
-	| cq instrOffset pushOffset |
+	| cq instrOffset offset |
 	self flag: #DONE.
 	cq := operands at: 0.
 	dependent
@@ -3863,9 +3865,11 @@ CogRiscV64Compiler >> concretizePushCq [
 			].
 	
 	"Push the loaded value to the stack"
-	pushOffset := self machineCodeWriteInstructions: (self pushFromRegister: ConcreteIPReg) startingAtIndex: instrOffset.
-	
-	^ machineCodeSize := instrOffset + pushOffset 
+	offset := self computeSignedValueOf: -8 ofSize: 12.
+	self machineCodeAt: instrOffset put: (self addImmediate: offset toRegister: SPReg inRegister: SPReg).
+   self machineCodeAt: instrOffset + 4 put: (self storeDoubleWordFromRegister: ConcreteIPReg toAddressInRegister: SPReg withOffset: 0).
+
+	^ machineCodeSize := instrOffset + 8 
 ]
 
 { #category : #concretization }
@@ -3874,13 +3878,16 @@ CogRiscV64Compiler >> concretizePushCw [
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
-	| word instrOffset pushOffset |
+	| word instrOffset offset |
 	self flag: #TODO.
 	word := operands at: 0.
 	"self assert: dependent isNotNil."
 	instrOffset := self loadCwInto: ConcreteIPReg.
-	pushOffset := self machineCodeWriteInstructions: (self pushFromRegister: ConcreteIPReg) startingAtIndex: instrOffset.
-	^ machineCodeSize := instrOffset + pushOffset
+	offset := self computeSignedValueOf: -8 ofSize: 12.
+	self machineCodeAt: instrOffset put: (self addImmediate: offset toRegister: SPReg inRegister: SPReg).
+   self machineCodeAt: instrOffset + 4 put: (self storeDoubleWordFromRegister: ConcreteIPReg toAddressInRegister: SPReg withOffset: 0).
+
+	^ machineCodeSize := instrOffset + 8 
 	 
 ]
 
@@ -3892,10 +3899,14 @@ CogRiscV64Compiler >> concretizePushR [
 		sd   srcReg, 0(sp)"
 		
 	<inline: true>
-	| srcReg |
+	| srcReg offset |
 	self flag: #DONE.	
 	srcReg := operands at: 0.
-	^ machineCodeSize := self machineCodeWriteInstructions: (self pushFromRegister: srcReg)
+	offset := self computeSignedValueOf: -8 ofSize: 12.
+	self machineCodeAt: 0 put: (self addImmediate: offset toRegister: SPReg inRegister: SPReg).
+   self machineCodeAt: 4 put: (self storeDoubleWordFromRegister: srcReg toAddressInRegister: SPReg withOffset: 0).
+	^ machineCodeSize := 8
+	
 ]
 
 { #category : #concretization }
@@ -6244,18 +6255,6 @@ CogRiscV64Compiler >> padIfPossibleWithStopsFrom: startAddr to: endAddr [
 		do: [ :p | objectMemory byteAt: p put: 16rFF]
 ]
 
-{ #category : #concretization }
-CogRiscV64Compiler >> popToRegister: destReg [ 
-
-	| offset |
-	self flag: #TODO.
-	offset := self computeSignedValueOf: 8 ofSize: 12.
-	^ { 
-	  self loadDoubleWordFromAddressInRegister: SPReg withOffset: 0 toRegister: destReg .	
-	  self addImmediate: offset toRegister: SPReg inRegister: SPReg
-	}
-]
-
 { #category : #'calling C function in Smalltalk stack' }
 CogRiscV64Compiler >> prepareStackToCallCFunctionInSmalltalkStack: anObject [ 
 
@@ -6263,18 +6262,6 @@ CogRiscV64Compiler >> prepareStackToCallCFunctionInSmalltalkStack: anObject [
 	cogit MoveR: SPReg R: Extra2Reg.
 	cogit AndCq: ((1 << 64) - 16) R: Extra2Reg. 
 	cogit MoveR: Extra2Reg R: SP.
-]
-
-{ #category : #concretization }
-CogRiscV64Compiler >> pushFromRegister: destReg [
-
-	| offset |
-	self flag: #TODO.
-	offset := self computeSignedValueOf: -8 ofSize: 12.		
-	^ { 
-	 self addImmediate: offset toRegister: SPReg inRegister: SPReg.
-    self storeDoubleWordFromRegister: destReg toAddressInRegister: SPReg withOffset: 0
-   }
 ]
 
 { #category : #accessing }
