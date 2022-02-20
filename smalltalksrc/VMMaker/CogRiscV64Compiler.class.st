@@ -1906,7 +1906,6 @@ CogRiscV64Compiler >> concretizeAt: actualAddress [
 	self assert: actualAddress \\ 4 = 0.
 	address := actualAddress.
 	self dispatchConcretize.
-	self previousOperands: operands.
 	self assert: (maxSize isNil or: [maxSize >= machineCodeSize]).
 	^actualAddress + machineCodeSize
 ]
@@ -6306,30 +6305,6 @@ CogRiscV64Compiler >> prepareStackToCallCFunctionInSmalltalkStack: anObject [
 	cogit MoveR: SPReg R: Extra2Reg.
 	cogit AndCq: ((1 << 64) - 16) R: Extra2Reg. 
 	cogit MoveR: Extra2Reg R: SP.
-]
-
-{ #category : #concretization }
-CogRiscV64Compiler >> previousOpcode [
-
-	^ previousOpcode
-]
-
-{ #category : #concretization }
-CogRiscV64Compiler >> previousOpcode: anOpcode [
-
-	previousOpcode := anOpcode
-]
-
-{ #category : #concretization }
-CogRiscV64Compiler >> previousOperands [ 
-
-	^ previousOperands
-]
-
-{ #category : #concretization }
-CogRiscV64Compiler >> previousOperands: aCArray [
-
-	previousOperands := aCArray 
 ]
 
 { #category : #concretization }
