@@ -1988,10 +1988,10 @@ CogRiscV64Compiler >> concretizeCmpCqR [
 	) startingAtIndex: loadOffset + 4.
 
 	"Update flag registers"
-	flagOffset := self machineCodeWriteInstructions: (self 
+	flagOffset := self 
 			updateFlagsCMPForSourceReg: srcReg
 			resultReg: ConcreteZeroReg
-	) startingAtIndex: loadOffset + overflowOffset + 4.
+			startingAtIndex: loadOffset + overflowOffset + 4.
 
 	^ machineCodeSize := loadOffset + overflowOffset + flagOffset + 4
 ]
@@ -2030,10 +2030,10 @@ CogRiscV64Compiler >> concretizeCmpCwR [
 	) startingAtIndex: loadOffset + 4.
 
 	"Update flag registers"
-	flagOffset := self machineCodeWriteInstructions: (self 
+	flagOffset := self 
 			updateFlagsCMPForSourceReg: srcReg 
 			resultReg: ConcreteZeroReg
-	) startingAtIndex: loadOffset + overflowOffset + 4.
+			startingAtIndex: loadOffset + overflowOffset + 4.
 	
 	^ machineCodeSize := loadOffset + overflowOffset + flagOffset + 4
 ]
@@ -2062,10 +2062,10 @@ CogRiscV64Compiler >> concretizeCmpRR [
 	) startingAtIndex: 4.
 
 	"Update flag registers"
-	flagOffset := self machineCodeWriteInstructions: (self 
+	flagOffset := self 
 			updateFlagsCMPForSourceReg: srcReg2
 			resultReg: ConcreteZeroReg
-	) startingAtIndex: overflowOffset + 4.
+			startingAtIndex: overflowOffset + 4.
 	^ machineCodeSize := flagOffset + overflowOffset + 4
 ]
 
@@ -7120,17 +7120,16 @@ CogRiscV64Compiler >> updateFlagsADDForSourceReg: srcReg resultReg: resReg andMo
 ]
 
 { #category : #concretization }
-CogRiscV64Compiler >> updateFlagsCMPForSourceReg: srcReg resultReg: resReg [
+CogRiscV64Compiler >> updateFlagsCMPForSourceReg: srcReg resultReg: resReg startingAtIndex: index [
 
 	self flag: #DONE.
-	^ { 
-		"1. Carry Flag: set 1 if A is smaller than B as unsigned numbers, 0 otherwise"
-		self setOneIn: ConcreteCarryReg ifUnsignedValueIn: srcReg isLessThanUnsignedValueIn: resReg .
-		"2. Sign Flag: set 1 if the most significatn bit of the result is 1 (result negative)"
-		self setOneIn: ConcreteSignReg ifValueIn: resReg isLessThanImmediate: 0 .
-		"3. Zero flag: Replace the result of the subtraction with 1 if it is 0, 0 otherwise"
-		self setOneIn: ConcreteZeroReg ifValueInRegisterIsEqualToZero: resReg .
-	}
+	"1. Carry Flag: set 1 if A is smaller than B as unsigned numbers, 0 otherwise"
+	self machineCodeAt: index put: (self setOneIn: ConcreteCarryReg ifUnsignedValueIn: srcReg isLessThanUnsignedValueIn: resReg).
+	"2. Sign Flag: set 1 if the most significatn bit of the result is 1 (result negative)"
+	self machineCodeAt: index + 4 put: (self setOneIn: ConcreteSignReg ifValueIn: resReg isLessThanImmediate: 0).
+	"3. Zero flag: Replace the result of the subtraction with 1 if it is 0, 0 otherwise"
+	self machineCodeAt: index + 8 put: (self setOneIn: ConcreteZeroReg ifValueInRegisterIsEqualToZero: resReg).
+	^ machineCodeSize := 12
 ]
 
 { #category : #concretization }
