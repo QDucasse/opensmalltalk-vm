@@ -200,7 +200,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> relocateMethodReferenceBeforeAddress: pc 
 	self flag: #TODO.
 	"A push expands to addi sp -8 then sd rd 0(sp)"
 	pcFollowingLoad := ((self instructionIsSD: (self instructionBeforeAddress: pc)) and: 
-								(self instructionIsADDI: (self instructionBeforeAddress: pc - 4)))
+								[self instructionIsADDI: (self instructionBeforeAddress: pc - 4)])
 							ifTrue: [pc-8]
 							ifFalse: [pc].
 	"If the load is not done via pc-relative addressing we have to relocate."

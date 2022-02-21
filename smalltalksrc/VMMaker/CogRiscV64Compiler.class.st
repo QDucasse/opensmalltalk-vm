@@ -5287,17 +5287,6 @@ CogRiscV64Compiler >> generateAlignmentNopsForEntry [
 
 ]
 
-{ #category : #concretization }
-CogRiscV64Compiler >> getTestReg [ 
-
-
-	self flag: #TODO.
-	({TstCqR . CmpC32R . CmpCqR . CmpCwR . CmpRR . CmpRdRd } includes: previousOpcode)
-		ifTrue: [ ^ ConcreteZeroReg ]
-		ifFalse: [ ^ previousOperands at: 1 ]
-	             
-]
-
 { #category : #testing }
 CogRiscV64Compiler >> hasConditionRegister [
 	"Answer if the receiver supports, e.g., JumpOverflow after a regular AddRR"
@@ -5367,7 +5356,7 @@ CogRiscV64Compiler >> instructionBeforeAddress: followingAddress [
 CogRiscV64Compiler >> instructionIsADDI: instruction [
 
 	self flag: #TODO.
-	^ ((instruction >> 12 bitAnd: 16r7) = 0) and: ((instruction bitAnd: 16r7F) = 2r0010011).
+	^ ((instruction >> 12 bitAnd: 16r7) = 0) and: [(instruction bitAnd: 16r7F) = 2r0010011].
 
 ]
 
@@ -5376,7 +5365,7 @@ CogRiscV64Compiler >> instructionIsADDIW: instruction [
 
 	self flag: #DONE.
 	"Check bits 12 to 14 null"
-	^ ((instruction >> 12 bitAnd: 16r7) = 0) and: ((instruction bitAnd: 16r7F) = 2r0011011).
+	^ ((instruction >> 12 bitAnd: 16r7) = 0) and: [(instruction bitAnd: 16r7F) = 2r0011011].
 ]
 
 { #category : #'instruction detection' }
@@ -5400,7 +5389,7 @@ CogRiscV64Compiler >> instructionIsConditionalZeroBranch: instruction [
 
 	"Check that the instruction is a conditional branch and that it focuses on the concretezeroreg"
 	self flag: #TODO.
-	^ ((instruction bitAnd: 16r7F) = 2r1100011) and: ((instruction >> 15 bitAnd: 16r1F) = ConcreteZeroReg)
+	^ ((instruction bitAnd: 16r7F) = 2r1100011) and: [(instruction >> 15 bitAnd: 16r1F) = ConcreteZeroReg]
 ]
 
 { #category : #'instruction detection' }
@@ -5416,7 +5405,7 @@ CogRiscV64Compiler >> instructionIsJALR: instruction [
 
 	self flag: #DONE.
 	"Check bits 12 to 14 null"
-	^ ((instruction >> 12 bitAnd: 16r7) = 0) and: ((instruction bitAnd: 16r7F) = 2r1100111).
+	^ ((instruction >> 12 bitAnd: 16r7) = 0) and: [(instruction bitAnd: 16r7F) = 2r1100111].
 
 ]
 
@@ -5424,7 +5413,7 @@ CogRiscV64Compiler >> instructionIsJALR: instruction [
 CogRiscV64Compiler >> instructionIsLD: instruction [ 
 
 	self flag: #TODO.
-	^ ((instruction >> 12 bitAnd: 2r111) = 2r011) and: ((instruction bitAnd: 2r1111111) = 2r0000011)
+	^ ((instruction >> 12 bitAnd: 2r111) = 2r011) and: [(instruction bitAnd: 2r1111111) = 2r0000011]
 ]
 
 { #category : #'instruction detection' }
@@ -5438,7 +5427,7 @@ CogRiscV64Compiler >> instructionIsLUI: instruction [
 CogRiscV64Compiler >> instructionIsNOP: instruction [
 
 	self flag: #DONE.
-	^ ((instruction >> 7 bitAnd: 16rFFFFFF8) = 0) and: ((instruction bitAnd: 16r7F) = 2r0010011).
+	^ ((instruction >> 7 bitAnd: 16rFFFFFF8) = 0) and: [(instruction bitAnd: 16r7F) = 2r0010011].
 
 ]
 
@@ -5446,7 +5435,7 @@ CogRiscV64Compiler >> instructionIsNOP: instruction [
 CogRiscV64Compiler >> instructionIsSD: instruction [  
 
 	self flag: #DONE.
-	^ ((instruction >> 12 bitAnd: 16r7) = 2r011) and: ((instruction bitAnd: 16r7F) = 2r0100011).
+	^ ((instruction >> 12 bitAnd: 16r7) = 2r011) and: [(instruction bitAnd: 16r7F) = 2r0100011].
 ]
 
 { #category : #disassembly }
@@ -5513,7 +5502,7 @@ CogRiscV64Compiler >> isRelativeLiteralLoad: followingAddress [
 	"Need renaming"
 	self flag: #TODO.	
 	^ (self instructionIsAUIPC: (self instructionBeforeAddress: followingAddress - 4)) 
-		and: (self instructionIsLD: (self instructionBeforeAddress: followingAddress))
+		and: [self instructionIsLD: (self instructionBeforeAddress: followingAddress)]
 ]
 
 { #category : #'concretization helpers - mc size' }
@@ -7125,9 +7114,9 @@ CogRiscV64Compiler >> value: value isContainedIn: size [
 	self flag: #TODO.
 	mask := (1 << size) - 1.
 	twosComplement := mask - value abs + 1.
-	value >= 0 
+	(value >= 0)
 		ifTrue: [ ^ (value bitAnd: mask) = value ]
-		ifFalse: [ ^ (twosComplement >= 0 and: twosComplement <= mask) ]	
+		ifFalse: [ ^ (twosComplement >= 0 and: [twosComplement <= mask]) ]	
 ]
 
 { #category : #instruction }
