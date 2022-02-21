@@ -1101,6 +1101,31 @@ CogRiscV64Compiler >> checkADDFloatingPointOverflowWithSourceReg1: srcReg1 sourc
 ]
 
 { #category : #concretization }
+CogRiscV64Compiler >> checkADDFloatingPointOverflowWithSourceReg1: srcReg1 sourceReg2: srcReg2 andResultReg: destReg startingAtIndex: index [
+	"Check for the overflow
+	 add    res,  src1,  src2 
+  	 fcvt   tfp,  x0,    tfp      # put 0 in tfp  
+	 flt.d  t1,   src2,  tfp      # t1 = (src2 < 0)
+    flt.d  t2,   res,   src1     # t2 = (src1 + src2 < res)
+    bne    t1,   t2,    offset   # overflow if (src2 < 0) && (src1 + src2 >= res)  case 1 0 (underflow)
+                                            || (src2 >= 0) && (src1 + src2 < res)  case 0 1 (overflow) 
+
+	Except the branching is a verification for equality (equal => no overflow)"
+	self flag: #TODO.
+	"As there is no hardwire fp zero we need to get one by converting X0"
+	self machineCodeAt: index put: (self fConvertLongSignedInRegister: X0 toDoublePrecisionInRegister: ConcreteIPFPReg).
+   "1. Check if one operand is negative"
+	self machineCodeAt: index + 4 put: (self fSetOneIn: ConcreteIPReg2 ifRegisterValue: srcReg2 isLessThanRegisterValue: ConcreteIPFPReg).
+	"2. Check if the sum is smaller than one operand"
+	self machineCodeAt: index + 8 put: (self fSetOneIn: ConcreteIPReg3 ifRegisterValue: destReg isLessThanRegisterValue: srcReg1).
+	"Check if both registers are equal -> xor and complement"
+	self machineCodeAt: index + 12 put: (self bitwiseXorBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 intoRegister: ConcreteOverflowReg).
+	self machineCodeAt: index + 16 put: (self setOneIn: ConcreteOverflowReg ifValueInRegisterIsEqualToZero: ConcreteOverflowReg).
+	^ machineCodeSize := 20
+	  
+]
+
+{ #category : #concretization }
 CogRiscV64Compiler >> checkADDOverflowWithSourceReg1: srcReg1 sourceReg2: srcReg2 andResultReg: destReg [
 	"Check for the overflow, as according to the example in the book: 
 	 add   res,  src1,  src2 
@@ -1662,11 +1687,11 @@ CogRiscV64Compiler >> concretizeAddRdRd [
 	).
 	
 	"Check for overflow"
-	overflowOffset := self machineCodeWriteInstructions: (self
+	overflowOffset := self
 		checkADDFloatingPointOverflowWithSourceReg1: srcReg1 
 		sourceReg2: srcReg2
 		andResultReg: ConcreteIPFPReg2
-	) startingAtIndex: 8.
+		startingAtIndex: 8.
 
 	"Move result to destination"
 	self machineCodeAt: overflowOffset + 8 put: (self 
