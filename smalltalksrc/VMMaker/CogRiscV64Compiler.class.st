@@ -1076,31 +1076,6 @@ CogRiscV64Compiler >> canMulRR [
 ]
 
 { #category : #concretization }
-CogRiscV64Compiler >> checkADDFloatingPointOverflowWithSourceReg1: srcReg1 sourceReg2: srcReg2 andResultReg: destReg [
-	"Check for the overflow
-	 add    res,  src1,  src2 
-  	 fcvt   tfp,  x0,    tfp      # put 0 in tfp  
-	 flt.d  t1,   src2,  tfp      # t1 = (src2 < 0)
-    flt.d  t2,   res,   src1     # t2 = (src1 + src2 < res)
-    bne    t1,   t2,    offset   # overflow if (src2 < 0) && (src1 + src2 >= res)  case 1 0 (underflow)
-                                            || (src2 >= 0) && (src1 + src2 < res)  case 0 1 (overflow) 
-
-	Except the branching is a verification for equality (equal => no overflow)"
-	self flag: #TODO.
-	^ {  
-		"As there is no hardwire fp zero we need to get one by converting X0"
-		self fConvertLongSignedInRegister: X0 toDoublePrecisionInRegister: ConcreteIPFPReg .
-	   "1. Check if one operand is negative"
-		self fSetOneIn: ConcreteIPReg2 ifRegisterValue: srcReg2 isLessThanRegisterValue: ConcreteIPFPReg .
-		"2. Check if the sum is smaller than one operand"
-		self fSetOneIn: ConcreteIPReg3 ifRegisterValue: destReg isLessThanRegisterValue: srcReg1 .
-		"Check if both registers are equal -> xor and complement"
-		self bitwiseXorBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 intoRegister: ConcreteOverflowReg .
-		self setOneIn: ConcreteOverflowReg ifValueInRegisterIsEqualToZero: ConcreteOverflowReg 
-	}  
-]
-
-{ #category : #concretization }
 CogRiscV64Compiler >> checkADDFloatingPointOverflowWithSourceReg1: srcReg1 sourceReg2: srcReg2 andResultReg: destReg startingAtIndex: index [
 	"Check for the overflow
 	 add    res,  src1,  src2 
@@ -1126,7 +1101,7 @@ CogRiscV64Compiler >> checkADDFloatingPointOverflowWithSourceReg1: srcReg1 sourc
 ]
 
 { #category : #concretization }
-CogRiscV64Compiler >> checkADDOverflowWithSourceReg1: srcReg1 sourceReg2: srcReg2 andResultReg: destReg [
+CogRiscV64Compiler >> checkADDOverflowWithSourceReg1: srcReg1 sourceReg2: srcReg2 andResultReg: destReg startingAtIndex: index [
 	"Check for the overflow, as according to the example in the book: 
 	 add   res,  src1,  src2 
     slti  t1,   src2,  0       # t1 = (src2 < 0)
@@ -1137,15 +1112,13 @@ CogRiscV64Compiler >> checkADDOverflowWithSourceReg1: srcReg1 sourceReg2: srcReg
 	As we will not branch directly, we need to check if the two conditions are equal 
 	and set the overflow flag acordingly: equal => no overflow"
 	self flag: #TODO.
-	^ {  
-	   "1. Check if one operand is negative"
-		self setOneIn: ConcreteIPReg2 ifValueIn: srcReg2 isLessThanImmediate: 0 .
-		"2. Check if the sum is smaller than one operand"
-		self setOneIn: ConcreteIPReg3 ifValueIn: destReg isLessThanValueIn: srcReg1 .
-		"Put one if t2 = t3, xor and complement"
-		self bitwiseXorBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 intoRegister: ConcreteOverflowReg 
-		"self setOneIn: ConcreteOverflowReg ifValueInRegisterIsEqualToZero: ConcreteOverflowReg"
-	} 
+   "1. Check if one operand is negative"
+	self machineCodeAt: index put: (self setOneIn: ConcreteIPReg2 ifValueIn: srcReg2 isLessThanImmediate: 0).
+	"2. Check if the sum is smaller than one operand"
+	self machineCodeAt: index + 4 put: (self setOneIn: ConcreteIPReg3 ifValueIn: destReg isLessThanValueIn: srcReg1).
+	"Put one if t2 = t3, xor"
+	self machineCodeAt: index + 8 put: (self bitwiseXorBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 intoRegister: ConcreteOverflowReg). 
+	^ machineCodeSize := 12
 ]
 
 { #category : #concretization }
@@ -1567,10 +1540,10 @@ CogRiscV64Compiler >> concretizeAddCqR [
 
 		"Update flag registers"
 		flagOffset := self
-					       updateFlagsADDForSourceReg: sourceReg
-					       resultReg: ConcreteZeroReg
-					       andMoveResultTo: destReg
-			             startingAtIndex: overflowOffset + 4.
+			              updateFlagsADDForSourceReg: sourceReg
+			              resultReg: ConcreteZeroReg
+			              andMoveResultTo: destReg
+			              startingAtIndex: overflowOffset + 4.
 		^ machineCodeSize := flagOffset + overflowOffset + 4 ].
 
 	"Otherwise, use the provided literal"
@@ -1583,55 +1556,52 @@ CogRiscV64Compiler >> concretizeAddCqR [
 
 	"Check for overflow"
 	overflowOffset := self
-		                  machineCodeWriteInstructions: (self
-				                   checkADDOverflowWithSourceReg1: sourceReg
-				                   sourceReg2: ConcreteIPReg
-				                   andResultReg: ConcreteZeroReg)
+		                  checkADDOverflowWithSourceReg1: sourceReg
+		                  sourceReg2: ConcreteIPReg
+		                  andResultReg: ConcreteZeroReg
 		                  startingAtIndex: loadOffset + 4.
 
 	"Update flag registers"
 	flagOffset := self
-				       updateFlagsADDForSourceReg: sourceReg
-				       resultReg: ConcreteZeroReg
-				       andMoveResultTo: destReg
-		             startingAtIndex: loadOffset + overflowOffset + 4.
+		              updateFlagsADDForSourceReg: sourceReg
+		              resultReg: ConcreteZeroReg
+		              andMoveResultTo: destReg
+		              startingAtIndex: loadOffset + overflowOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + overflowOffset + 4
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeAddCwR [
-	
+
 	<inline: true>
 	| sourceReg destReg loadOffset flagOffset overflowOffset |
 	self flag: #DONE.
 	self assert: dependent notNil.
-	sourceReg := destReg := operands at: 1.	
+	sourceReg := destReg := operands at: 1.
 	"Load Cw in register then perform the add"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
 
 	"Perform the actual ADD operation"
 	self machineCodeAt: loadOffset put: (self
-			addRegister: sourceReg
-			toRegister: ConcreteIPReg
-			inRegister: ConcreteZeroReg).
-			
+			 addRegister: sourceReg
+			 toRegister: ConcreteIPReg
+			 inRegister: ConcreteZeroReg).
+
 	"Check for overflow"
-	overflowOffset := self machineCodeWriteInstructions: (self
-		checkADDOverflowWithSourceReg1: sourceReg 
-		sourceReg2: ConcreteIPReg 
-		andResultReg: ConcreteZeroReg
-	) startingAtIndex: loadOffset + 4.
+	overflowOffset := self
+		                  checkADDOverflowWithSourceReg1: sourceReg
+		                  sourceReg2: ConcreteIPReg
+		                  andResultReg: ConcreteZeroReg
+		                  startingAtIndex: loadOffset + 4.
 
 	"Update flag registers"
-	flagOffset := self 
-			updateFlagsADDForSourceReg: ConcreteIPReg 
-			resultReg: ConcreteZeroReg 
-			andMoveResultTo: destReg
-	      startingAtIndex: loadOffset + overflowOffset + 4.
-	
-	^ machineCodeSize := loadOffset + flagOffset + overflowOffset + 4
+	flagOffset := self
+		              updateFlagsADDForSourceReg: ConcreteIPReg
+		              resultReg: ConcreteZeroReg
+		              andMoveResultTo: destReg
+		              startingAtIndex: loadOffset + overflowOffset + 4.
 
-			
+	^ machineCodeSize := loadOffset + flagOffset + overflowOffset + 4
 ]
 
 { #category : #concretization }
@@ -1643,24 +1613,26 @@ CogRiscV64Compiler >> concretizeAddRR [
 	srcReg1 := operands at: 0.
 	srcReg2 := destReg := operands at: 1.
 	"Perform the ADD operation"
-	self machineCodeAt: 0 put: (self addRegister: srcReg1 toRegister: srcReg2 inRegister: ConcreteZeroReg).
-	
+	self machineCodeAt: 0 put: (self
+			 addRegister: srcReg1
+			 toRegister: srcReg2
+			 inRegister: ConcreteZeroReg).
+
 	"Check for overflow"
-	overflowOffset := self machineCodeWriteInstructions: (self
-		checkADDOverflowWithSourceReg1: srcReg1
-		sourceReg2: srcReg2
-		andResultReg: ConcreteZeroReg
-	) startingAtIndex: 4.
+	overflowOffset := self
+		                  checkADDOverflowWithSourceReg1: srcReg1
+		                  sourceReg2: srcReg2
+		                  andResultReg: ConcreteZeroReg
+		                  startingAtIndex: 4.
 
 	"Update flag registers"
 	flagOffset := self
-			updateFlagsADDForSourceReg: srcReg1 
-			resultReg: ConcreteZeroReg
-			andMoveResultTo: destReg
-         startingAtIndex: overflowOffset + 4.
+		              updateFlagsADDForSourceReg: srcReg1
+		              resultReg: ConcreteZeroReg
+		              andMoveResultTo: destReg
+		              startingAtIndex: overflowOffset + 4.
 
 	^ machineCodeSize := flagOffset + overflowOffset + 4
-
 ]
 
 { #category : #concretization }
