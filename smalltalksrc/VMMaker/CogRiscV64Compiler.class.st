@@ -1714,10 +1714,7 @@ CogRiscV64Compiler >> concretizeAndCqR [
 				 bitwiseAndBetweenRegister: sourceReg
 				 andImmediate: cq
 				 toRegister: destReg).
-		flagOffset := self
-			              machineCodeWriteInstructions:
-			              (self updateFlagsLogicForResultReg: destReg)
-			              startingAtIndex: 4.
+		flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
 		^ machineCodeSize := flagOffset + 4 ].
 
 	"If the value is a literal, load it in a given register"
@@ -1728,10 +1725,7 @@ CogRiscV64Compiler >> concretizeAndCqR [
 			 andRegister: ConcreteIPReg
 			 toRegister: destReg).
 	"Update the flag registers"
-	flagOffset := self
-		              machineCodeWriteInstructions:
-		              (self updateFlagsLogicForResultReg: destReg)
-		              startingAtIndex: loadOffset + 4.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + 4
 ]
 
@@ -1763,10 +1757,7 @@ CogRiscV64Compiler >> concretizeAndCqRR [
 				 bitwiseAndBetweenRegister: sourceReg
 				 andImmediate: cq
 				 toRegister: destReg).
-		flagOffset := self
-			              machineCodeWriteInstructions:
-			              (self updateFlagsLogicForResultReg: destReg)
-			              startingAtIndex: 4.
+		flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
 		^ machineCodeSize := flagOffset + 4 ].
 
 	"If the value is a literal, load it in a given register"
@@ -1777,10 +1768,7 @@ CogRiscV64Compiler >> concretizeAndCqRR [
 			 andRegister: ConcreteIPReg
 			 toRegister: destReg).
 	"Update the flag registers"
-	flagOffset := self
-		              machineCodeWriteInstructions:
-		              (self updateFlagsLogicForResultReg: destReg)
-		              startingAtIndex: loadOffset + 4.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + 4
 ]
 
@@ -1800,9 +1788,7 @@ CogRiscV64Compiler >> concretizeAndCwR [
 			 andRegister: ConcreteIPReg
 			 toRegister: destReg).
 	"Update flags"
-	flagOffset := self machineCodeWriteInstructions: (self 
-			updateFlagsLogicForResultReg: destReg
-		) startingAtIndex: loadOffset + 4.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + 4
 			
 ]
@@ -1818,9 +1804,7 @@ CogRiscV64Compiler >> concretizeAndRR [
 	"Perform the ADD operation"
 	self machineCodeAt: 0 put: (self bitwiseAndBetweenRegister: srcReg1 andRegister: srcReg2 toRegister: destReg).	
 	"Update the flags"
-	flagOffset := self machineCodeWriteInstructions: (self 
-			updateFlagsLogicForResultReg: destReg
-		) startingAtIndex: 4.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
 	^ machineCodeSize := flagOffset + 4
 ]
 
@@ -1855,9 +1839,7 @@ CogRiscV64Compiler >> concretizeArithmeticShiftRightCqR [
 							arithmeticShiftRightValueInRegister: sourceReg 
 							byShiftAmount: cq 
 							intoRegister:  destReg).
-					flagOffset := self machineCodeWriteInstructions: (self
-							updateFlagsLogicForResultReg: destReg
-						) startingAtIndex: 4.
+					flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
 					^ machineCodeSize := flagOffset + 4 ]
 				ifFalse: [ "Move to a register before performing ASRL on the registers"	
 					"Load the immediate to a register"
@@ -1871,9 +1853,7 @@ CogRiscV64Compiler >> concretizeArithmeticShiftRightCqR [
 			byShiftAmountInRegister: ConcreteIPReg
 			intoRegister: destReg).
 	"Update the flags"
-	flagOffset := self machineCodeWriteInstructions: (self
-			updateFlagsLogicForResultReg: destReg
-		) startingAtIndex: instrOffset + 4.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: instrOffset + 4.
 	^ machineCodeSize := instrOffset + flagOffset + 4
 ]
 
@@ -1888,9 +1868,7 @@ CogRiscV64Compiler >> concretizeArithmeticShiftRightRR [
 	"Perform ASR operation"
 	self machineCodeAt: 0 put: (self arithmeticShiftRightValueInRegister: srcReg byShiftAmountInRegister: shiftReg intoRegister: destReg).
 	"Update the flags"
-	flagOffset := self machineCodeWriteInstructions: (self
-			updateFlagsLogicForResultReg: destReg
-		) startingAtIndex: 4.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
 	^ machineCodeSize := flagOffset + 4
 ]
 
@@ -2729,9 +2707,7 @@ CogRiscV64Compiler >> concretizeLogicalShiftLeftCqR [
 							byShiftAmount: cq 
 							intoRegister:  destReg).
 					"Update the flags"
-					flagOffset := self machineCodeWriteInstructions: (self 
-							updateFlagsLogicForResultReg: destReg
-						) startingAtIndex: 4.
+					flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
 					^ machineCodeSize := flagOffset + 4 ]
 				ifFalse: [ "Move to a register before performing SLL on the registers"	
 					"Load the immediate to a register"
@@ -2745,9 +2721,7 @@ CogRiscV64Compiler >> concretizeLogicalShiftLeftCqR [
 			byShiftAmountInRegister: ConcreteIPReg
 			intoRegister: destReg).	
 	"Update the flags"
-	flagOffset := self machineCodeWriteInstructions: (self
-			updateFlagsLogicForResultReg: destReg
-		) startingAtIndex: loadOffset + 4.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + 4
 
 ]
@@ -2762,9 +2736,7 @@ CogRiscV64Compiler >> concretizeLogicalShiftLeftRR [
 	"Perform the SLR operation"
 	self machineCodeAt: 0 put: (self shiftLeftValueInRegister: srcReg byShiftAmountInRegister: shiftReg intoRegister: destReg).
 	"Update the flags"
-	flagOffset := self machineCodeWriteInstructions: (self
-			updateFlagsLogicForResultReg: destReg
-		) startingAtIndex: 4.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
 	^ machineCodeSize := flagOffset + 4
 ]
 
@@ -2800,9 +2772,7 @@ CogRiscV64Compiler >> concretizeLogicalShiftRightCqR [
 							shiftRightValueInRegister: sourceReg 
 							byShiftAmount: cq 
 							intoRegister:  destReg).
-					flagOffset := self machineCodeWriteInstructions: (self
-							updateFlagsLogicForResultReg: destReg
-						) startingAtIndex: 4.
+					flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
 					^ machineCodeSize := flagOffset + 4 ]
 				ifFalse: [ "Move to a register before performing SRL on the registers"	
 					"Load the immediate to a register"
@@ -2816,9 +2786,7 @@ CogRiscV64Compiler >> concretizeLogicalShiftRightCqR [
 			byShiftAmountInRegister: ConcreteIPReg
 			intoRegister: destReg).
 	"Update the flags"
-	flagOffset := self machineCodeWriteInstructions: (self
-			updateFlagsLogicForResultReg: destReg
-		) startingAtIndex: instrOffset + 4.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: instrOffset + 4.
 	^ machineCodeSize := instrOffset + flagOffset + 4
 
 ]
@@ -2833,9 +2801,7 @@ CogRiscV64Compiler >> concretizeLogicalShiftRightRR [
 	"Perform the SRR operation"
 	self machineCodeAt: 0 put: (self shiftRightValueInRegister: srcReg byShiftAmountInRegister: shiftReg intoRegister: destReg).
 	"Update the flags"
-	flagOffset := self machineCodeWriteInstructions: (self
-			updateFlagsLogicForResultReg: destReg
-		) startingAtIndex: 4.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
 	^ machineCodeSize := flagOffset + 4
 ]
 
@@ -3739,10 +3705,7 @@ CogRiscV64Compiler >> concretizeOrCqR [
 				 andImmediate: cq
 				 toRegister: destReg).
 		"Update flags"
-		flagOffset := self
-			              machineCodeWriteInstructions:
-			              (self updateFlagsLogicForResultReg: destReg)
-			              startingAtIndex: 4.
+		flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
 		^ machineCodeSize := flagOffset + 4 ].
 
 
@@ -3754,10 +3717,7 @@ CogRiscV64Compiler >> concretizeOrCqR [
 			 andRegister: ConcreteIPReg
 			 toRegister: destReg).
 	"Update the flags according to a logic operation"
-	flagOffset := self
-		              machineCodeWriteInstructions:
-		              (self updateFlagsLogicForResultReg: destReg)
-		              startingAtIndex: loadOffset + 4.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + 4
 ]
 
@@ -3777,9 +3737,7 @@ CogRiscV64Compiler >> concretizeOrCwR [
 			 andRegister: ConcreteIPReg
 			 toRegister: destReg).
 	"Update the flags"
-	flagOffset :=  self machineCodeWriteInstructions: (self
-			updateFlagsLogicForResultReg: destReg
-		) startingAtIndex: loadOffset + 4.
+	flagOffset :=  self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + 4	
 			
 ]
@@ -3795,9 +3753,7 @@ CogRiscV64Compiler >> concretizeOrRR [
 	"Perform the OR operation"
 	self machineCodeAt: 0 put: (self bitwiseOrBetweenRegister: sourceReg1 andRegister: sourceReg2 toRegister: destReg).
 	"Update the flags"
-	flagOffset := self machineCodeWriteInstructions: (self
-			updateFlagsLogicForResultReg: destReg
-		) startingAtIndex: 4.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
 	^ machineCodeSize := flagOffset + 4
 ]
 
@@ -3976,9 +3932,7 @@ CogRiscV64Compiler >> concretizeRotateLeftCqR [
 							 inRegister: destReg
 							 startingAtIndex: 0.
 					"Update the flags"
-					flagOffset := self machineCodeWriteInstructions: (self
-							updateFlagsLogicForResultReg: destReg
-						) startingAtIndex: rotateOffset.
+					flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: rotateOffset.
 					^ machineCodeSize := rotateOffset + flagOffset ]
 				ifFalse: [ "Move to a register before performing AND on the registers"	
 					"Load the immediate to a register"
@@ -3993,9 +3947,7 @@ CogRiscV64Compiler >> concretizeRotateLeftCqR [
 			inRegister: destReg
 			startingAtIndex: loadOffset.
 	"Update the flags"
-	flagOffset := self machineCodeWriteInstructions: (self
-			updateFlagsLogicForResultReg: destReg 
-		) startingAtIndex: loadOffset + rotateOffset.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + rotateOffset.
 	^ machineCodeSize := loadOffset + rotateOffset + flagOffset
 ]
 
@@ -4032,9 +3984,7 @@ CogRiscV64Compiler >> concretizeRotateRightCqR [
 							 inRegister: destReg
 							 startingAtIndex: 0.
 					"Update the flags"
-					flagOffset := self machineCodeWriteInstructions: (self
-							updateFlagsLogicForResultReg: destReg
-						) startingAtIndex: rotateOffset.
+					flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: rotateOffset.
 					^ machineCodeSize := rotateOffset + flagOffset ]
 				ifFalse: [ "Move to a register before performing AND on the registers"	
 					"Load the immediate to a register"
@@ -4049,9 +3999,7 @@ CogRiscV64Compiler >> concretizeRotateRightCqR [
 			inRegister: destReg
 		   startingAtIndex: loadOffset.
 	"Update the flags"
-	flagOffset := self machineCodeWriteInstructions: (self
-			updateFlagsLogicForResultReg: destReg 
-		) startingAtIndex: loadOffset + rotateOffset.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + rotateOffset.
 	^ machineCodeSize := loadOffset + rotateOffset + flagOffset
 ]
 
@@ -4255,10 +4203,7 @@ CogRiscV64Compiler >> concretizeTstCqR [
 				 andImmediate: cq
 				 toRegister: ConcreteZeroReg).
 		"Update flag registers, here no difference between immediate or not"
-		flagOffset := self
-			              machineCodeWriteInstructions:
-			              (self updateFlagsLogicForResultReg: ConcreteZeroReg)
-			              startingAtIndex: 4.
+		flagOffset := self updateFlagsLogicForResultReg: ConcreteZeroReg startingAtIndex: 4.
 		^ machineCodeSize := flagOffset + 4 ].
 	"Literal -> compute the distance, load the actual value then and between the 2 registers"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
@@ -4267,10 +4212,7 @@ CogRiscV64Compiler >> concretizeTstCqR [
 			 andRegister: ConcreteIPReg
 			 toRegister: ConcreteZeroReg).
 	"Check and update the flags"
-	flagOffset := self
-		              machineCodeWriteInstructions:
-		              (self updateFlagsLogicForResultReg: ConcreteZeroReg)
-		              startingAtIndex: loadOffset + 4.
+	flagOffset := self updateFlagsLogicForResultReg: ConcreteZeroReg startingAtIndex: loadOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + 4
 ]
 
@@ -4300,10 +4242,7 @@ CogRiscV64Compiler >> concretizeXorCqR [
 				 bitwiseXorBetweenRegister: sourceReg
 				 andImmediate: cq
 				 intoRegister: destReg).
-		flagOffset := self
-			              machineCodeWriteInstructions:
-			              (self updateFlagsLogicForResultReg: destReg)
-			              startingAtIndex: 4.
+		flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
 		^ machineCodeSize := flagOffset + 4 ].
 
 	"Literal -> compute the distance, load the actual value then XOR between the 2 registers"
@@ -4315,10 +4254,7 @@ CogRiscV64Compiler >> concretizeXorCqR [
 			 andRegister: ConcreteIPReg
 			 intoRegister: destReg).
 	"Update the affected flags"
-	flagOffset := self
-		              machineCodeWriteInstructions:
-		              (self updateFlagsLogicForResultReg: destReg)
-		              startingAtIndex: loadOffset + 4.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + 4
 ]
 
@@ -4341,9 +4277,7 @@ CogRiscV64Compiler >> concretizeXorCwR [
 					andRegister: ConcreteIPReg 
 					intoRegister: destReg).
 	"Update the flags"
-	flagOffset := self machineCodeWriteInstructions: (self 
-			updateFlagsLogicForResultReg: destReg
-		) startingAtIndex: loadOffset + 4.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + 4
 ]
 
@@ -4358,9 +4292,7 @@ CogRiscV64Compiler >> concretizeXorRR [
 	"Perform the XOR operation"
 	self machineCodeAt: 0 put: (self bitwiseXorBetweenRegister: srcReg1 andRegister: srcReg2 intoRegister: destReg).
 	"Update the flags"
-	flagOffset := self machineCodeWriteInstructions: (self
-			updateFlagsLogicForResultReg: destReg
-		) startingAtIndex: 4.
+	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
 	^ machineCodeSize := flagOffset + 4
 	
 ]
@@ -7146,6 +7078,21 @@ CogRiscV64Compiler >> updateFlagsLogicForResultReg: resReg [
 		"4. Zero flag: Replace the result of the subtraction with 1 if it is 0, 0 otherwise"
 		self setOneIn: ConcreteZeroReg ifValueInRegisterIsEqualToZero: resReg
 	}
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> updateFlagsLogicForResultReg: resReg startingAtIndex: index [
+
+	self flag: #TODO.
+	"1. Overflow Flag: set to 0"	
+	self machineCodeAt: index put: (self moveRegister: X0  toRegister: ConcreteOverflowReg).
+	"2. Carry Flag: set to 0"
+	self machineCodeAt: index + 4 put: (self moveRegister: X0  toRegister: ConcreteCarryReg).
+	"3. Sign Flag: set it as the most significant bit of the result"
+	self machineCodeAt: index + 8 put: (self setOneIn: ConcreteSignReg ifValueIn: resReg isLessThanImmediate: 0).
+	"4. Zero flag: Replace the result of the subtraction with 1 if it is 0, 0 otherwise"
+	self machineCodeAt: index + 12 put: (self setOneIn: ConcreteZeroReg ifValueInRegisterIsEqualToZero: resReg).
+	^ machineCodeSize := 16
 ]
 
 { #category : #concretization }
