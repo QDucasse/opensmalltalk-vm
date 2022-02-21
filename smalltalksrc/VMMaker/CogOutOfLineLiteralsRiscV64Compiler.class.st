@@ -360,16 +360,16 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[CallFull]		   -> [^true].
 		[JumpFull]		   -> [^true].
 		"CqR operations try to constant in an immediate, otherwise fallback in load literal (like Cw)"
-		[AddCqR]	   -> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]]. 
-		[AndCqR]		-> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
-		[AndCqRR]		-> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
-		[CmpCqR]		-> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]]. "no subi but load with immediate embedded if small"
+		[AddCqR]	   -> [^ (self value: (operands at: 0) isContainedIn: 12) not]. 
+		[AndCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[AndCqRR]		-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[CmpCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 11) not]. "11 because uses loadImmediate:"
 		[CmpC32R]		-> [^ true]. 
-		[OrCqR]		-> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
-		[SubCqR]		-> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]]. 
-		[TstCqR]		-> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
-		[XorCqR]		-> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
-		[LoadEffectiveAddressMwrR] -> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]]. 
+		[OrCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[SubCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 11) not]. "11 because uses loadImmediate:"
+		[TstCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[XorCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[LoadEffectiveAddressMwrR] -> [^ (self value: (operands at: 0) isContainedIn: 12) not]. 
 		"CwR operations use a word size value and need a full literal load"
 		[AddCwR]		-> [^true].
 		[AndCwR]		-> [^true].
@@ -378,34 +378,34 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[SubCwR]		-> [^true].
 		[XorCwR]		-> [^true].
 		"Data Movement - Moves"						
-		[MoveCqR]		-> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
+		[MoveCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 11) not]. "11 because uses loadImmediate:inRegister:"
 		[MoveC32R]  -> [ self shouldBeImplemented ].
 		"Data Movement - Absolute addresses"
 		[MoveCwR]		-> [^(self inCurrentCompilation: (operands at: 0)) not].
-		[MoveAwR]		-> [^(self isAddressRelativeToVarBase: (operands at: 0)) ifTrue: [false] ifFalse: [true]].
-		[MoveRAw]		-> [^(self isAddressRelativeToVarBase: (operands at: 1)) ifTrue: [false] ifFalse: [true]].
-		[MoveAbR]		-> [^(self isAddressRelativeToVarBase: (operands at: 0)) ifTrue: [false] ifFalse: [true]].
-		[MoveRAb]		-> [^(self isAddressRelativeToVarBase: (operands at: 1)) ifTrue: [false] ifFalse: [true]].
+		[MoveAwR]		-> [^(self isAddressRelativeToVarBase: (operands at: 0)) not].
+		[MoveRAw]		-> [^(self isAddressRelativeToVarBase: (operands at: 1)) not].
+		[MoveAbR]		-> [^(self isAddressRelativeToVarBase: (operands at: 0)) not].
+		[MoveRAb]		-> [^(self isAddressRelativeToVarBase: (operands at: 1)) not].
 		"Data Movement - Stores"
-		[MoveRMbr]	-> [(self value: (operands at: 1) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveRM8r]	-> [(self value: (operands at: 1) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveRM16r]	-> [(self value: (operands at: 1) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveRM32r]	-> [(self value: (operands at: 1) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveRMwr]	-> [(self value: (operands at: 1) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveRsM32r]	-> [(self value: (operands at: 1) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]]. 												
-		[MoveRdM64r]	-> [(self value: (operands at: 1) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]]. 
+		[MoveRMbr]	-> [^ (self value: (operands at: 1) isContainedIn: 12) not].
+		[MoveRM8r]	-> [^ (self value: (operands at: 1) isContainedIn: 12) not].
+		[MoveRM16r]	-> [^ (self value: (operands at: 1) isContainedIn: 12) not].
+		[MoveRM32r]	-> [^ (self value: (operands at: 1) isContainedIn: 12) not].
+		[MoveRMwr]	-> [^ (self value: (operands at: 1) isContainedIn: 12) not].
+		[MoveRsM32r]	-> [^ (self value: (operands at: 1) isContainedIn: 12) not]. 												
+		[MoveRdM64r]	-> [^ (self value: (operands at: 1) isContainedIn: 12) not]. 
 		"Data Movement - Loads"
-		[MoveMbrR]	-> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveM8rR]	-> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveM16rR]	-> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveM32rR] -> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveMwrR]	-> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveM32rRs]	-> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
-		[MoveM64rRd]	-> [(self value: (operands at: 0) isContainedIn: 12) ifTrue:[^ false] ifFalse: [^ true]].
+		[MoveMbrR]	-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[MoveM8rR]	-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[MoveM16rR]	-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[MoveM32rR] -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[MoveMwrR]	-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[MoveM32rRs]	-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[MoveM64rRd]	-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
 								
 		[PushCw]		-> [^(self inCurrentCompilation: (operands at: 0)) not].
-		[PushCq]		-> [^ ((operands at: 0) bitAnd: 16rfff) ~= (operands at: 0)].
-		[PrefetchAw] 	-> [^(self isAddressRelativeToVarBase: (operands at: 0)) ifTrue: [false] ifFalse: [true]].
+		[PushCq]		-> [^(self value: (operands at: 0) isContainedIn: 11) not]. "11 because uses loadImmediate:"
+		[PrefetchAw] 	-> [^(self isAddressRelativeToVarBase: (operands at: 0)) not].
 
 		"Patcheable instruction. Moves a literal. Uses out of line literal."
 		[MovePatcheableC32R] -> [ ^ true ]
