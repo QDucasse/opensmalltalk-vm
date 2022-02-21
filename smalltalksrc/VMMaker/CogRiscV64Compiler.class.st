@@ -1542,11 +1542,10 @@ CogRiscV64Compiler >> concretizeAddCqR [
 
 		"Update flag registers"
 		flagOffset := self
-			              machineCodeWriteInstructions: (self
-					               updateFlagsADDForSourceReg: sourceReg
-					               resultReg: ConcreteZeroReg
-					               andMoveResultTo: destReg)
-			              startingAtIndex: overflowOffset + 4.
+					       updateFlagsADDForSourceReg: sourceReg
+					       resultReg: ConcreteZeroReg
+					       andMoveResultTo: destReg
+			             startingAtIndex: overflowOffset + 4.
 		^ machineCodeSize := flagOffset + overflowOffset + 4 ].
 
 	"Otherwise, use the provided literal"
@@ -1567,11 +1566,10 @@ CogRiscV64Compiler >> concretizeAddCqR [
 
 	"Update flag registers"
 	flagOffset := self
-		              machineCodeWriteInstructions: (self
-				               updateFlagsADDForSourceReg: sourceReg
-				               resultReg: ConcreteZeroReg
-				               andMoveResultTo: destReg)
-		              startingAtIndex: loadOffset + overflowOffset + 4.
+				       updateFlagsADDForSourceReg: sourceReg
+				       resultReg: ConcreteZeroReg
+				       andMoveResultTo: destReg
+		             startingAtIndex: loadOffset + overflowOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + overflowOffset + 4
 ]
 
@@ -1600,11 +1598,11 @@ CogRiscV64Compiler >> concretizeAddCwR [
 	) startingAtIndex: loadOffset + 4.
 
 	"Update flag registers"
-	flagOffset := self machineCodeWriteInstructions: (self 
+	flagOffset := self 
 			updateFlagsADDForSourceReg: ConcreteIPReg 
 			resultReg: ConcreteZeroReg 
 			andMoveResultTo: destReg
-	) startingAtIndex: loadOffset + overflowOffset + 4.
+	      startingAtIndex: loadOffset + overflowOffset + 4.
 	
 	^ machineCodeSize := loadOffset + flagOffset + overflowOffset + 4
 
@@ -1630,11 +1628,11 @@ CogRiscV64Compiler >> concretizeAddRR [
 	) startingAtIndex: 4.
 
 	"Update flag registers"
-	flagOffset := self machineCodeWriteInstructions: (self 
+	flagOffset := self
 			updateFlagsADDForSourceReg: srcReg1 
 			resultReg: ConcreteZeroReg
 			andMoveResultTo: destReg
-	) startingAtIndex: overflowOffset + 4.
+         startingAtIndex: overflowOffset + 4.
 
 	^ machineCodeSize := flagOffset + overflowOffset + 4
 
@@ -7107,19 +7105,18 @@ CogRiscV64Compiler >> trailingZerosOf: aNumber [
 ]
 
 { #category : #concretization }
-CogRiscV64Compiler >> updateFlagsADDForSourceReg: srcReg resultReg: resReg andMoveResultTo: destReg [
+CogRiscV64Compiler >> updateFlagsADDForSourceReg: srcReg resultReg: resReg andMoveResultTo: destReg startingAtIndex: index [
 
 	self flag: #DONE.
-	^ { 
-		"1. Carry Flag: set 1 if A is smaller than B as unsigned numbers, 0 otherwise"
-		self setOneIn: ConcreteCarryReg ifUnsignedValueIn: resReg isLessThanUnsignedValueIn: srcReg .
-		"2. Sign Flag: set 1 if the most significatn bit of the result is 1 (result negative)"
-		self setOneIn: ConcreteSignReg ifValueIn: resReg isLessThanImmediate: 0 .
-		"3. Move result to the destination register"
-		self moveRegister: resReg toRegister: destReg .
-		"4. Zero flag: Replace the result of the subtraction with 1 if it is 0, 0 otherwise"
-		self setOneIn: ConcreteZeroReg ifValueInRegisterIsEqualToZero: resReg .
-	}
+	"1. Carry Flag: set 1 if A is smaller than B as unsigned numbers, 0 otherwise"
+	self machineCodeAt: index put: (self setOneIn: ConcreteCarryReg ifUnsignedValueIn: resReg isLessThanUnsignedValueIn: srcReg).
+	"2. Sign Flag: set 1 if the most significatn bit of the result is 1 (result negative)"
+	self machineCodeAt: index + 4 put: (self setOneIn: ConcreteSignReg ifValueIn: resReg isLessThanImmediate: 0).
+	"3. Move result to the destination register"
+	self machineCodeAt: index + 8 put: (self moveRegister: resReg toRegister: destReg).
+	"4. Zero flag: Replace the result of the subtraction with 1 if it is 0, 0 otherwise"
+	self machineCodeAt: index + 12 put: (self setOneIn: ConcreteZeroReg ifValueInRegisterIsEqualToZero: resReg).
+	^ machineCodeSize := 16
 ]
 
 { #category : #concretization }
