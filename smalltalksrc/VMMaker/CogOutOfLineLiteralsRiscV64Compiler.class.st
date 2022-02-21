@@ -156,18 +156,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> mapEntryAddress [
 		ifFalse: [address + machineCodeSize]
 ]
 
-{ #category : #'generate machine code - support' }
-CogOutOfLineLiteralsRiscV64Compiler >> moveCw: constant intoR: destReg [
-
-	"Emit a load of aWord into destReg. Expands to auipc + ld. Answer the number of bytes of machine code generated.
-	 Literals are stored out-of-line"
-	 <var: 'constant' type: #usqInt>
-	<inline: true>
-	self flag: #TODO.
-	^ self loadLiteralInRegister: destReg
-
-]
-
 { #category : #'compile abstract instructions' }
 CogOutOfLineLiteralsRiscV64Compiler >> outOfLineLiteralOpcodeLimit [
 	"The maximum offset in a LDR is (1<<12)-1, or (1<<10)-1 instructions.

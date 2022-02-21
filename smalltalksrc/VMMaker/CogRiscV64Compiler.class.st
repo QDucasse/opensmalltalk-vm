@@ -3972,10 +3972,11 @@ CogRiscV64Compiler >> concretizeRotateLeftCqR [
 		ifNil: [ 
 			self assertValue: cq isContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
-					rotateOffset := self machineCodeWriteInstructions: (self
+					rotateOffset := self
 							 rotateLeftValueInRegister: srcReg 
 							 byShiftAmount: cq 
-							 inRegister: destReg).
+							 inRegister: destReg
+							 startingAtIndex: 0.
 					"Update the flags"
 					flagOffset := self machineCodeWriteInstructions: (self
 							updateFlagsLogicForResultReg: destReg
@@ -3988,11 +3989,11 @@ CogRiscV64Compiler >> concretizeRotateLeftCqR [
 		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
 			loadOffset := self loadLiteralInRegister: ConcreteIPReg ].
 	"Perform the different ROT operations"
-	rotateOffset := self machineCodeWriteInstructions: (self
+	rotateOffset := self
 			rotateLeftValueInRegister: srcReg 
 			byShiftAmountInRegister: ConcreteIPReg 
 			inRegister: destReg
-		) startingAtIndex: loadOffset.
+			startingAtIndex: loadOffset.
 	"Update the flags"
 	flagOffset := self machineCodeWriteInstructions: (self
 			updateFlagsLogicForResultReg: destReg 
@@ -4027,10 +4028,11 @@ CogRiscV64Compiler >> concretizeRotateRightCqR [
 		ifNil: [ 
 			self assertValue: cq isContainedIn: 12
 				ifTrue: [ "Direct encoding as an immediate"
-					rotateOffset := self machineCodeWriteInstructions: (self
+					rotateOffset := self
 							 rotateRightValueInRegister: srcReg 
 							 byShiftAmount: cq 
-							 inRegister: destReg).
+							 inRegister: destReg
+							 startingAtIndex: 0.
 					"Update the flags"
 					flagOffset := self machineCodeWriteInstructions: (self
 							updateFlagsLogicForResultReg: destReg
@@ -4043,11 +4045,11 @@ CogRiscV64Compiler >> concretizeRotateRightCqR [
 		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers"
 			loadOffset := self loadLiteralInRegister: ConcreteIPReg ].
 	"Perform the different ROT operations"
-	rotateOffset := self machineCodeWriteInstructions: (self
+	rotateOffset := self
 			rotateRightValueInRegister: srcReg 
 			byShiftAmountInRegister: ConcreteIPReg 
 			inRegister: destReg
-		) startingAtIndex: loadOffset.
+		   startingAtIndex: loadOffset.
 	"Update the flags"
 	flagOffset := self machineCodeWriteInstructions: (self
 			updateFlagsLogicForResultReg: destReg 
@@ -6578,7 +6580,7 @@ CogRiscV64Compiler >> rewriteJumpLongAt: jumpReturnAddress target: jumpTargetAdd
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> rotateLeftValueInRegister: srcReg byShiftAmount: shamt inRegister: destReg [
+CogRiscV64Compiler >> rotateLeftValueInRegister: srcReg byShiftAmount: shamt inRegister: destReg startingAtIndex: index [
 
 	"roli: not defined in RISCV64G but can expand to: 
 	slli rd, rs1, shamt           | x[rs1] >> shamt             (1)
@@ -6593,15 +6595,14 @@ CogRiscV64Compiler >> rotateLeftValueInRegister: srcReg byShiftAmount: shamt inR
 	self assertValue: shamt isContainedIn: 6. "6 bits for RV64, 5 or RV32"
 	self flag: #TODO.
 	"Notice that srcReg is the same as destReg"
-	^ { 
-		self shiftLeftValueInRegister: srcReg byShiftAmount: shamt intoRegister: ConcreteIPReg2 .
-		self shiftRightValueInRegister: srcReg byShiftAmount: (shamt negated bitAnd: 16r3f) intoRegister: destReg . 
-		self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg
-	}
+	self machineCodeAt: index put: (self shiftLeftValueInRegister: srcReg byShiftAmount: shamt intoRegister: ConcreteIPReg2).
+	self machineCodeAt: index + 4 put: (self shiftRightValueInRegister: srcReg byShiftAmount: (shamt negated bitAnd: 16r3f) intoRegister: destReg). 
+	self machineCodeAt: index + 8 put: (self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg).
+	^ machineCodeSize := 12
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> rotateLeftValueInRegister: srcReg byShiftAmountInRegister: shamtReg inRegister: destReg [
+CogRiscV64Compiler >> rotateLeftValueInRegister: srcReg byShiftAmountInRegister: shamtReg inRegister: destReg startingAtIndex: index [
 
 	"rol: not defined in RISCV64G but can expand to: 
 	sll rd, rs1, rshamt          | x[rs1] >> shamt             (1)
@@ -6614,16 +6615,15 @@ CogRiscV64Compiler >> rotateLeftValueInRegister: srcReg byShiftAmountInRegister:
 	"
 	
 	self flag: #TODO.
-	^ { 
-		self shiftLeftValueInRegister: srcReg byShiftAmountInRegister: shamtReg intoRegister: ConcreteIPReg2    .
-		self negateValueInRegister: shamtReg intoRegister: destReg                    .
-		self shiftRightValueInRegister: srcReg byShiftAmountInRegister: destReg intoRegister: destReg .
-		self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg
-	}
+	self machineCodeAt: 0 put: (self shiftLeftValueInRegister: srcReg byShiftAmountInRegister: shamtReg intoRegister: ConcreteIPReg2).
+	self machineCodeAt: 4 put: (self negateValueInRegister: shamtReg intoRegister: destReg).
+	self machineCodeAt: 8 put: (self shiftRightValueInRegister: srcReg byShiftAmountInRegister: destReg intoRegister: destReg).
+	self machineCodeAt: 12 put: (self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg).
+	^ machineCodeSize := 16
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> rotateRightValueInRegister: srcReg byShiftAmount: shamt inRegister: destReg [
+CogRiscV64Compiler >> rotateRightValueInRegister: srcReg byShiftAmount: shamt inRegister: destReg startingAtIndex: index [
 
 	"rori: not defined in RISCV64G but can expand to: 
 	srli rd, rs1, shamt           | x[rs1] >> shamt             (1)
@@ -6638,15 +6638,14 @@ CogRiscV64Compiler >> rotateRightValueInRegister: srcReg byShiftAmount: shamt in
 	self assert: shamt > 0.
 	self assertValue: shamt isContainedIn: 6. "6 bits for RV64, 5 or RV32"
 	self flag: #TODO.
-	^ { 
-		self shiftRightValueInRegister: srcReg byShiftAmount: shamt intoRegister: ConcreteIPReg2 .
-		self shiftLeftValueInRegister: srcReg byShiftAmount: (shamt negated bitAnd: 16r3f) intoRegister: destReg .
-		self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg
-	}
+	self machineCodeAt: 0 put: (self shiftRightValueInRegister: srcReg byShiftAmount: shamt intoRegister: ConcreteIPReg2).
+	self machineCodeAt: 4 put: (self shiftLeftValueInRegister: srcReg byShiftAmount: (shamt negated bitAnd: 16r3f) intoRegister: destReg).
+	self machineCodeAt: 8 put: (self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg).
+	^ machineCodeSize := 12
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> rotateRightValueInRegister: srcReg byShiftAmountInRegister: shamtReg inRegister: destReg [
+CogRiscV64Compiler >> rotateRightValueInRegister: srcReg byShiftAmountInRegister: shamtReg inRegister: destReg startingAtIndex: index [
 
 	"ror: not defined in RISCV64G but can expand to: 
 	srl rd, rs1, rshamt          | x[rs1] >> shamt             (1)
@@ -6659,12 +6658,11 @@ CogRiscV64Compiler >> rotateRightValueInRegister: srcReg byShiftAmountInRegister
 	"
 	
 	self flag: #TODO.
-	^ { 
-		self shiftRightValueInRegister: srcReg byShiftAmountInRegister: shamtReg intoRegister: ConcreteIPReg2  .
-		self negateValueInRegister: shamtReg intoRegister: destReg                   .
-		self shiftLeftValueInRegister: srcReg byShiftAmount: destReg intoRegister: destReg .
-		self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg
-	}
+	self machineCodeAt: 0 put: (self shiftRightValueInRegister: srcReg byShiftAmountInRegister: shamtReg intoRegister: ConcreteIPReg2).
+	self machineCodeAt: 4 put: (self negateValueInRegister: shamtReg intoRegister: destReg).
+	self machineCodeAt: 8 put: (self shiftLeftValueInRegister: srcReg byShiftAmount: destReg intoRegister: destReg).
+	self machineCodeAt: 12 put: (self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg).
+	^ machineCodeSize := 16
 ]
 
 { #category : #abi }
