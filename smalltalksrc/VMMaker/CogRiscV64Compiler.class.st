@@ -998,11 +998,8 @@ CogRiscV64Compiler >> bytesToLoadImmediate: anImmediate [
 
 	"Returns the number of bytes (instructions * 4) needed to generate"
 	<inline:true>
-	| instructionCollection |		
 	self flag: #TODO.
-	instructionCollection := OrderedCollection new.
-	self recursiveLoadImmediate: anImmediate inRegister: X0 andEmitInstructionsIn: instructionCollection.
-	^ (instructionCollection size) * 4
+	^ 4
 ]
 
 { #category : #abi }
@@ -1900,11 +1897,10 @@ CogRiscV64Compiler >> concretizeCmpCqR [
 	cq := operands at: 0.
 	srcReg := operands at: 1.
 	"Note: There is no sub immediate"
-	(self value: cq isContainedIn: 12)
-		ifTrue: [ "Move to a register using immediate operations (no subi but will avoid having too much literals)"
-			loadOffset := self machineCodeWriteInstructions:
-				              (self loadImmediate: cq inRegister: ConcreteIPReg) ]
-		ifFalse: [ "Literal -> compute the distance, load the actual value then and between the 2 registers" 
+	dependent 
+		ifNil: [ "Move to a register using immediate operations (no subi but will avoid having too much literals)"
+			loadOffset := self loadImmediate: cq inRegister: ConcreteIPReg]
+		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers" 
 			loadOffset := self loadLiteralInRegister: ConcreteIPReg ].
 	"Perform the subtraction"
 	self machineCodeAt: loadOffset put: (self
@@ -2827,9 +2823,7 @@ CogRiscV64Compiler >> concretizeMoveCqR [
 	cq := operands at: 0.
 	reg := operands at: 1.
 	dependent ifNil: [ "Immediate value"
-		self assertValue: cq isContainedIn: 12.
-		^ machineCodeSize := self machineCodeWriteInstructions:
-			                     (self loadImmediate: cq inRegister: reg) ].
+		^ machineCodeSize := self loadImmediate: cq inRegister: reg].
 	"use the provided literal"
 	^ machineCodeSize := self loadLiteralInRegister: reg
 ]
@@ -3757,8 +3751,7 @@ CogRiscV64Compiler >> concretizePushCq [
 	dependent
 		ifNil: [ 
 			"No literal -> Direct load into a scratch register, number of instructions depends on immediate size"
-			instrOffset := self machineCodeWriteInstructions: (self loadImmediate: cq inRegister: ConcreteIPReg)
-			]
+			instrOffset := self loadImmediate: cq inRegister: ConcreteIPReg ]
 		ifNotNil: [ 
 			"Literal -> Compute the distance from the current address and add auipc then ld instructions"
 			instrOffset := self loadLiteralInRegister: ConcreteIPReg ].
@@ -3989,9 +3982,7 @@ CogRiscV64Compiler >> concretizeSubCqR [
 	"Load the Cq"
 	dependent
 		ifNil: [ "Immediate load in a register"
-			self assertValue: cq isContainedIn: 12.
-			loadOffset := self machineCodeWriteInstructions:
-				              (self loadImmediate: cq inRegister: ConcreteIPReg) ]
+			loadOffset := self loadImmediate: cq inRegister: ConcreteIPReg ]
 		ifNotNil: [ "Literal -> compute the distance then load the actual value in a register" 
 			loadOffset := self loadLiteralInRegister: ConcreteIPReg ].
 
@@ -5726,30 +5717,14 @@ CogRiscV64Compiler >> loadHalfWordFromAddressInRegister: baseRegister withOffset
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> loadImmediate: aSignedImmediate inRegister: destReg [
+CogRiscV64Compiler >> loadImmediate: immediate inRegister: destReg [
 
-	"li: Pseudo-instruction that expands to variable instructions:
-	 addi (< 12 bits), lui addiw (< 32 bits) and up to lui addiw slli addi slli addi slli addi (< 64 bits)"
-
-	| instructionCollection |
+	"Uses an addi instruction to load an 11-bit long immediate. If 12 bit long, it will get sign-extended and incorrect"
 	self flag: #DONE.
-	instructionCollection := OrderedCollection new.
-	self recursiveLoadImmediate: aSignedImmediate inRegister: destReg andEmitInstructionsIn: instructionCollection.
-	^ instructionCollection
-	
-]
-
-{ #category : #'machine code instruction' }
-CogRiscV64Compiler >> loadImmediate: immediate inRegister: destReg startingAtIndex: index [
-
-	"li: Pseudo-instruction that expands to variable instructions:
-	 addi (< 12 bits), lui addiw (< 32 bits) and up to lui addiw slli addi slli addi slli addi (< 64 bits)"
-
-	| instructionCollection |
-	self flag: #DONE.
-	self assertValue: immediate isContainedIn: 12.
-	self machineCodeAt: index put: (self addImmediate: immediate toRegister: X0 inRegister: destReg).
+	self assertValue: immediate isContainedIn: 11.
+	self machineCodeAt: 0 put: (self addImmediate: immediate toRegister: X0 inRegister: destReg).
 	^ machineCodeSize := 4
+	
 	
 	
 ]
@@ -6145,71 +6120,6 @@ CogRiscV64Compiler >> pushLinkRegisterByteSize [
 	
 	self flag: #TODO.
 	^8
-]
-
-{ #category : #'machine code instruction' }
-CogRiscV64Compiler >> recursiveLoadImmediate: anImmediate inRegister: aRegister andEmitInstructionsIn: aCollection [
-
-	"LLVM uses a clever recursive way to determine the best combination of instructions that
-	 are needed by the pseudo instruction li.
-	https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
-	
-	| hi20 lo12 hi52 shiftAmount signedImmediate |
-	self flag: #TODO.
-	signedImmediate := anImmediate signedIntFromLong64.
-	"Special case if the value is 16rFFFFFFFFFFFFFFFF (max)"
-	(signedImmediate = -1)
-		ifTrue: [ aCollection add: (self addImmediate: -1 toRegister: X0 inRegister: aRegister).
-					 "End the recursion!"
-					 ^ 0 ].
-	"Check if the immediate can be contained in 32 bits"		
-	(self value: signedImmediate isContainedIn: 31) 
-		ifTrue: [ 
-			"Depending on the value of the immediate, the following instructions are emitted:
-				imm == 0                          : ADDI 
-				imm[0,12) != 0 && imm[12,32) == 0 : ADDI 
-			   imm[0,12) == 0 && imm[12,32) != 0 : LUI 
-				imm[0,32) != 0                    : LUI+ADDIW 
-			"
-			hi20 := (((self computeSignedValue64Bits: signedImmediate) + 16r800) >> 12) bitAnd: 16rFFFFF.
-			lo12 := self computeSignedValue64Bits: (signedImmediate bitAnd: 16rFFF).
-			
-			"lui instruction"
-			hi20 ~= 0
-				ifTrue: [ aCollection add: (self loadUpperImmediate: hi20 inRegister: aRegister) ].
-			 
-			((lo12 ~= 0) or: [hi20 = 0])
-				ifTrue: [ hi20 ~= 0
-						ifTrue: [ aCollection add: (self addWordImmediate: lo12 toRegister: aRegister inRegister: aRegister)]
-						ifFalse: [ aCollection add: (self addImmediate: lo12 toRegister: X0 inRegister: aRegister) ] 
-					].
-			"Return to end the recursion"			
-			^ 0
-		]. 
-		"In the case the value does not fit in 32 bits"
-		lo12 := self computeSignedValue64Bits: (signedImmediate bitAnd: 16rFFF).
-		hi52 := (((self computeSignedValue64Bits: signedImmediate) + 16r800) bitAnd: 16rFFFFFFFFFFFFFFFF) >> 12.
-		"Process the optimal shift amount"
-		shiftAmount := 12 + (self trailingZerosOf: hi52).
-		hi52 := self computeSignedValueOf: hi52 >> (shiftAmount - 12) ofSize: (64 - shiftAmount).
-		
-		"Check if the shift amount can be reduced to fit in a 32 bit variable"
-		((shiftAmount > 12) and: [((hi52 bitAnd: 16rFFF) = 0) and: [self value: (hi52 << 12) isContainedIn: 32]])
-			ifTrue: [
-				"Reduce the shift amount"  
-				shiftAmount := shiftAmount - 12.
-				hi52 := self computeSignedValueOf: hi52 << 12 ofSize: 64.
-			].
-		
-		" Recursive call"
-		self recursiveLoadImmediate: hi52 inRegister: aRegister andEmitInstructionsIn: aCollection.	
-		"Add shift and add"		
-		aCollection add: (self shiftLeftValueInRegister: aRegister byShiftAmount: shiftAmount intoRegister: aRegister).
-		lo12 ~= 0
-			ifTrue: [ aCollection add: (self addImmediate: lo12 toRegister: aRegister inRegister: aRegister) ].
-		
-		^ 0
-	
 ]
 
 { #category : #'inline cacheing' }
