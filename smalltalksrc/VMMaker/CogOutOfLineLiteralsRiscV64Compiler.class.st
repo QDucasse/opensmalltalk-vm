@@ -164,7 +164,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> moveCw: constant intoR: destReg [
 	 <var: 'constant' type: #usqInt>
 	<inline: true>
 	self flag: #TODO.
-	^ self machineCodeWriteInstructions: (self loadLiteralInRegister: destReg)
+	^ self loadLiteralInRegister: destReg
 
 ]
 
