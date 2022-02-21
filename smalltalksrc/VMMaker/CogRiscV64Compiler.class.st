@@ -1122,7 +1122,7 @@ CogRiscV64Compiler >> checkADDOverflowWithSourceReg1: srcReg1 sourceReg2: srcReg
 ]
 
 { #category : #concretization }
-CogRiscV64Compiler >> checkADDOverflowWithSourceReg: srcReg immediate: immediate andResultReg: destReg [
+CogRiscV64Compiler >> checkADDOverflowWithSourceReg: srcReg immediate: immediate andResultReg: destReg startingAtIndex: index [
 	"Check for the overflow, as according to the example in the book: 
 	 add   res,  imm,  src 
     slti  t1,   src,   0       # t1 = (src < 0)
@@ -1133,15 +1133,14 @@ CogRiscV64Compiler >> checkADDOverflowWithSourceReg: srcReg immediate: immediate
 	As we will not branch directly, we need to check if the two conditions are equal 
 	and set the overflow flag acordingly: equal => no overflow"
 	self flag: #TODO.
-	^ {  
-	   "1. Check if one operand is negative"
-		self setOneIn: ConcreteIPReg2 ifValueIn: srcReg isLessThanImmediate: 0 .
-		"2. Check if the sum is smaller than one operand"
-		self setOneIn: ConcreteIPReg3 ifValueIn: destReg isLessThanImmediate: immediate  .
-		"Put one if t2 = t3, xor and complement"
-		self bitwiseXorBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 intoRegister: ConcreteOverflowReg 
-		"self setOneIn: ConcreteOverflowReg ifValueInRegisterIsEqualToZero: ConcreteOverflowReg"
-	}  
+   "1. Check if one operand is negative"
+	self machineCodeAt: index put: (self setOneIn: ConcreteIPReg2 ifValueIn: srcReg isLessThanImmediate: 0).
+	"2. Check if the sum is smaller than one operand"
+	self machineCodeAt: index + 4 put: (self setOneIn: ConcreteIPReg3 ifValueIn: destReg isLessThanImmediate: immediate).
+	"Put one if t2 = t3, xor and complement"
+	self machineCodeAt: index + 8 put: (self bitwiseXorBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 intoRegister: ConcreteOverflowReg). 
+	^ machineCodeSize := 12
+	  
 ]
 
 { #category : #'helpers - size sign' }
@@ -1532,10 +1531,9 @@ CogRiscV64Compiler >> concretizeAddCqR [
 				 inRegister: ConcreteZeroReg).
 		"Check for overflow"
 		overflowOffset := self
-			                  machineCodeWriteInstructions: (self
-					                   checkADDOverflowWithSourceReg: sourceReg
-					                   immediate: cq
-					                   andResultReg: ConcreteZeroReg)
+			                  checkADDOverflowWithSourceReg: sourceReg
+			                  immediate: cq
+			                  andResultReg: ConcreteZeroReg
 			                  startingAtIndex: 4.
 
 		"Update flag registers"
