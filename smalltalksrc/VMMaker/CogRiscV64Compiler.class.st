@@ -122,7 +122,7 @@ CogRiscV64Compiler class >> filteredInstVarNames [
 { #category : #translation }
 CogRiscV64Compiler class >> identifyingPredefinedMacros [
 
-	^#('__aarch64__' '_M_ARM64')
+	^#('__riscv64__' '_M_RISCV64')
 ]
 
 { #category : #'class initialization' }
