@@ -4061,11 +4061,11 @@ CogRiscV64Compiler >> concretizeSubCqR [
 	) startingAtIndex: loadOffset + 4.
 
 	"Update flag registers"
-	flagOffset := self machineCodeWriteInstructions: (self 
+	flagOffset := self
 			updateFlagsSUBForSourceReg: sourceReg 
 			resultReg: ConcreteZeroReg 
 			andMoveResultTo: destReg
-	) startingAtIndex: loadOffset + overflowOffset + 4.
+			startingAtIndex: loadOffset + overflowOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + overflowOffset + 4
 ]
 
@@ -4097,10 +4097,9 @@ CogRiscV64Compiler >> concretizeSubCwR [
 
 	"Update flag registers"
 	flagOffset := self
-		              machineCodeWriteInstructions: (self
-				               updateFlagsSUBForSourceReg: sourceReg
-				               resultReg: ConcreteZeroReg
-				               andMoveResultTo: destReg)
+		              updateFlagsSUBForSourceReg: sourceReg
+				        resultReg: ConcreteZeroReg
+				        andMoveResultTo: destReg
 		              startingAtIndex: loadOffset + overflowOffset + 4.
 	^ machineCodeSize := loadOffset + flagOffset + overflowOffset + 4
 ]
@@ -4127,11 +4126,11 @@ CogRiscV64Compiler >> concretizeSubRR [
 	) startingAtIndex: 4.
 
 	"Update flag registers"
-	flagOffset := self machineCodeWriteInstructions: (self 
+	flagOffset := self 
 			updateFlagsSUBForSourceReg: leftReg 
 			resultReg: ConcreteZeroReg 
 			andMoveResultTo: destReg
-	) startingAtIndex: overflowOffset + 4.
+	      startingAtIndex: overflowOffset + 4.
 	^ machineCodeSize := flagOffset + overflowOffset + 4
 ]
 
@@ -7065,22 +7064,6 @@ CogRiscV64Compiler >> updateFlagsCMPForSourceReg: srcReg resultReg: resReg start
 ]
 
 { #category : #concretization }
-CogRiscV64Compiler >> updateFlagsLogicForResultReg: resReg [
-
-	self flag: #TODO.
-	^ {
-		"1. Overflow Flag: set to 0"	
-		self moveRegister: X0  toRegister: ConcreteOverflowReg .
-		"2. Carry Flag: set to 0"
-		self moveRegister: X0  toRegister: ConcreteCarryReg .
-		"3. Sign Flag: set it as the most significant bit of the result"
-		self setOneIn: ConcreteSignReg ifValueIn: resReg isLessThanImmediate: 0 .
-		"4. Zero flag: Replace the result of the subtraction with 1 if it is 0, 0 otherwise"
-		self setOneIn: ConcreteZeroReg ifValueInRegisterIsEqualToZero: resReg
-	}
-]
-
-{ #category : #concretization }
 CogRiscV64Compiler >> updateFlagsLogicForResultReg: resReg startingAtIndex: index [
 
 	self flag: #TODO.
@@ -7096,19 +7079,19 @@ CogRiscV64Compiler >> updateFlagsLogicForResultReg: resReg startingAtIndex: inde
 ]
 
 { #category : #concretization }
-CogRiscV64Compiler >> updateFlagsSUBForSourceReg: srcReg resultReg: resReg andMoveResultTo: destReg [
+CogRiscV64Compiler >> updateFlagsSUBForSourceReg: srcReg resultReg: resReg andMoveResultTo: destReg startingAtIndex: index [
 
-	self flag: #DONE.
-	^ { 
-		"1. Carry Flag: set 1 if A is smaller than B as unsigned numbers, 0 otherwise"
-		self setOneIn: ConcreteCarryReg ifUnsignedValueIn: srcReg isLessThanUnsignedValueIn: resReg .
-		"2. Sign Flag: set 1 if the most significatn bit of the result is 1 (result negative)"
-		self setOneIn: ConcreteSignReg ifValueIn: resReg isLessThanImmediate: 0 .
-		"3. Move result to the destination register"
-		self moveRegister: resReg toRegister: destReg .
-		"4. Zero flag: Replace the result of the subtraction with 1 if it is 0, 0 otherwise"
-		self setOneIn: ConcreteZeroReg ifValueInRegisterIsEqualToZero: resReg .
-	}
+	self flag: #DONE. 
+	"1. Carry Flag: set 1 if A is smaller than B as unsigned numbers, 0 otherwise"
+	self machineCodeAt: index put: (self setOneIn: ConcreteCarryReg ifUnsignedValueIn: srcReg isLessThanUnsignedValueIn: resReg).
+	"2. Sign Flag: set 1 if the most significatn bit of the result is 1 (result negative)"
+	self machineCodeAt: index + 4 put: (self setOneIn: ConcreteSignReg ifValueIn: resReg isLessThanImmediate: 0).
+	"3. Move result to the destination register"
+	self machineCodeAt: index + 8 put: (self moveRegister: resReg toRegister: destReg).
+	"4. Zero flag: Replace the result of the subtraction with 1 if it is 0, 0 otherwise"
+	self machineCodeAt: index + 12 put: (self setOneIn: ConcreteZeroReg ifValueInRegisterIsEqualToZero: resReg).
+	^ machineCodeSize := 16
+	
 ]
 
 { #category : #'helpers - size sign' }
