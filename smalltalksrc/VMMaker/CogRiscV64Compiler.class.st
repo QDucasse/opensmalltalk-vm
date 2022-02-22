@@ -1025,7 +1025,7 @@ CogRiscV64Compiler >> callInstructionByteSize [
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> callTargetFromReturnAddress: callSiteReturnAddress [
 	"Answer the address that the call immediately preceding callSiteReturnAddress will jump to."
-	| callAddress callInstruction callDistance targetInstruction |
+	| callAddress callInstruction callDistance |
 	self flag: #TODO.
 	callAddress := self instructionAddressBefore: callSiteReturnAddress.
 	callInstruction := objectMemory long32At: callAddress.
@@ -1469,8 +1469,8 @@ CogRiscV64Compiler >> concretizeAddCqR [
 		add reg, reg, ConcreteIPReg 
 		"
 
+	<var: #cq type: #sqInt>
 	<inline: true>
-	<var: #cq type: #uint_64>
 	| cq destReg sourceReg loadOffset flagOffset overflowOffset |
 	self flag: #DONE.
 	cq := operands at: 0.
@@ -1652,6 +1652,7 @@ CogRiscV64Compiler >> concretizeAndCqR [
 		and reg, reg, ConcreteIPReg 
 		"
 
+	<var: #cq type: #sqInt>
 	<inline: true>
 	| cq destReg sourceReg loadOffset flagOffset |
 	self flag: #TODO.
@@ -1694,6 +1695,7 @@ CogRiscV64Compiler >> concretizeAndCqRR [
 		and reg, reg, ConcreteIPReg 
 		"
 
+	<var: #cq type: #sqInt>
 	<inline: true>
 	| cq destReg sourceReg loadOffset flagOffset |
 	self flag: #TODO.
@@ -1777,6 +1779,7 @@ CogRiscV64Compiler >> concretizeArithmeticShiftRightCqR [
 		sra reg, reg, ConcreteIPReg 
 		"
 
+	<var: #cq type: #sqInt>
 	<inline: true>
 	| cq destReg sourceReg loadOffset flagOffset |
 	self flag: #DONE.
@@ -1828,10 +1831,7 @@ CogRiscV64Compiler >> concretizeAt: actualAddress [
 	 setting machineCodeSize, and answer the following address."
 
 	self assert: actualAddress \\ 4 = 0.
-	address := actualAddress.
-	self dispatchConcretize.
-	self assert: (maxSize isNil or: [maxSize >= machineCodeSize]).
-	^actualAddress + machineCodeSize
+	^ super concretizeAt: actualAddress
 ]
 
 { #category : #concretization }
@@ -1891,6 +1891,7 @@ CogRiscV64Compiler >> concretizeCmpC32R [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeCmpCqR [
 
+	<var: #cq type: #sqInt>
 	<inline: true>
 	| srcReg cq loadOffset flagOffset overflowOffset |
 	self flag: #TODO.
@@ -1938,6 +1939,7 @@ CogRiscV64Compiler >> concretizeCmpCwR [
 		
 		(beq ConcreteFlagReg, ConcreteIPReg, label)"
 
+	<inline: true>
 	| loadOffset srcReg flagOffset overflowOffset |
 	self flag: #TODO.
 	self assert: dependent notNil.
@@ -2240,7 +2242,7 @@ CogRiscV64Compiler >> concretizeJumpFPGreater [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpFPGreaterOrEqual [
 
-		<inline:true>
+	<inline:true>
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
@@ -2601,7 +2603,6 @@ CogRiscV64Compiler >> concretizeLoadEffectiveAddressMwrR [
 	 Yes but the conditional flags are not affected!"
 		
 	<inline: true>
-	<var: #cq type: #uint_64>
 	| offset destReg sourceReg loadOffset |
 	self flag: #TODO.
 	offset := operands at: 0.
@@ -2642,7 +2643,7 @@ CogRiscV64Compiler >> concretizeLogicalShiftLeftCqR [
 		"
 
 	<inline: true>
-	<var: #cq type: #uint_64>
+	<var: #cq type: #sqInt>
 	| cq destReg sourceReg loadOffset flagOffset |
 	self flag: #DONE.
 	cq := operands at: 0.
@@ -2676,6 +2677,7 @@ CogRiscV64Compiler >> concretizeLogicalShiftLeftCqR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeLogicalShiftLeftRR [
 	
+	<inline: true>
 	| shiftReg srcReg destReg flagOffset |
 	self flag: #TODO.
 	shiftReg := operands at: 0.
@@ -2706,7 +2708,7 @@ CogRiscV64Compiler >> concretizeLogicalShiftRightCqR [
 		"
 
 	<inline: true>
-	<var: #cq type: #uint_64>
+	<var: #cq type: #sqInt>
 	| cq destReg sourceReg instrOffset flagOffset |
 	self flag: #DONE.
 	cq := operands at: 0.
@@ -2739,6 +2741,7 @@ CogRiscV64Compiler >> concretizeLogicalShiftRightCqR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeLogicalShiftRightRR [
 	
+	<inline: true>
 	| srcReg shiftReg destReg flagOffset |
 	self flag: #TODO.
 	shiftReg := operands at: 0.
@@ -2818,6 +2821,7 @@ CogRiscV64Compiler >> concretizeMoveC32R [
 CogRiscV64Compiler >> concretizeMoveCqR [
 
 	<inline: true>
+	<var: #cq type: #sqInt>
 	| cq reg |
 	self flag: #TODO.
 	cq := operands at: 0.
@@ -2845,6 +2849,7 @@ CogRiscV64Compiler >> concretizeMoveM16rR [
 	 Expands to: lh rs2, offset(rs1)"
 
 	<inline: true>
+	<var: #cq type: #sqInt>
 	| baseReg offset destReg instrOffset |
 	self flag: #TODO.
 	offset := operands at: 0.
@@ -2880,6 +2885,7 @@ CogRiscV64Compiler >> concretizeMoveM32rR [
 	 Expands to: lw rs2, offset(rs1)"
 
 	<inline: true>
+	<var: #cq type: #sqInt>
 	| baseReg offset destReg instrOffset |
 	self flag: #TODO.
 	offset := operands at: 0.
@@ -2981,6 +2987,7 @@ CogRiscV64Compiler >> concretizeMoveMbrR [
 	"Load a byte (8 bits) from memory where the address is at a constant offset from an address in a register
 	 Expands to: lb rd, rs1(offset)"
 
+	<var: #offset type: #sqInt>
 	<inline: true>
 	| baseReg offset destReg loadOffset |
 	self flag: #TODO.
@@ -3016,6 +3023,7 @@ CogRiscV64Compiler >> concretizeMoveMwrR [
 	"Load a vm word (double word 64 bits) from memory where the address is at a constant offset from an address in a register
 	 Expands to: ld rd, rs1(offset)"
 
+	<var: #offset type: #sqInt>
 	<inline: true>
 	| baseReg offset destReg instrOffset |
 	self flag: #TODO.
@@ -3103,6 +3111,7 @@ CogRiscV64Compiler >> concretizeMoveRM16r [
 	"Store a half word (2 bytes) from memory where the address is at a constant offset from an address in a register
 	 Expands to: sh rs2, offset(rs1)"
 
+	<var: #offset type: #sqInt>
 	<inline: true>
 	| srcReg offset baseReg loadOffset |
 	self flag: #TODO.
@@ -3139,6 +3148,7 @@ CogRiscV64Compiler >> concretizeMoveRM32r [
 	"Store a word (4 bytes) from memory where the address is at a constant offset from an address in a register
 	 Expands to: sw rs2, offset(rs1)"
 
+	<var: #offset type: #sqInt>
 	<inline: true>
 	| srcReg offset baseReg loadOffset |
 	self flag: #TODO.
@@ -3174,6 +3184,7 @@ CogRiscV64Compiler >> concretizeMoveRMbr [
 	"Stores a byte (8 bits) from memory where the address is at a constant offset from an address in a register
 	 Expands to: sb rs2, rs1(offset)"
 
+	<var: #offset type: #sqInt>
 	<inline: true>
 	| srcReg offset baseReg loadOffset |
 	self flag: #TODO.
@@ -3209,6 +3220,7 @@ CogRiscV64Compiler >> concretizeMoveRMwr [
 	"Stores a vm word (64 bits) from memory where the address is at a constant offset from an address in a register
 	 Expands to: sd rs2, offset(rs1)"
 
+	<var: #offset type: #sqInt>
 	<inline: true>
 	| srcReg offset baseReg loadOffset |
 	self flag: #TODO.
@@ -3272,7 +3284,7 @@ CogRiscV64Compiler >> concretizeMoveRX32rR [
 
 	"Write the half word in R(src) into memory at address (base + word size * index)"
 
-		<inline: true>
+	<inline: true>
 	| indexReg baseReg srcReg |
 	self flag: #TODO.
 	srcReg := operands at: 0.
@@ -3635,6 +3647,7 @@ CogRiscV64Compiler >> concretizeOrCqR [
 		or reg, reg, ConcreteIPReg 
 		"
 
+	<var: #cq type: #sqInt>
 	<inline: true>
 	| cq destReg sourceReg loadOffset flagOffset |
 	self flag: #TODO.
@@ -3744,6 +3757,7 @@ CogRiscV64Compiler >> concretizePushCq [
 	   addi sp, sp, -8
 	   sd  ConcreteIPReg, 0(sp)
 		"
+	<var: #cq type: #sqInt>
 	<inline: true>
 	| cq instrOffset offset |
 	self flag: #DONE.
@@ -3829,6 +3843,7 @@ CogRiscV64Compiler >> concretizeRetN [
 	"Jumps to the address stored in the Link Register + a given offset.
 	(ret)  jalr, x0, 0(x1)
 	"
+	<var: #offset type: #sqInt>
 	<inline: true>
 	| offset |
 	self flag: #DONE.
@@ -3859,6 +3874,7 @@ CogRiscV64Compiler >> concretizeRotateLeftCqR [
 		rol reg, reg, ConcreteIPReg 
 		"
 
+	<var: #cq type: #sqInt>
 	<inline: true>
 	| cq destReg srcReg loadOffset rotateOffset flagOffset |
 	self flag: #TODO.
@@ -3910,6 +3926,7 @@ CogRiscV64Compiler >> concretizeRotateRightCqR [
 		ror reg, reg, ConcreteIPReg 
 		"
 
+	<var: #cq type: #sqInt>
 	<inline: true>
 	| cq destReg srcReg loadOffset rotateOffset flagOffset |
 	self flag: #TODO.
@@ -3973,6 +3990,7 @@ CogRiscV64Compiler >> concretizeSubCqR [
 	"Perform a sub operation between the value of register and the value of the operand.
 	 Since no subi exist in RISC-V, it will always load the value to a register then sub the registers."
 
+	<var: #cq type: #sqInt>
 	<inline: true>
 	| cq destReg sourceReg loadOffset flagOffset overflowOffset |
 	self flag: #TODO.
@@ -4130,6 +4148,7 @@ CogRiscV64Compiler >> concretizeTstCqR [
 		
 		(beq ConcreteFlagReg, ConcreteIPReg, label)"
 
+	<var: #cq type: #sqInt>
 	<inline: true>
 	| srcReg cq loadOffset flagOffset |
 	self flag: #TODO.
@@ -4169,8 +4188,8 @@ CogRiscV64Compiler >> concretizeXorCqR [
 	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
 		xor reg, reg, ConcreteIPReg"
 
+	<var: #cq type: #sqInt>
 	<inline: true>
-	<var: #cq type: #uint_64>
 	| cq destReg sourceReg loadOffset flagOffset |
 	self flag: #DONE.
 	cq := operands at: 0.
@@ -5195,16 +5214,6 @@ CogRiscV64Compiler >> generalPurposeRegisterMap [
 			#r12. X12	}
 ]
 
-{ #category : #'method entry' }
-CogRiscV64Compiler >> generateAlignmentNopsForEntry [
-
-	"This is needed to provide a mislignment between the entry and no entry in a cog method"
-	self flag: #DONE.
-	cogit Nop.
-	cogit Nop.
-
-]
-
 { #category : #testing }
 CogRiscV64Compiler >> hasConditionRegister [
 	"Answer if the receiver supports, e.g., JumpOverflow after a regular AddRR"
@@ -5919,25 +5928,6 @@ CogRiscV64Compiler >> machineCodeWords [
 	^ 15
 ]
 
-{ #category : #'machine code instruction' }
-CogRiscV64Compiler >> machineCodeWriteInstructions: anInstructionCollection [
-
-	"Write the machine code instructions and returns the correct offset"
-	self flag: #TODO.	
-	^ self machineCodeWriteInstructions: anInstructionCollection startingAtIndex: 0
-
-]
-
-{ #category : #'machine code instruction' }
-CogRiscV64Compiler >> machineCodeWriteInstructions: anInstructionCollection startingAtIndex: index [
-
-	"Write the machine code instructions and returns the correct offset"
-	self flag: #TODO.	
-	anInstructionCollection doWithIndex: [ :each :i | self machineCodeAt: (i-1) * 4 + index put: each ].
-	^ anInstructionCollection size * 4
-
-]
-
 { #category : #concretization }
 CogRiscV64Compiler >> moveCw: constant intoR: destReg [
 
@@ -6047,12 +6037,6 @@ CogRiscV64Compiler >> nameForRegister: reg [ "<Integer>"
 				ifNone: [default]]
 		ifFalse:
 			[default]
-]
-
-{ #category : #'machine code instruction' }
-CogRiscV64Compiler >> needsPreviousInfo [ 
-
-	^ true
 ]
 
 { #category : #'machine code instruction' }
@@ -6659,17 +6643,6 @@ CogRiscV64Compiler >> shiftRightValueInRegister: sourceReg1 byShiftAmountInRegis
 	  bitOr: 2r0110011
 ]
 
-{ #category : #testing }
-CogRiscV64Compiler >> shiftSetsConditionCodesFor: aConditionalJumpOpcode [
-	"check what flags the opcdoe needs setting - ARM doesn't set V when simply MOVing"
-		^aConditionalJumpOpcode caseOf:
-		{	[JumpNegative]	->	[true].
-			[JumpZero]	->	[true].
-			[JumpLess]	->	[true].
-		}
-		otherwise: [self halt: 'unhandled opcode in setsConditionCodesFor:'. false]
-]
-
 { #category : #'machine code instruction' }
 CogRiscV64Compiler >> signExtendValue: value forSize: size [
 	
@@ -6961,7 +6934,7 @@ CogRiscV64Compiler >> updateFlagsSUBForSourceReg: srcReg resultReg: resReg andMo
 { #category : #'helpers - size sign' }
 CogRiscV64Compiler >> value: value isContainedIn: size [ 
 
-
+	<inline: true>
 	| mask twosComplement |
 	self flag: #TODO.
 	mask := (1 << size) - 1.

@@ -3643,6 +3643,17 @@ CogX64Compiler >> genMulR: regSource R: regDest [
 	^cogit gen: IMULRR operand: regSource operand: regDest
 ]
 
+{ #category : #'full transfer run-time support' }
+CogX64Compiler >> genNopsForEntries [
+
+	"Generate the correct amount of nops to disalign the cog entry and no check entry
+	 (see genGetInlineCacheClassTagFromgenGetInlineCacheClassTagFrom:  into:  forEntry:)"
+	self flag: #DONE.
+	cogit Nop.
+	cogit Nop.
+	cogit Nop.
+]
+
 { #category : #'abstract instructions' }
 CogX64Compiler >> genPopRd: reg [
 	<inline: true>
