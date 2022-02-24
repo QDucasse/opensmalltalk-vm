@@ -5758,6 +5758,13 @@ CogRiscV64Compiler >> loadImmediate: immediate inRegister: destReg [
 { #category : #'machine code instruction' }
 CogRiscV64Compiler >> loadLiteralInRegister: destReg [
 
+	self flag: #TODO.
+	^ self loadLiteralInRegister: destReg startingAtIndex: 0 
+]
+
+{ #category : #'machine code instruction' }
+CogRiscV64Compiler >> loadLiteralInRegister: destReg startingAtIndex: index [
+
 	| literalAddress distance |
 	"Compute the distance from the current address
 	- auipc to get the PC
@@ -5770,8 +5777,8 @@ CogRiscV64Compiler >> loadLiteralInRegister: destReg [
 	literalAddress := (cogit cCoerceSimple: dependent to: #'AbstractInstruction *') address.
 	distance := literalAddress - address.
 	self assertValue: distance isContainedIn: 12.
-	self machineCodeAt: 0 put: (self addUpperImmediateToPC: 0 toRegister: destReg).
-   	self machineCodeAt: 4 put: (self loadDoubleWordFromAddressInRegister: destReg withOffset: distance toRegister: destReg).
+	self machineCodeAt: index put: (self addUpperImmediateToPC: 0 toRegister: destReg).
+   	self machineCodeAt: index + 4 put: (self loadDoubleWordFromAddressInRegister: destReg withOffset: distance toRegister: destReg).
 	^ machineCodeSize := 8
 
 ]
