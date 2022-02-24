@@ -1847,7 +1847,7 @@ CogRiscV64Compiler >> concretizeCall [
 	self assert: (operands at: 0) \\ 4 = 0.
 	"Compute the offset from the PC"
    offset := (operands at: 0) signedIntFromLong - address signedIntFromLong.
-	self assert: (self isInImmediateJumpRange: offset).
+	self assert: (self isInLongJumpCallRange: offset).
 	
 	"This mangling avoid having to bias the 11th bit in case of a negative value
 	 it is also used in loadImmediate:inRegister:"
@@ -2137,15 +2137,16 @@ CogRiscV64Compiler >> concretizeJumpAbove [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 4.
- 	self assert: (self isInImmediateJumpRange: offset).
+	self assert: (self isInImmediateBranchRange: offset).
+	"Check the condition!"
 	"Jump Above means jump if 	CF=0 and ZF=0"
 	self machineCodeAt: 0 put: (self bitwiseOrBetweenRegister: ConcreteCarryReg 
-	                                 andRegister: ConcreteZeroReg 
-	                                 toRegister: ConcreteIPReg).
-	"Or and check if the value is still 0"
+	                               andRegister: ConcreteZeroReg 
+	                               toRegister: ConcreteIPReg).
+	"The previous instruction should have put 0 in ipreg if both cf and zf are equal to 0"
 	self machineCodeAt: 4 put: (self branchTo: offset 
 	                                 ifRegisterValueIsEqualToZero: ConcreteIPReg).
-	^ machineCodeSize := 8
+	^ machineCodeSize := 8.
 ]
 
 { #category : #concretization }
@@ -2155,11 +2156,11 @@ CogRiscV64Compiler >> concretizeJumpAboveOrEqual [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateJumpRange: offset).
+	self assert: (self isInImmediateBranchRange: offset).
 	"Jump above or equal translates to jump if CF=0"
 	self machineCodeAt: 0 put: (self branchTo: offset 
-	   				                     ifRegisterValueIsEqualToZero: ConcreteCarryReg).
-	^ machineCodeSize := 4
+   				                     ifRegisterValueIsEqualToZero: ConcreteCarryReg).
+	^ machineCodeSize := 4 
 ]
 
 { #category : #concretization }
@@ -2169,7 +2170,7 @@ CogRiscV64Compiler >> concretizeJumpBelow [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump Below translates to jump if Carry = 1"
 	self machineCodeAt: 0 put: (self branchTo: offset 
 	                                 ifRegisterValueIsNotEqualToZero: ConcreteCarryReg).
@@ -2183,7 +2184,7 @@ CogRiscV64Compiler >> concretizeJumpBelowOrEqual [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 4.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump Below or Equal translates to jump if 	CF=1 or ZF=1"
 	self machineCodeAt: 0 put: (self bitwiseOrBetweenRegister: ConcreteCarryReg 
 	                                 andRegister: ConcreteZeroReg
@@ -2201,7 +2202,7 @@ CogRiscV64Compiler >> concretizeJumpCarry [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Carry set if carry register at 1"
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNotEqualToZero: ConcreteCarryReg).
 	^ machineCodeSize := 4
@@ -2214,7 +2215,7 @@ CogRiscV64Compiler >> concretizeJumpFPEqual [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump Equal for floating points means jump if the zero flag is set to 1"
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNotEqualToZero: ConcreteZeroReg).
 	^ machineCodeSize := 4
@@ -2227,7 +2228,7 @@ CogRiscV64Compiler >> concretizeJumpFPGreater [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 4.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump Greater for floating points means jump if ZF = 0 and CF = 0"
 	"Perform an OR operation between the two registers"
 	self machineCodeAt: 0 put: (self bitwiseOrBetweenRegister: ConcreteZeroReg
@@ -2246,7 +2247,7 @@ CogRiscV64Compiler >> concretizeJumpFPGreaterOrEqual [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump Greater or Equal for floating points means jump if the carry flag is not set"
 	self machineCodeAt: 0 put: (self branchTo: offset 
 											  ifRegisterValueIsEqualToZero: ConcreteCarryReg).
@@ -2260,7 +2261,7 @@ CogRiscV64Compiler >> concretizeJumpFPLess [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump Less for floating points means jump if CF = 1"
 	self machineCodeAt: 0 put: (self branchTo: offset 
 											  ifRegisterValueIsNotEqualToZero: ConcreteCarryReg).
@@ -2274,7 +2275,7 @@ CogRiscV64Compiler >> concretizeJumpFPLessOrEqual [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 4.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump Less or Equal for floating points means jump if ZF = 1 or CF = 1"
 	"Perform an OR operation between the two registers"
 	self machineCodeAt: 0 put: (self bitwiseOrBetweenRegister: ConcreteZeroReg
@@ -2293,7 +2294,7 @@ CogRiscV64Compiler >> concretizeJumpFPNotEqual [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump Not Equal for floating points means jump if the zero flag register is set to 0"
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsEqualToZero: ConcreteZeroReg).
 	^ machineCodeSize := 4
@@ -2339,7 +2340,7 @@ CogRiscV64Compiler >> concretizeJumpGreater [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 8.
- 	self assert: (self isInImmediateJumpRange: offset).
+	self assert: (self isInImmediateBranchRange: offset).
 	"Jump Greater means jump if ZF = 0 and SF = OF"
 	"Check if SF and OF are different with a XOR (1 if different)"
 	self machineCodeAt: 0 put: (self bitwiseXorBetweenRegister: ConcreteSignReg  
@@ -2362,7 +2363,7 @@ CogRiscV64Compiler >> concretizeJumpGreaterOrEqual [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump Greater or Equal means jump if SF = OF"
 	self machineCodeAt: 0 put: (self branchTo: offset 
 											  ifRegisterValue: ConcreteSignReg 
@@ -2377,7 +2378,7 @@ CogRiscV64Compiler >> concretizeJumpLess [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump Less means jump if SF different from 	OF"
 	self machineCodeAt: 0 put: (self branchTo: offset 
 	                                 ifRegisterValue: ConcreteSignReg 
@@ -2392,7 +2393,7 @@ CogRiscV64Compiler >> concretizeJumpLessOrEqual [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 8.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump Less or Equal means jump if SF different from 	OF or 	ZF=1"
 	"Check if SF and OF are different with a XOR"
 	self machineCodeAt: 0 put: (self bitwiseXorBetweenRegister: ConcreteSignReg  
@@ -2419,7 +2420,7 @@ CogRiscV64Compiler >> concretizeJumpLong [
 	self assert: (operands at: 0) \\ 4 = 0.
 	"Compute the offset from the address of the first instruction (auipc)"
    offset := (operands at: 0) signedIntFromLong - address signedIntFromLong.
-	self assert: (self isInImmediateJumpRange: offset).
+	self assert: (self isInLongJumpCallRange: offset).
 	
 	"This mangling avoid having to bias the 11th bit in case of a negative value
 	 it is also used in loadImmediate:inRegister:"
@@ -2443,7 +2444,7 @@ CogRiscV64Compiler >> concretizeJumpLongNonZero [
 	self assert: (operands at: 0) \\ 4 = 0.
 	"Compute the offset from the address of the first instruction (auipc)"
 	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4.
-	self assert: (self isInImmediateJumpRange: offset).
+	self assert: (self isInLongJumpCallRange: offset).
 	
 	"This mangling avoid having to bias the 11th bit in case of a negative value
 	 it is also used in loadImmediate:inRegister:"
@@ -2470,7 +2471,7 @@ CogRiscV64Compiler >> concretizeJumpLongZero [
 	self assert: (operands at: 0) \\ 4 = 0.
 	"Compute the offset from the address of the first instruction (auipc)"
 	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4. 
-	self assert: (self isInImmediateJumpRange: offset).
+	self assert: (self isInLongJumpCallRange: offset).
 
 	"This mangling avoid having to bias the 11th bit in case of a negative value
 	 it is also used in loadImmediate:inRegister:"
@@ -2493,7 +2494,7 @@ CogRiscV64Compiler >> concretizeJumpNegative [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump if sign register is set to 1"
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNotEqualToZero: ConcreteSignReg).
 	^ machineCodeSize := 4
@@ -2506,7 +2507,7 @@ CogRiscV64Compiler >> concretizeJumpNoCarry [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump if carry register set to 0"
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsEqualToZero: ConcreteCarryReg).
 	^ machineCodeSize := 4
@@ -2519,7 +2520,7 @@ CogRiscV64Compiler >> concretizeJumpNoOverflow [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump if the overflow flag register is not set"
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsEqualToZero: ConcreteOverflowReg).
 	^ machineCodeSize := 4	
@@ -2532,7 +2533,7 @@ CogRiscV64Compiler >> concretizeJumpNonNegative [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump if Sign flag is set to 0"
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsEqualToZero: ConcreteSignReg).
 	^ machineCodeSize := 4
@@ -2545,7 +2546,7 @@ CogRiscV64Compiler >> concretizeJumpNonZero [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump if the zero flag register is set to 0"
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsEqualToZero: ConcreteZeroReg).
 	^ machineCodeSize := 4
@@ -2558,7 +2559,7 @@ CogRiscV64Compiler >> concretizeJumpOverflow [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump if the overflow register flag is set to 1"
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNotEqualToZero: ConcreteOverflowReg).
 	^ machineCodeSize := 4	
@@ -2582,7 +2583,7 @@ CogRiscV64Compiler >> concretizeJumpZero [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateJumpRange: offset).
+ 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump if the zero flag is set to 1"
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNotEqualToZero: ConcreteZeroReg).
 	^ machineCodeSize := 4
@@ -5399,6 +5400,14 @@ CogRiscV64Compiler >> isCallPrecedingReturnPC: mcpc [
 ]
 
 { #category : #testing }
+CogRiscV64Compiler >> isInImmediateBranchRange: operand [
+	"RISC-V branches can use immediates of max size 13 bits"
+	<var: #operand type: #'usqIntptr_t'>
+	self flag: #TODO.
+	^ self value: operand isContainedIn: 13
+]
+
+{ #category : #testing }
 CogRiscV64Compiler >> isInImmediateCallRange: operand [
 	"RISC-V calls and jumps can use immediates of max size 20 bits"
 	<var: #operand type: #'usqIntptr_t'>
@@ -5408,10 +5417,18 @@ CogRiscV64Compiler >> isInImmediateCallRange: operand [
 
 { #category : #testing }
 CogRiscV64Compiler >> isInImmediateJumpRange: operand [
-	"RISC-V calls and jumps can use immediates of max size 20 bits"
+	"RISC-V jal and jalr can use immediates of max size 21 bits"
 	<var: #operand type: #'usqIntptr_t'>
 	self flag: #TODO.
-	^ self value: operand isContainedIn: 32
+	^ self value: operand isContainedIn: 21
+]
+
+{ #category : #testing }
+CogRiscV64Compiler >> isInLongJumpCallRange: offset [
+	"RISC-V calls and jumps can use values of max size 32 bits through auipc / jal|jalr"
+	<var: #operand type: #'usqIntptr_t'>
+	self flag: #TODO.
+	^ self value: offset isContainedIn: 32
 ]
 
 { #category : #testing }
@@ -6172,7 +6189,7 @@ CogRiscV64Compiler >> rewriteCPICJumpAt: jumpReturnAddress target: jumpTargetAdd
 		self error: 'linking callsite to invalid address' ].
 
 	jumpDistance := jumpTargetAddress - (jumpReturnAddress - 12). "return offset"
-	self assert: (self isInImmediateJumpRange: jumpDistance). "we don't support long call updates, yet"
+	self assert: (self isInLongJumpCallRange: jumpDistance). 
 
 	instr := self instructionBeforeAddress: jumpReturnAddress.
 	self assert: (self instructionIsConditionalBranch: instr).
@@ -6266,7 +6283,7 @@ CogRiscV64Compiler >> rewriteConditionalJumpLongAt: callSiteReturnAddress target
 		ifFalse: [self error: 'linking callsite to invalid address'].
 
 	callDistance := (callTargetAddress - (callSiteReturnAddress - 12 "return offset")).
-	self assert: (self isInImmediateJumpRange: callDistance). "we don't support long call updates, yet"
+	self assert: (self isInLongJumpCallRange: callDistance). 
 
 	instr := self instructionBeforeAddress: callSiteReturnAddress.
 	self assert: (self instructionIsConditionalBranch: instr).
@@ -6330,7 +6347,7 @@ CogRiscV64Compiler >> rewriteJumpLongAt: jumpReturnAddress target: jumpTargetAdd
 	jumpTargetAddress >= cogit minCallAddress
 		ifFalse: [self error: 'linking callsite to invalid address'].
 	jumpDistance := (jumpTargetAddress - (jumpReturnAddress - 8 "return offset")).
-	self assert: (self isInImmediateJumpRange: jumpDistance). "we don't support long jump updates, yet"
+	self assert: (self isInLongJumpCallRange: jumpDistance).
 
 	instr := self instructionBeforeAddress: jumpReturnAddress.
 	self assert: (self instructionIsJALR: instr).
