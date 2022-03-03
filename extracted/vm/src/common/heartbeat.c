@@ -233,6 +233,8 @@ ioHighResClock(void)
 		https://developer.arm.com/documentation/ddi0460/c/Events-and-Performance-Monitor/Performance-monitoring-registers/c9--Count-Enable-Set-Register
 		https://github.com/google/benchmark/blob/v1.1.0/src/cycleclock.h#L116
 	 */
+#elif defined(__riscv) || defined(__riscv)
+	/* Add performance counter on riscv! */
 #elif defined(_WIN32)
 	value = __rdtsc();
 #else
