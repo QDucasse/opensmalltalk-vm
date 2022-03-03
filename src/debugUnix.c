@@ -220,7 +220,7 @@ void * printRegisterState(ucontext_t *uap, FILE* output)
             regs->__sp,
             regs->__pc,
             (__uint64_t)regs->__cpsr);
-    return (void*)(regs->__pc); 
+    return (void*)(regs->__pc);
 #elif __FreeBSD__ && __i386__
 	struct mcontext *regs = &uap->uc_mcontext;
 	fprintf(output,
@@ -303,7 +303,7 @@ void * printRegisterState(ucontext_t *uap, FILE* output)
             uap->uc_mcontext.sp,
             uap->uc_mcontext.pc,
             uap->uc_mcontext.pstate);
-    return (void*)uap->uc_mcontext.pc; 
+    return (void*)uap->uc_mcontext.pc;
 #else
 	fprintf(output,"don't know how to derive register state from a ucontext_t on this platform\n");
 	return 0;
@@ -386,11 +386,14 @@ void reportStackState(const char *msg, char *date, int printAll, ucontext_t *uap
 			void *fp = (void *)(uap ? uap->uc_mcontext.arm_fp: 0);
 			void *sp = (void *)(uap ? uap->uc_mcontext.arm_sp: 0);
 # elif defined(__aarch64__) && __APPLE__
-			void *fp = (void *)(uap ? uap->uc_mcontext->__ss.__fp: 0); 
+			void *fp = (void *)(uap ? uap->uc_mcontext->__ss.__fp: 0);
 			void *sp = (void *)(uap ? uap->uc_mcontext->__ss.__sp: 0);
 # elif defined(__aarch64__)
 			void *fp = (void *)(uap ? uap->uc_mcontext.regs[29]: 0); // This is the Register that we are using for the FramePointer
 			void *sp = (void *)(uap ? uap->uc_mcontext.sp: 0);
+# elif defined(__riscv)
+			void *fp = (void *)(uap ? uap->uc_mcontext.__gregs[8] : 0); // X8 is the fp
+			void *sp = (void *)(uap ? uap->uc_mcontext.__gregs[2] : 0); // X2 is the sp
 # else
 #	error need to implement extracting pc from a ucontext_t on this system
 # endif
@@ -430,11 +433,11 @@ void reportStackState(const char *msg, char *date, int printAll, ucontext_t *uap
 }
 
 EXPORT(void) printStatusAfterError(){
-	
+
 	ucontext_t uap;
-	
+
 	getcontext(&uap);
-	
+
 	int saved_errno = errno;
 
 	doReport("VM Error", &uap);
