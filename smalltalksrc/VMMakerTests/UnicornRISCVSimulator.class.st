@@ -4,6 +4,66 @@ Class {
 	#category : #'VMMakerTests-Unicorn'
 }
 
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> a0 [
+
+	^ self readRegister: UcRISCVRegisters a0
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> a0: aValue [
+
+	^ self writeRegister: UcRISCVRegisters a0 value: aValue
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> a1 [
+
+	^ self readRegister: UcRISCVRegisters a1
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> a1: aValue [
+
+	^ self writeRegister: UcRISCVRegisters a1 value: aValue
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> a2 [
+
+	^ self readRegister: UcRISCVRegisters a2
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> a2: aValue [
+
+	^ self writeRegister: UcRISCVRegisters a2 value: aValue
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> a3 [
+
+	^ self readRegister: UcRISCVRegisters a3
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> a3: aValue [
+
+	^ self writeRegister: UcRISCVRegisters a3 value: aValue
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> a4 [
+
+	^ self readRegister: UcRISCVRegisters a4
+]
+
+{ #category : #'machine registers' }
+UnicornRISCVSimulator >> a4: aValue [
+
+	^ self writeRegister: UcRISCVRegisters a4 value: aValue
+]
+
 { #category : #registers }
 UnicornRISCVSimulator >> arg0Register [
 
