@@ -508,10 +508,11 @@ VMSimpleStackBasedCogitAbstractTest >> openMachineDebugger [
 
 { #category : #helpers }
 VMSimpleStackBasedCogitAbstractTest >> openMachineDebuggerAt: anAddress [
-	
+
 	^ VMMachineCodeDebugger new
 		cogit: cogit;
-		abstractInstructions: (self abstractInstructions);
+		abstractInstructions: self abstractInstructions;
+		trampolineDictionary: cogit trampolineDictionary;
 		machineSimulator: machineSimulator;
 		initialInstructionToDisassemble: anAddress;
 		openWithSpec.
