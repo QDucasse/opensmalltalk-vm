@@ -1012,7 +1012,7 @@ CogRiscV64Compiler >> bytesToLoadImmediate: anImmediate [
 	"Returns the number of bytes (instructions * 4) needed to generate"
 	<inline:true>
 	self flag: #TODO.
-	^ 4
+	^ 8
 ]
 
 { #category : #abi }
@@ -1464,7 +1464,9 @@ CogRiscV64Compiler >> computeSignedValueOf: aValue ofSize: aSize [
 	"If the number is negative, returns two's complement, otherwise return the value"
 	self flag: #DONE.
 	aValue < 0
-		ifTrue: [ ^ aValue twoComplementOfBitSize: aSize ]  "Compute two's complement" 
+		ifTrue: [ | mask |
+			mask := (1 << aSize) - 1.
+			^ mask - aValue abs + 1 ]  "Compute two's complement" 
 		ifFalse: [ ^ aValue ]
 ]
 
@@ -4965,12 +4967,6 @@ CogRiscV64Compiler >> fullCallsAreRelative [
 	^false
 ]
 
-{ #category : #abi }
-CogRiscV64Compiler >> genCaptureCStackPointers: captureFramePointer [
-
-	super genCaptureCStackPointers: captureFramePointer 
-]
-
 { #category : #'abstract instructions' }
 CogRiscV64Compiler >> genDivR: abstractRegDenominator R: abstractRegNumerator Quo: abstractRegQuotient Rem: abstractRegRemainder [
 
@@ -6262,7 +6258,7 @@ CogRiscV64Compiler >> rewriteCallAt: callSiteReturnAddress target: callTargetAdd
 	"jalr"
 	objectMemory
 		long32At: (self instructionAddressBefore: callSiteReturnAddress)
-		put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
+		put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: LR).
 
 	self assert: (self callTargetFromReturnAddress: callSiteReturnAddress) = callTargetAddress.
 
@@ -6282,8 +6278,7 @@ CogRiscV64Compiler >> rewriteCallFullAt: callSiteReturnAddress target: callTarge
 		self jumpTo: ConcreteIPReg withOffset: 0 andStorePreviousPCPlus4in: LR"
 
 	<inline: true>
-	
-	1halt.
+	self flag: #TODO.
 	^ self
 		rewriteFullTransferAt: callSiteReturnAddress
 		target: callTargetAddress
@@ -6295,25 +6290,7 @@ CogRiscV64Compiler >> rewriteConditionalJumpLongAt: callSiteReturnAddress target
 	"Rewrite a jump instruction to call a different target.  This variant is used to reset the 
 	jumps in the prototype CPIC to suit each use,.   
 	Answer the extent of the code change which is used to compute the range of the icache to flush."
-	<var: #callSiteReturnAddress type: #usqInt>
-	<var: #callTargetAddress type: #usqInt>
-	| callDistance instr |
-	1halt.
-	callTargetAddress >= cogit minCallAddress
-		ifFalse: [self error: 'linking callsite to invalid address'].
-
-	callDistance := (callTargetAddress - (callSiteReturnAddress - 12 "return offset")).
-	self assert: (self isInLongJumpCallRange: callDistance). 
-
-	instr := self instructionBeforeAddress: callSiteReturnAddress.
-	self assert: (self instructionIsConditionalBranch: instr).
-
-	objectMemory
-		long32At: (self instructionAddressBefore: callSiteReturnAddress)
-		put: (self branchCondition: (self extractConditionFromB: instr) offset: callDistance).
-
-	self assert: (self extractOffsetFromConditionalBranch: ((self branchCondition: (self extractConditionFromB: instr) offset: callDistance))) = callDistance.
-	^4
+	self flag: #TODO.
 ]
 
 { #category : #'inline cacheing' }
