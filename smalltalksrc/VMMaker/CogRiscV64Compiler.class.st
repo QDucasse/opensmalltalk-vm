@@ -122,7 +122,20 @@ CogRiscV64Compiler class >> filteredInstVarNames [
 { #category : #translation }
 CogRiscV64Compiler class >> identifyingPredefinedMacros [
 
-	^#('__riscv64__' '_M_RISCV64')
+	"The possible preprocessor definitions are: (extracted from https://github.com/riscv-non-isa/riscv-toolchain-conventions)
+	__riscv: defined for any RISC-V target. Older versions of the GCC toolchain defined __riscv__.
+	__riscv_xlen: 32 for RV32 and 64 for RV64.
+	__riscv_float_abi_soft, __riscv_float_abi_single, __riscv_float_abi_double: one of these three will be defined, depending on target ABI.
+	__riscv_cmodel_medlow, __riscv_cmodel_medany: one of these two will be defined, depending on the target code model.
+	__riscv_mul: defined when targeting the 'M' ISA extension.
+	__riscv_muldiv: defined when targeting the 'M' ISA extension and -mno-div has not been used.
+	__riscv_div: defined when targeting the 'M' ISA extension and -mno-div has not been used.
+	__riscv_atomic: defined when targeting the 'A' ISA extension.
+	__riscv_flen: 32 when targeting the 'F' ISA extension (but not 'D') and 64 when targeting 'FD'.
+	__riscv_fdiv: defined when targeting the 'F' or 'D' ISA extensions and -mno-fdiv has not been used.
+	__riscv_fsqrt: defined when targeting the 'F' or 'D' ISA extensions and -mno-fdiv has not been used.
+	__riscv_compressed: defined when targeting the 'C' ISA extension.	"
+	^#('__riscv__' '__riscv')
 ]
 
 { #category : #'class initialization' }
