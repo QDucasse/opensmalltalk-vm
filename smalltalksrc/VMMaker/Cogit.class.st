@@ -12386,6 +12386,20 @@ Cogit >> trampolineArgValue: n [
 	^-2 - n
 ]
 
+{ #category : #accessing }
+Cogit >> trampolineDictionary [
+	<doNotGenerate>
+	| dict |
+	dict := Dictionary new.
+	0 to: trampolineTableIndex - 1 by: 2 do: [ :i |
+			| address name |
+			address := (trampolineAddresses at: i + 1) asInteger hex.
+			name := self cCoerceSimple: (trampolineAddresses at: i) to: #'char *'.
+			dict at: address put: name.
+		 ].
+	^ dict
+]
+
 { #category : #initialization }
 Cogit >> trampolineName: routinePrefix numArgs: numArgs [
 	<returnTypeC: #'char *'>
