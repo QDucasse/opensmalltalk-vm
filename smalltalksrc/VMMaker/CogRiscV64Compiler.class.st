@@ -2449,6 +2449,42 @@ CogRiscV64Compiler >> concretizeJumpLong [
 ]
 
 { #category : #concretization }
+CogRiscV64Compiler >> concretizeJumpLongGreater [
+
+	"JumpLong works the same way as a Call buts does not store the return address"
+	<inline: true>
+	| offset offsetHigh offsetLow |
+	self flag: #TODO.
+	self assert: (operands at: 0) ~= 0.
+	self assert: (operands at: 0) \\ 4 = 0.
+	"Compute the offset from the address of the first instruction (auipc)"
+	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4.
+	self assert: (self isInLongJumpCallRange: offset).
+	
+	"This mangling avoid having to bias the 11th bit in case of a negative value
+	 it is also used in loadImmediate:inRegister:"
+	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
+	offsetLow := self computeSignedValue64Bits: (offset bitAnd: 16rFFF).
+	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
+	
+	"Jump Greater means jump if ZF = 0 and SF = OF"
+	"Check if SF and OF are different with a XOR (1 if different)"
+	self machineCodeAt: 0 put: (self bitwiseXorBetweenRegister: ConcreteSignReg  
+											  andRegister: ConcreteOverflowReg 
+											  intoRegister: ConcreteIPReg).
+	"Or will set 1 if SF is different from OF or if ZF=1"
+	self machineCodeAt: 4 put: (self bitwiseOrBetweenRegister: ConcreteIPReg 
+											  andRegister: ConcreteZeroReg 
+											  toRegister: ConcreteIPReg).
+	"Branch over the jump if the condition is not met -> Here the condition is greater if ConcreteIPReg = 0 and it should proceed to the big jump"
+	self machineCodeAt: 8 put: (self  branchTo: 12 ifRegisterValueIsNotEqualToZero: ConcreteIPReg "should jump after the jump").
+	"Perform the actual jump"
+	self machineCodeAt: 12 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+	self machineCodeAt: 16 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
+	^ machineCodeSize := 20
+]
+
+{ #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpLongNonZero [
 
 	"JumpLong works the same way as a Call buts does not store the return address"
