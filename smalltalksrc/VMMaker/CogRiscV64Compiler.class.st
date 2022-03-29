@@ -122,7 +122,20 @@ CogRiscV64Compiler class >> filteredInstVarNames [
 { #category : #translation }
 CogRiscV64Compiler class >> identifyingPredefinedMacros [
 
-	^#('__riscv64__' '_M_RISCV64')
+	"The possible preprocessor definitions are: (extracted from https://github.com/riscv-non-isa/riscv-toolchain-conventions)
+	__riscv: defined for any RISC-V target. Older versions of the GCC toolchain defined __riscv__.
+	__riscv_xlen: 32 for RV32 and 64 for RV64.
+	__riscv_float_abi_soft, __riscv_float_abi_single, __riscv_float_abi_double: one of these three will be defined, depending on target ABI.
+	__riscv_cmodel_medlow, __riscv_cmodel_medany: one of these two will be defined, depending on the target code model.
+	__riscv_mul: defined when targeting the 'M' ISA extension.
+	__riscv_muldiv: defined when targeting the 'M' ISA extension and -mno-div has not been used.
+	__riscv_div: defined when targeting the 'M' ISA extension and -mno-div has not been used.
+	__riscv_atomic: defined when targeting the 'A' ISA extension.
+	__riscv_flen: 32 when targeting the 'F' ISA extension (but not 'D') and 64 when targeting 'FD'.
+	__riscv_fdiv: defined when targeting the 'F' or 'D' ISA extensions and -mno-fdiv has not been used.
+	__riscv_fsqrt: defined when targeting the 'F' or 'D' ISA extensions and -mno-fdiv has not been used.
+	__riscv_compressed: defined when targeting the 'C' ISA extension.	"
+	^#('__riscv__' '__riscv')
 ]
 
 { #category : #'class initialization' }
@@ -999,7 +1012,7 @@ CogRiscV64Compiler >> bytesToLoadImmediate: anImmediate [
 	"Returns the number of bytes (instructions * 4) needed to generate"
 	<inline:true>
 	self flag: #TODO.
-	^ 4
+	^ 8
 ]
 
 { #category : #abi }
@@ -1451,7 +1464,9 @@ CogRiscV64Compiler >> computeSignedValueOf: aValue ofSize: aSize [
 	"If the number is negative, returns two's complement, otherwise return the value"
 	self flag: #DONE.
 	aValue < 0
-		ifTrue: [ ^ aValue twoComplementOfBitSize: aSize ]  "Compute two's complement" 
+		ifTrue: [ | mask |
+			mask := (1 << aSize) - 1.
+			^ mask - aValue abs + 1 ]  "Compute two's complement" 
 		ifFalse: [ ^ aValue ]
 ]
 
@@ -2431,6 +2446,42 @@ CogRiscV64Compiler >> concretizeJumpLong [
 	self machineCodeAt: 0 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
 	self machineCodeAt: 4 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
 	^ machineCodeSize := 8
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeJumpLongGreater [
+
+	"JumpLong works the same way as a Call buts does not store the return address"
+	<inline: true>
+	| offset offsetHigh offsetLow |
+	self flag: #TODO.
+	self assert: (operands at: 0) ~= 0.
+	self assert: (operands at: 0) \\ 4 = 0.
+	"Compute the offset from the address of the first instruction (auipc)"
+	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4.
+	self assert: (self isInLongJumpCallRange: offset).
+	
+	"This mangling avoid having to bias the 11th bit in case of a negative value
+	 it is also used in loadImmediate:inRegister:"
+	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
+	offsetLow := self computeSignedValue64Bits: (offset bitAnd: 16rFFF).
+	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
+	
+	"Jump Greater means jump if ZF = 0 and SF = OF"
+	"Check if SF and OF are different with a XOR (1 if different)"
+	self machineCodeAt: 0 put: (self bitwiseXorBetweenRegister: ConcreteSignReg  
+											  andRegister: ConcreteOverflowReg 
+											  intoRegister: ConcreteIPReg).
+	"Or will set 1 if SF is different from OF or if ZF=1"
+	self machineCodeAt: 4 put: (self bitwiseOrBetweenRegister: ConcreteIPReg 
+											  andRegister: ConcreteZeroReg 
+											  toRegister: ConcreteIPReg).
+	"Branch over the jump if the condition is not met -> Here the condition is greater if ConcreteIPReg = 0 and it should proceed to the big jump"
+	self machineCodeAt: 8 put: (self  branchTo: 12 ifRegisterValueIsNotEqualToZero: ConcreteIPReg "should jump after the jump").
+	"Perform the actual jump"
+	self machineCodeAt: 12 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+	self machineCodeAt: 16 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
+	^ machineCodeSize := 20
 ]
 
 { #category : #concretization }
@@ -4952,12 +5003,6 @@ CogRiscV64Compiler >> fullCallsAreRelative [
 	^false
 ]
 
-{ #category : #abi }
-CogRiscV64Compiler >> genCaptureCStackPointers: captureFramePointer [
-
-	super genCaptureCStackPointers: captureFramePointer 
-]
-
 { #category : #'abstract instructions' }
 CogRiscV64Compiler >> genDivR: abstractRegDenominator R: abstractRegNumerator Quo: abstractRegQuotient Rem: abstractRegRemainder [
 
@@ -6249,7 +6294,7 @@ CogRiscV64Compiler >> rewriteCallAt: callSiteReturnAddress target: callTargetAdd
 	"jalr"
 	objectMemory
 		long32At: (self instructionAddressBefore: callSiteReturnAddress)
-		put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
+		put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: LR).
 
 	self assert: (self callTargetFromReturnAddress: callSiteReturnAddress) = callTargetAddress.
 
@@ -6269,8 +6314,7 @@ CogRiscV64Compiler >> rewriteCallFullAt: callSiteReturnAddress target: callTarge
 		self jumpTo: ConcreteIPReg withOffset: 0 andStorePreviousPCPlus4in: LR"
 
 	<inline: true>
-	
-	1halt.
+	self flag: #TODO.
 	^ self
 		rewriteFullTransferAt: callSiteReturnAddress
 		target: callTargetAddress
@@ -6282,25 +6326,7 @@ CogRiscV64Compiler >> rewriteConditionalJumpLongAt: callSiteReturnAddress target
 	"Rewrite a jump instruction to call a different target.  This variant is used to reset the 
 	jumps in the prototype CPIC to suit each use,.   
 	Answer the extent of the code change which is used to compute the range of the icache to flush."
-	<var: #callSiteReturnAddress type: #usqInt>
-	<var: #callTargetAddress type: #usqInt>
-	| callDistance instr |
-	1halt.
-	callTargetAddress >= cogit minCallAddress
-		ifFalse: [self error: 'linking callsite to invalid address'].
-
-	callDistance := (callTargetAddress - (callSiteReturnAddress - 12 "return offset")).
-	self assert: (self isInLongJumpCallRange: callDistance). 
-
-	instr := self instructionBeforeAddress: callSiteReturnAddress.
-	self assert: (self instructionIsConditionalBranch: instr).
-
-	objectMemory
-		long32At: (self instructionAddressBefore: callSiteReturnAddress)
-		put: (self branchCondition: (self extractConditionFromB: instr) offset: callDistance).
-
-	self assert: (self extractOffsetFromConditionalBranch: ((self branchCondition: (self extractConditionFromB: instr) offset: callDistance))) = callDistance.
-	^4
+	self flag: #TODO.
 ]
 
 { #category : #'inline cacheing' }

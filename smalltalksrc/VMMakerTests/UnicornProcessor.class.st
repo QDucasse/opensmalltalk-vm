@@ -7,6 +7,18 @@ Class {
 	#category : #'VMMakerTests-Unicorn'
 }
 
+{ #category : #registers }
+UnicornProcessor >> a3: anInteger [ 
+
+	machineSimulator a3: anInteger 
+]
+
+{ #category : #registers }
+UnicornProcessor >> a4: anInteger [ 
+
+	machineSimulator a4: anInteger 
+]
+
 { #category : #'as yet unclassified' }
 UnicornProcessor >> cResultRegister [
 	

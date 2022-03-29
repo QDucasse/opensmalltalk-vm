@@ -6,6 +6,7 @@ Class {
 		'machineSimulator',
 		'instructions',
 		'irinstructions',
+		'trampolines',
 		'stepButton',
 		'disassembleAtPCButton',
 		'machineState',
@@ -16,7 +17,9 @@ Class {
 		'disassembleAtSPButton',
 		'setSPToButton',
 		'pcInput',
-		'spInput'
+		'spInput',
+		'trampolineDictionary',
+		'trampolineButton'
 	],
 	#category : #'VMMaker-Tools'
 }
@@ -26,12 +29,14 @@ VMMachineCodeDebugger class >> defaultSpec [
 
 	^  SpBoxLayout newVertical 
 		add:(SpBoxLayout newHorizontal
+			add: #trampolines expand: true fill: true padding: 5;
 			add: #irinstructions expand: true fill: true padding: 5;
 			add: #instructions expand: true fill: true padding: 5;		
 			add: #machineState expand: true fill: true padding: 5;	
 			add: #stack expand: true fill: true padding: 5; 
 			yourself) expand: true fill: true padding: 5;
 		add: (SpBoxLayout newHorizontal 
+			add: #trampolineButton expand: true fill: true padding: 5;
 			add: #stepButton expand: true fill: true padding: 5;
 			add: (SpBoxLayout newVertical
 				add: #pcInput;
@@ -87,6 +92,7 @@ VMMachineCodeDebugger >> cogit: anObject [
 { #category : #initialization }
 VMMachineCodeDebugger >> connectButtons [
 
+	trampolineButton action: [ self disassembleTrampoline ].
 	stepButton action: [ self step ].
 	disassembleAtPCButton action: [ self disassembleAtPC ].
 	jumpToButton action: [ self jump ].
@@ -173,9 +179,24 @@ VMMachineCodeDebugger >> connectMachineStatePresenter [
 VMMachineCodeDebugger >> connectPresenters [
 
 	self connectButtons.
+	self connectTrampolinesPresenter.
 	self connectIRInstructionsPresenter.
 	self connectInstructionsPresenter.
-	self connectMachineStatePresenter
+	self connectMachineStatePresenter.
+]
+
+{ #category : #initialization }
+VMMachineCodeDebugger >> connectTrampolinesPresenter [
+
+	| trampolinesContextMenu |
+	trampolinesContextMenu := SpMenuPresenter new.
+	trampolinesContextMenu 
+		"Inspect the Trampoline debugger object"
+		addItem: [ :item | 
+		item
+			name: 'Inspect';
+			action: [ self inspectSelectedTrampoline ] ].
+	irinstructions contextMenu: trampolinesContextMenu 
 ]
 
 { #category : #actions }
@@ -192,7 +213,7 @@ VMMachineCodeDebugger >> disassembleAtSP [
 ]
 
 { #category : #showing }
-VMMachineCodeDebugger >> doInitialDisassemble [
+VMMachineCodeDebugger >> disassembleInstructionsAt: anAddress [
 
 	^ machineSimulator disassembler
 		printImmediatesInHexa;
@@ -201,8 +222,23 @@ VMMachineCodeDebugger >> doInitialDisassemble [
 		instructionsIn: (cogit objectMemory memoryManager
 			copyFrom: self initialInstructionToDisassemble
 			to: self initialInstructionToDisassemble + 1200)
-		startAddress: self initialInstructionToDisassemble
-		pc: machineSimulator instructionPointerRegisterValue
+		startAddress: anAddress
+		pc: machineSimulator smalltalkStackPointerRegisterValue 
+]
+
+{ #category : #showing }
+VMMachineCodeDebugger >> disassembleTrampoline [ 
+
+	| trampolineAddress |
+	trampolineAddress := self selectedTrampoline address asNumber.
+	instructions items: 
+		((self disassembleInstructionsAt: trampolineAddress) collect: [ :anInstruction |
+			VMMachineCodeDebuggerInstruction new
+				instruction: anInstruction;
+				bytes: (anInstruction codeBytes: cogit objectMemory memoryManager);
+				debugger: self;
+				machineSimulator: machineSimulator;
+				yourself ])
 ]
 
 { #category : #actions }
@@ -265,7 +301,7 @@ VMMachineCodeDebugger >> highlightSelectedInstructionRegisters [
 { #category : #showing }
 VMMachineCodeDebugger >> initialDisassembly [
 
-	^ self doInitialDisassemble collect: [ :anInstruction |
+	^ (self disassembleInstructionsAt: self initialInstructionToDisassemble) collect: [ :anInstruction |
 			VMMachineCodeDebuggerInstruction new
 				instruction: anInstruction;
 				bytes: (anInstruction codeBytes: cogit objectMemory memoryManager);
@@ -304,9 +340,22 @@ VMMachineCodeDebugger >> initialInstructionToDisassemble: anInstructionAddress [
 	initialInstructionToDisassemble := anInstructionAddress
 ]
 
+{ #category : #showing }
+VMMachineCodeDebugger >> initialTrampolineDisassembly [ 
+
+	"Add the method zone base to the trampoline"
+	self trampolineDictionary at: cogit methodZoneBase hex put: 'methodZoneBase'.
+	^ (self trampolineDictionary keys sorted) collect: [ :key | VMMachineCodeDebuggerTrampoline 
+				address: key
+				name: (trampolineDictionary at: key)
+				on: machineSimulator ]
+]
+
 { #category : #initialization }
 VMMachineCodeDebugger >> initializeButtons [
 
+	trampolineButton := self newButton.
+	trampolineButton label: 'Disassemble Trampoline'.
 	stepButton := self newButton.
 	stepButton label: 'Step'.
 	disassembleAtPCButton := self newButton.
@@ -315,7 +364,7 @@ VMMachineCodeDebugger >> initializeButtons [
 	jumpToButton := self newButton.
 	jumpToButton label: 'Jump to'.
 	disassembleAtSPButton := self newButton.
-	disassembleAtSPButton label: 'Disassemble at SP'.
+	disassembleAtSPButton label: 'Refresh Stack'.
 	spInput := self newTextInput.
 	setSPToButton := self newButton.
 	setSPToButton label: 'Set SP to'.
@@ -414,6 +463,7 @@ VMMachineCodeDebugger >> initializeMachineStatePresenter [
 { #category : #initialization }
 VMMachineCodeDebugger >> initializePresenters [
 
+	self initializeTrampolinesPresenter.
 	self initializeIRInstructionsPresenter.
 	self initializeInstructionsPresenter.
 	self initializeMachineStatePresenter.
@@ -442,6 +492,28 @@ VMMachineCodeDebugger >> initializeStackPresenter [
 				yourself)
 ]
 
+{ #category : #initialization }
+VMMachineCodeDebugger >> initializeTrampolinesPresenter [
+
+	trampolines := self newTable.
+	trampolines
+		isResizable: true;
+		addColumn:
+			((SpStringTableColumn 
+			title: 'Address' 
+			evaluated: #address)
+				 isSortable: false;
+				 yourself);
+		addColumn: 
+			((SpStringTableColumn 
+			title: 'Name'
+			evaluated: #name)
+				isSortable: false;
+				yourself);
+		showColumnHeaders
+		"whenSelectionChangedDo: [ self highlightSelectedIRInstructionMCInstructions ]"
+]
+
 { #category : #actions }
 VMMachineCodeDebugger >> inspectSelectedIRInstruction [
 
@@ -452,6 +524,12 @@ VMMachineCodeDebugger >> inspectSelectedIRInstruction [
 VMMachineCodeDebugger >> inspectSelectedInstruction [
 
 	instructions selection selectedItem inspect
+]
+
+{ #category : #actions }
+VMMachineCodeDebugger >> inspectSelectedTrampoline [
+
+	trampolines selection selectedItem inspect
 ]
 
 { #category : #accessing }
@@ -492,6 +570,7 @@ VMMachineCodeDebugger >> refreshAll [
 	self refreshInstructions.
 	self refreshStack.
 	self refreshRegisters.
+	"self refreshTrampolines."
 ]
 
 { #category : #showing }
@@ -514,8 +593,21 @@ VMMachineCodeDebugger >> refreshRegisters [
 
 { #category : #showing }
 VMMachineCodeDebugger >> refreshStack [
+	
+	| stackCollection |
+	stackCollection :=
+		(1 to: 30) collect: [ :anIndex |
+		VMMachineCodeDebuggerStackItem 
+			address: self machineSimulator smalltalkStackPointerRegisterValue - 32 + (machineSimulator memory wordSize * (anIndex - 1)) 
+			on: self machineSimulator.
+	].
+	stack items: stackCollection.
+]
 
-	stack items: machineSimulator stackValues
+{ #category : #showing }
+VMMachineCodeDebugger >> refreshTrampolines [
+
+	trampolines items: self initialTrampolineDisassembly
 ]
 
 { #category : #'as yet unclassified' }
@@ -545,6 +637,12 @@ VMMachineCodeDebugger >> selectedInstruction [
 	^ instructions selection selectedItem
 ]
 
+{ #category : #accessing }
+VMMachineCodeDebugger >> selectedTrampoline [
+
+	^ trampolines selection selectedItem
+]
+
 { #category : #actions }
 VMMachineCodeDebugger >> setInstructionPointerToSelectedInstruction [
 
@@ -571,4 +669,24 @@ VMMachineCodeDebugger >> step [
 VMMachineCodeDebugger >> title [ 
 
 	^ 'VM Debugger'
+]
+
+{ #category : #initialization }
+VMMachineCodeDebugger >> trampolineDictionary [ 
+	^ trampolineDictionary
+]
+
+{ #category : #initialization }
+VMMachineCodeDebugger >> trampolineDictionary: aDictionary [ 
+	trampolineDictionary := aDictionary
+]
+
+{ #category : #accessing }
+VMMachineCodeDebugger >> trampolines [ 
+	^ trampolines
+]
+
+{ #category : #accessing }
+VMMachineCodeDebugger >> trampolines: aCollection [
+	trampolines := aCollection
 ]
