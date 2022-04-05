@@ -2818,7 +2818,7 @@ CogRiscV64Compiler >> concretizeMoveAbR [
 	destReg := operands at: 1.
 	(self isAddressRelativeToVarBase: srcAddr) ifTrue: [ "Direct encoding as offset"
 		self machineCodeAt: 0 put: (self
-				 loadByteFromAddressInRegister: ConcreteVarBaseReg
+				 loadUnsignedByteFromAddressInRegister: ConcreteVarBaseReg
 				 withOffset: srcAddr - cogit varBaseAddress
 				 toRegister: destReg).
 		^ machineCodeSize := 4 ].
@@ -2827,7 +2827,7 @@ CogRiscV64Compiler >> concretizeMoveAbR [
 	instrOffset := self loadLiteralInRegister: ConcreteIPReg.
 
 	self machineCodeAt: instrOffset put: (self
-			 loadByteFromAddressInRegister: ConcreteIPReg
+			 loadUnsignedByteFromAddressInRegister: ConcreteIPReg
 			 withOffset: 0
 			 toRegister: destReg).
 	^ machineCodeSize := instrOffset + 4
@@ -5995,16 +5995,6 @@ CogRiscV64Compiler >> machineCodeWords [
 			cmp R?, R3"
 	self flag: #TODO.
 	^ 15
-]
-
-{ #category : #concretization }
-CogRiscV64Compiler >> moveCw: constant intoR: destReg [
-
-	"Emit a load of a word into the destination register. 
-	 Answers the number of bytes of machine code generated"
-	<var: 'constant' type: #usqInt>
-	<inline: true>
-	^ self subclassResponsibility 
 ]
 
 { #category : #'machine code instruction' }
