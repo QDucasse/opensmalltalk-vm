@@ -4529,7 +4529,7 @@ CogRiscV64Compiler >> divideRegisterValueUnsigned: srcReg1 byRegisterValueUnsign
 
 ]
 
-{ #category : #'instruction detection' }
+{ #category : #'instruction extraction' }
 CogRiscV64Compiler >> extractConditionFromZeroConditionalBranch: instruction [ 
 
 	self flag: #TODO.
@@ -4543,7 +4543,7 @@ CogRiscV64Compiler >> extractOffsetFromAUIPC: instruction [
 	^ self signExtendValue: ((instruction >> 12) bitAnd: 16rFFFFF) << 12 forSize: 32
 ]
 
-{ #category : #'calculating offsets' }
+{ #category : #'instruction extraction' }
 CogRiscV64Compiler >> extractOffsetFromCall: callAddress [ 
 
 	| instAUIPC offsetAUIPC instJALR offsetJALR |
@@ -4597,7 +4597,7 @@ CogRiscV64Compiler >> extractOffsetFromJALR: instruction [
 	^ self signExtendValue: ((instruction >> 20) bitAnd: 16rFFF) forSize: 12
 ]
 
-{ #category : #'calculating offsets' }
+{ #category : #'instruction extraction' }
 CogRiscV64Compiler >> extractOffsetFromLongJump: jumpAddress [ 
 
 	| instLUI offsetLUI instADDIW offsetADDIW |
@@ -5240,7 +5240,7 @@ CogRiscV64Compiler >> genSubstituteReturnAddress: retpc [
 	^cogit MoveCw: retpc R: LR
 ]
 
-{ #category : #disassembly }
+{ #category : #printing }
 CogRiscV64Compiler >> generalPurposeRegisterMap [
 	<doNotGenerate>
 	"Answer a Dictionary from register getter to register index."
@@ -5382,7 +5382,7 @@ CogRiscV64Compiler >> instructionIsJALR: instruction [
 
 ]
 
-{ #category : #'instruction decoding' }
+{ #category : #'instruction detection' }
 CogRiscV64Compiler >> instructionIsLD: instruction [ 
 
 	self flag: #TODO.
@@ -5411,7 +5411,7 @@ CogRiscV64Compiler >> instructionIsSD: instruction [
 	^ ((instruction >> 12 bitAnd: 16r7) = 2r011) and: [(instruction bitAnd: 16r7F) = 2r0100011].
 ]
 
-{ #category : #disassembly }
+{ #category : #testing }
 CogRiscV64Compiler >> instructionSizeAt: pc [
 	"Answer the instruction size at pc"
 	self flag: #DONE.
@@ -5524,7 +5524,7 @@ CogRiscV64Compiler >> jumpLongTargetBeforeFollowingAddress: mcpc [
 	^self callTargetFromReturnAddress: mcpc
 ]
 
-{ #category : #disassembly }
+{ #category : #'instruction extraction' }
 CogRiscV64Compiler >> jumpTargetPCAt: pc [
 	<returnTypeC: #usqInt>
 	| operand word |
@@ -6984,7 +6984,7 @@ CogRiscV64Compiler >> value: value isContainedIn: size [
 		ifFalse: [ ^ (twosComplement >= 0 and: [twosComplement <= mask]) ]	
 ]
 
-{ #category : #instruction }
+{ #category : #'machine code instruction' }
 CogRiscV64Compiler >> zeroConditionalBranch: condition withOffset: offset [ 
 
 	"Return a bnez or beqz comparing with the zero flag register"

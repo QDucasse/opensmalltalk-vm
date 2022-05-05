@@ -17,7 +17,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> cmpC32RTempByteSize [
 	^ 40
 ]
 
-{ #category : #'generate machine code - concretize' }
+{ #category : #concretization }
 CogOutOfLineLiteralsRiscV64Compiler >> concretizeLiteral [
 	"Generate an out-of-line literal.  Copy the value and any annotation from the stand-in in the literals manager."
 	| twoComplement literal literalAsInstruction |
@@ -45,7 +45,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> concretizeLiteral [
 	machineCodeSize := 8
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #concretization }
 CogOutOfLineLiteralsRiscV64Compiler >> concretizeMovePatcheableC32R [
 	
 	| literalAddress distance |
@@ -98,7 +98,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> isPCDependent [
 	  or: [opcode ~= Literal and: [dependent notNil and: [dependent opcode = Literal]]]]
 ]
 
-{ #category : #'generate machine code - support' }
+{ #category : #'concretization helpers' }
 CogOutOfLineLiteralsRiscV64Compiler >> isSharable [
 	"Hack:  To know if a literal should be unique (not shared) mark the second operand."
 	<inline: true>
@@ -126,7 +126,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> literalBeforeFollowingAddress: followingA
 			ifFalse: [ self instructionAddressBefore: followingAddress + 4 - self cmpC32RTempByteSize ])) "need to go in the load at the beginning of the cmp"
 ]
 
-{ #category : #'generate machine code - support' }
+{ #category : #'concretization helpers' }
 CogOutOfLineLiteralsRiscV64Compiler >> literalOpcodeIndex [
 	"Hack:  To know how far away a literal is from its referencing instruction we store
 	 its opcodeIndex, or -1, if as yet unassigned, in the second operand of the literal."
@@ -142,7 +142,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> loadLiteralByteSize [
 	^8
 ]
 
-{ #category : #'generate machine code - support' }
+{ #category : #'concretization helpers' }
 CogOutOfLineLiteralsRiscV64Compiler >> mapEntryAddress [
 	"Typically map entries apply to the end of an instruction, for two reasons:
 	  a)	to cope with literals embedded in variable-length instructions, since, e.g.
@@ -265,7 +265,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> rewriteInlineCacheTag: cacheTag at: callS
 	objectMemory longAt: (self pcRelativeAddressAt: callSiteReturnAddress - 8) put: cacheTag
 ]
 
-{ #category : #'generate machine code - support' }
+{ #category : #'concretization helpers' }
 CogOutOfLineLiteralsRiscV64Compiler >> setLiteralOpcodeIndex: index [
 	"Hack:  To know how far away a literal is from its referencing instruction we store
 	 its opcodeIndex, or -1, if as yet unassigned, in the second operand of the literal."
@@ -274,7 +274,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> setLiteralOpcodeIndex: index [
 	operands at: 2 put: index
 ]
 
-{ #category : #'generate machine code - support' }
+{ #category : #'concretization helpers' }
 CogOutOfLineLiteralsRiscV64Compiler >> sizePCDependentInstructionAt: eventualAbsoluteAddress [
 	"Size a jump and set its address.  The target may be another instruction
 	 or an absolute address.  On entry the address inst var holds our virtual
@@ -338,7 +338,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> storeLiteral: literal beforeFollowingAddr
 		put: literal
 ]
 
-{ #category : #'generate machine code - support' }
+{ #category : #'concretization helpers' }
 CogOutOfLineLiteralsRiscV64Compiler >> updateLabel: labelInstruction [
 	opcode ~= Literal ifTrue:
 		[super updateLabel: labelInstruction]
