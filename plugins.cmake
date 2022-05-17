@@ -107,6 +107,13 @@ add_vm_plugin(SurfacePlugin
 	${PHARO_CURRENT_GENERATED}/plugins/src/SurfacePlugin/SurfacePlugin.c)
 
 #
+# FloatArray Plugin
+#
+
+add_vm_plugin(FloatArrayPlugin 
+	${PHARO_CURRENT_GENERATED}/plugins/src/FloatArrayPlugin/FloatArrayPlugin.c)
+
+#
 # LargeIntegers Plugin
 #
 

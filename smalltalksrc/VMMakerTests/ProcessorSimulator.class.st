@@ -284,12 +284,15 @@ ProcessorSimulator >> doublePrecisionFloatingPointRegister0 [
 ]
 
 { #category : #registers }
+<<<<<<< HEAD
 ProcessorSimulator >> doublePrecisionFloatingPointRegister0: aValue [
 
 	^ self writeFloat64Register: self doublePrecisionFloatingPointRegister0 value: aValue
 ]
 
 { #category : #registers }
+=======
+>>>>>>> pharo-9
 ProcessorSimulator >> doublePrecisionFloatingPointRegister0Value [
 
 	^ self readFloat64Register: self doublePrecisionFloatingPointRegister0
@@ -308,12 +311,15 @@ ProcessorSimulator >> doublePrecisionFloatingPointRegister1 [
 ]
 
 { #category : #registers }
+<<<<<<< HEAD
 ProcessorSimulator >> doublePrecisionFloatingPointRegister1: aValue [
 
 	^ self writeFloat64Register: self doublePrecisionFloatingPointRegister1 value: aValue
 ]
 
 { #category : #registers }
+=======
+>>>>>>> pharo-9
 ProcessorSimulator >> doublePrecisionFloatingPointRegister1Value [
 
 	^ self readFloat64Register: self doublePrecisionFloatingPointRegister1
@@ -332,12 +338,15 @@ ProcessorSimulator >> doublePrecisionFloatingPointRegister2 [
 ]
 
 { #category : #registers }
+<<<<<<< HEAD
 ProcessorSimulator >> doublePrecisionFloatingPointRegister2: aValue [
 
 	^ self writeFloat64Register: self doublePrecisionFloatingPointRegister2 value: aValue
 ]
 
 { #category : #registers }
+=======
+>>>>>>> pharo-9
 ProcessorSimulator >> doublePrecisionFloatingPointRegister2Value [
 
 	^ self readFloat64Register: self doublePrecisionFloatingPointRegister2
@@ -361,12 +370,15 @@ ProcessorSimulator >> finishMappingMemory [
 	self subclassResponsibility
 ]
 
+<<<<<<< HEAD
 { #category : #registers }
 ProcessorSimulator >> flushICacheFrom: startAddress to: endAddress [
 
 	simulator removeInstructionCacheFrom: startAddress to: endAddress
 ]
 
+=======
+>>>>>>> pharo-9
 { #category : #shortcut }
 ProcessorSimulator >> fp [
 
@@ -398,11 +410,11 @@ ProcessorSimulator >> framePointerRegisterValue: aValue [
 ]
 
 { #category : #accessing }
-ProcessorSimulator >> getLastAddress: abstractInstructions [ 
-	
+ProcessorSimulator >> getLastAddress: abstractInstructions [
+
 	| last |
 	last := (abstractInstructions reject: [ :e | e isLiteral ]) last.
-	^ last address + last machineCodeSize 
+	^ last address + last machineCodeSize
 ]
 
 { #category : #testing }
@@ -412,7 +424,7 @@ ProcessorSimulator >> hasLinkRegister [
 ]
 
 { #category : #initialization }
-ProcessorSimulator >> initialize [ 
+ProcessorSimulator >> initialize [
 
 	super initialize.
 	registerAliases := Dictionary new.
@@ -520,6 +532,10 @@ ProcessorSimulator >> mapMemoryInManager: aSlangMemoryManager [
 	aSlangMemoryManager regionsDo: [ :startAddress :region |
 		self mapMemory: region at: startAddress
 	].
+<<<<<<< HEAD
+=======
+	aSlangMemoryManager machineSimulator: self.
+>>>>>>> pharo-9
 	self finishMappingMemory.
 ]
 
@@ -677,12 +693,15 @@ ProcessorSimulator >> register: anIndex readInto: aByteArray [
 ]
 
 { #category : #registers }
+<<<<<<< HEAD
 ProcessorSimulator >> register: aRegisterIndex write: aByteArray [
 
 	simulator register: aRegisterIndex write: aByteArray
 ]
 
 { #category : #registers }
+=======
+>>>>>>> pharo-9
 ProcessorSimulator >> registerAliases [
 
 	^ registerAliases
@@ -707,6 +726,7 @@ ProcessorSimulator >> registerList [
 ]
 
 { #category : #registers }
+<<<<<<< HEAD
 ProcessorSimulator >> returnRegisterValue [
 
 	^ self receiverRegisterValue
@@ -719,17 +739,22 @@ ProcessorSimulator >> returnRegisterValue: aValue [
 ]
 
 { #category : #registers }
+=======
+>>>>>>> pharo-9
 ProcessorSimulator >> sendNumberOfArgumentsRegister [
 
 	self shouldBeImplemented.
 ]
 
 { #category : #registers }
+<<<<<<< HEAD
 ProcessorSimulator >> sendNumberOfArgumentsRegister: anInteger [
 	self shouldBeImplemented.
 ]
 
 { #category : #registers }
+=======
+>>>>>>> pharo-9
 ProcessorSimulator >> sendNumberOfArgumentsRegisterValue [
 
 	^ self readRegister: self sendNumberOfArgumentsRegister

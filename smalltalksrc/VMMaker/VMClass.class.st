@@ -172,6 +172,8 @@ VMClass class >> initializeMiscConstants [
 	PharoVM := InitializationOptions at: #PharoVM ifAbsentPut: [false].
 	FEATURE_FFI := InitializationOptions at: #FEATURE_FFI ifAbsentPut: [false].
 	FEATURE_THREADED_FFI := InitializationOptions at: #FEATURE_THREADED_FFI ifAbsentPut: [false].
+	FEATURE_MESSAGE_COUNT := InitializationOptions at: #FEATURE_MESSAGE_COUNT ifAbsentPut: [false].	
+
 	SistaVM := InitializationOptions at: #SistaVM ifAbsentPut: [false].
 	TempVectReadBarrier := InitializationOptions at: #TempVectReadBarrier ifAbsentPut: [false].
 	MULTIPLEBYTECODESETS := InitializationOptions at: #MULTIPLEBYTECODESETS ifAbsentPut: [false].
@@ -721,7 +723,49 @@ VMClass >> localNameFor: aString [
 VMClass >> logError: aMessage [
 	
 	<doNotGenerate>
-	Warning signal: aMessage
+	self logError: aMessage withArgs: #()
+]
+
+{ #category : #'debug support' }
+VMClass >> logError: aFormat _: arg1 [
+	
+	<doNotGenerate>
+	self logError: aFormat withArgs: { arg1 }
+]
+
+{ #category : #'debug support' }
+VMClass >> logError: aFormat _: arg1 _: arg2 [
+	
+	<doNotGenerate>
+	self logError: aFormat withArgs: { arg1. arg2 }
+]
+
+{ #category : #'debug support' }
+VMClass >> logError: aFormat withArgs: args [
+	
+	<doNotGenerate>
+	Error signal: (aFormat printf: args)
+]
+
+{ #category : #'debug support' }
+VMClass >> logWarn: aMessage [
+	
+	<doNotGenerate>
+	self logWarn: aMessage withArgs: #()
+]
+
+{ #category : #'debug support' }
+VMClass >> logWarn: aMessage _: anArgument [
+	
+	<doNotGenerate>
+	self logWarn: aMessage withArgs: { anArgument }
+]
+
+{ #category : #'debug support' }
+VMClass >> logWarn: aFormat withArgs: args [
+	
+	<doNotGenerate>
+	(aFormat printf: args) traceCr
 ]
 
 { #category : #'memory access' }

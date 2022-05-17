@@ -876,6 +876,7 @@ Cogit class >> initializeAnnotationConstants [
 	IsSendCall := 7.
 	"These are formed by combining IsSendCall and IsAnnotationExtension annotations."
 	IsSuperSend := 8.
+
 	IsDirectedSuperSend := BytecodeSetHasDirectedSuperSend ifTrue: [9].
 	IsDirectedSuperBindingSend := BytecodeSetHasDirectedSuperSend ifTrue: [10].
 
@@ -1027,8 +1028,8 @@ Cogit class >> initializeWithOptions: optionsDictionary [
 	self initializeMiscConstants. "must precede other initialization."
 	self initializeErrorCodes.
 	self initializeCogMethodConstants.
-	self initializeAnnotationConstants.
 	self initializeBytecodeTable.
+	self initializeAnnotationConstants.
 	self initializeNumTrampolines.
 	self initializePrimitiveTable
 ]
@@ -7216,6 +7217,7 @@ Cogit >> genEnilopmartFor: regArg1 and: regArg2OrNone and: regArg3OrNone forCall
 
 	| size endAddress enilopmart |
 	self zeroOpcodeIndex.
+
 	backEnd hasVarBaseRegister ifTrue:
 		[self MoveCq: self varBaseAddress R: VarBaseReg]. "Must happen first; value may be used in genLoadStackPointers"
 	backEnd genLoadStackPointers.
@@ -11922,12 +11924,11 @@ Cogit >> simulateCallOf: address nextpc: nextpc memory: aMemory [
 { #category : #'simulation only' }
 Cogit >> simulateCogCodeAt: address [ "<Integer>"
 	<doNotGenerate>
-	| stackZoneBase |
-	stackZoneBase := coInterpreter stackZoneBase.
+
 	processor pc: address.
 	[[[singleStep
 		ifTrue:
-			[[processor sp < stackZoneBase ifTrue: [self halt].
+			[[
 			  self recordProcessing.
 			  self maybeBreakAt: processor pc] value. "So that the Debugger's Over steps over all this"
 			  processor

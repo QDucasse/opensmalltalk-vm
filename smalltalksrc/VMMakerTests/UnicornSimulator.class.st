@@ -77,12 +77,6 @@ UnicornSimulator >> finishMappingMemory [
 	"Do nothing in the case of Unicorn, is useful if the simulator used has to map memory by hand"
 ]
 
-{ #category : #initialization }
-UnicornSimulator >> getReturnAddress [ 
-
- self subclassResponsibility 
-]
-
 { #category : #'handling invalid accesses' }
 UnicornSimulator >> handleInvalidAccess: invalidAccess [
 
@@ -137,12 +131,15 @@ UnicornSimulator >> invalidAccessHandler: aFullBlockClosure [
 	invalidAccessHandler := aFullBlockClosure
 ]
 
+<<<<<<< HEAD
 { #category : #initialization }
 UnicornSimulator >> postCallArgumentsNumArgs: numArgs "<Integer>" in: aMemory [ "<ByteArray|Bitmap>"
 
-	self subclassResponsibility 
+	self subclassResponsibility
 ]
 
+=======
+>>>>>>> pharo-9
 { #category : #initialization }
 UnicornSimulator >> registerHook: aBlock atAddress: anAddress [
 
@@ -151,31 +148,34 @@ UnicornSimulator >> registerHook: aBlock atAddress: anAddress [
 		doing: [ :type :address :size :value | address = anAddress ifTrue: aBlock ]
 ]
 
+<<<<<<< HEAD
 { #category : #executing }
-UnicornSimulator >> retpcIn: aMemory [ 
+UnicornSimulator >> retpcIn: aMemory [
 
-	self subclassResponsibility 
+	self subclassResponsibility
 
 ]
 
 { #category : #initialization }
 UnicornSimulator >> simulateJumpCallOf: anInteger memory: aSpurSimulatedMemory [
 
-	^ self subclassResponsibility 
+	^ self subclassResponsibility
 ]
 
 { #category : #initialization }
 UnicornSimulator >> simulateReturnIn: aMemory [
 
-	self subclassResponsibility 
+	self subclassResponsibility
 ]
 
 { #category : #initialization }
-UnicornSimulator >> smashCallerSavedRegistersWithValuesFrom: base by: step in: aMemory [ 
+UnicornSimulator >> smashCallerSavedRegistersWithValuesFrom: base by: step in: aMemory [
 
-	self subclassResponsibility 
+	self subclassResponsibility
 ]
 
+=======
+>>>>>>> pharo-9
 { #category : #executing }
 UnicornSimulator >> startAt: begin until: until timeout: timeout count: count [
 
