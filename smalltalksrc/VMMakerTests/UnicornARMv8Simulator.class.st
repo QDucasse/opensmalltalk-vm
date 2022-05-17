@@ -30,7 +30,7 @@ UnicornARMv8Simulator >> cResultRegister [
 
 { #category : #registers }
 UnicornARMv8Simulator >> carg0Register [
-	
+
 	^ UcARM64Registers x0
 ]
 
@@ -249,14 +249,8 @@ UnicornARMv8Simulator >> simulateJumpCallOf: address memory: aMemory [
 	self assert: self sp \\ 8 = 0. "This check ensures, that we conform with ARM abi. Before doing anything to the stack, we ensure 2-word alignment."
 	self pushWord: self lr.
 	self pushWord: self fp.
-<<<<<<< HEAD
-	self fp: self sp.
-	self pc: address
-=======
 	self framePointerRegisterValue: self stackPointerRegisterValue.
-
 	self instructionPointerRegisterValue: address
->>>>>>> pharo-9
 ]
 
 { #category : #'as yet unclassified' }
@@ -269,16 +263,9 @@ UnicornARMv8Simulator >> simulateLeafCallOf: address nextpc: nextpc memory: aMem
 { #category : #'as yet unclassified' }
 UnicornARMv8Simulator >> simulateReturnIn: aSpurSimulatedMemory [
 
-<<<<<<< HEAD
-	self fp: self popWord.
-	self lr: self popWord.
-	self pc: self lr
-=======
 	self framePointerRegisterValue: self popWord.
 	self linkRegisterValue: self popWord.
-
 	self instructionPointerRegisterValue: self linkRegisterValue
->>>>>>> pharo-9
 
 ]
 
@@ -298,11 +285,7 @@ UnicornARMv8Simulator >> smashCallerSavedRegistersWithValuesFrom: base by: step 
 UnicornARMv8Simulator >> smashRegisterAccessors [
 
 	"Caller saved registers to smash"
-<<<<<<< HEAD
-	^#( x0: x1: x2: x3: x4: x5: x6: x7: x8: x9: x10: x11: x12: lr:)
-=======
 	^#( x0: x1: x2: x3: x4: x5: x6: x7: x8: x9: x10: x11: x12: )
->>>>>>> pharo-9
 ]
 
 { #category : #registers }

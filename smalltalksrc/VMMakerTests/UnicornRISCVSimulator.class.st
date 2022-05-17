@@ -465,20 +465,11 @@ UnicornRISCVSimulator >> initializeRegisterSmalltalkAliases [
 		at: #x6  put: #ip2;
 		at: #x7  put: #ip3;
 		at: #x8  put: #fp;
-<<<<<<< HEAD
 		at: #x10 put: #carg0;
 		at: #x11 put: #carg1;
 		at: #x12 put: #carg2;
 		at: #x13 put: #'carg3/arg0';
 		at: #x14 put: #arg1;
-=======
-		at: #x10 put: #arg0;
-		at: #x11 put: #arg1;
-		at: #x12 put: #carg0;
-		at: #x13 put: #carg1;
-		at: #x14 put: #carg2;
-		at: #x15 put: #carg3;
->>>>>>> pharo-9
 		at: #x18 put: #extra0;
 		at: #x19 put: #extra1;
 		at: #x20 put: #extra2;
@@ -523,7 +514,6 @@ UnicornRISCVSimulator >> mstatusRegisterValue: aValue [
 	^ self writeRegister: self mstatus value: aValue
 ]
 
-<<<<<<< HEAD
 { #category : #initialization }
 UnicornRISCVSimulator >> postCallArgumentsNumArgs: numArgs "<Integer>" in: aMemory [ "<ByteArray|Bitmap>"
 	"Answer an argument vector of the requested size after a vanilla ABI call."
@@ -549,8 +539,6 @@ UnicornRISCVSimulator >> ra: aValue [
 	^ self writeRegister: UcRISCVRegisters x1 value: aValue
 ]
 
-=======
->>>>>>> pharo-9
 { #category : #registers }
 UnicornRISCVSimulator >> receiverRegister [
 
@@ -567,7 +555,6 @@ UnicornRISCVSimulator >> registerList [
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> registerStateGetters [
 
 	self flag: #TODO.
@@ -583,8 +570,6 @@ UnicornRISCVSimulator >> retpcIn: aMemory [
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> s0 [
 
 	^ self readRegister: UcRISCVRegisters s0
@@ -597,7 +582,6 @@ UnicornRISCVSimulator >> s0: aValue [
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> s1 [
 
 	^ self readRegister: UcRISCVRegisters s1
@@ -610,8 +594,6 @@ UnicornRISCVSimulator >> s1: aValue [
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> s2 [
 
 	^ self readRegister: UcRISCVRegisters s2
@@ -624,7 +606,6 @@ UnicornRISCVSimulator >> s2: aValue [
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> s6 [
 
 	^ self readRegister: UcRISCVRegisters s6
@@ -637,8 +618,6 @@ UnicornRISCVSimulator >> s6: aValue [
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> s7 [
 
 	^ self readRegister: UcRISCVRegisters s7
@@ -680,7 +659,6 @@ UnicornRISCVSimulator >> sendNumberOfArgumentsRegister [
 	^ UcRISCVRegisters x25
 ]
 
-<<<<<<< HEAD
 { #category : #initialization }
 UnicornRISCVSimulator >> simulateJumpCallOf: address memory: aMemory [
 	"Simulate a frame-building jump of address.
@@ -721,24 +699,13 @@ UnicornRISCVSimulator >> simulateReturnIn: aMemory [
 UnicornRISCVSimulator >> smashCallerSavedRegistersWithValuesFrom: base by: step in: aMemory [
 
 	self smashRegistersWithValuesFrom: base by: step
-=======
-{ #category : #'as yet unclassified' }
-UnicornRISCVSimulator >> simulateLeafCallOf: destinationAddress nextpc: returnAddress memory: anUndefinedObject [
-
-	self linkRegisterValue: returnAddress.
-	self instructionPointerRegisterValue: destinationAddress
->>>>>>> pharo-9
 ]
 
 { #category : #registers }
 UnicornRISCVSimulator >> smashRegisterAccessors [
 
 	"Caller saved registers to smash"
-<<<<<<< HEAD
 	^#(x1: x5: x6: x7: x10: x11: x12: x13: x14: x15: x16: x17: x28: x29: x30: x31:)
-=======
-	^#( x1: x5: x6: x7: x10: x11: x12: x13: x14: x15: x16: x17: x28: x29: x30: x31:)
->>>>>>> pharo-9
 ]
 
 { #category : #registers }
@@ -862,150 +829,120 @@ UnicornRISCVSimulator >> x10 [
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x10: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x10 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x11 [
 
 	^ self readRegister: UcRISCVRegisters x11
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x11: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x11 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x12 [
 
 	^ self readRegister: UcRISCVRegisters x12
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x12: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x12 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x13 [
 
 	^ self readRegister: UcRISCVRegisters x13
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x13: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x13 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x14 [
 
 	^ self readRegister: UcRISCVRegisters x14
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x14: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x14 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x15 [
 
 	^ self readRegister: UcRISCVRegisters x15
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x15: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x15 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x16 [
 
 	^ self readRegister: UcRISCVRegisters x16
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x16: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x16 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x17 [
 
 	^ self readRegister: UcRISCVRegisters x17
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x17: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x17 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x18 [
 
 	^ self readRegister: UcRISCVRegisters x18
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x18: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x18 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x19 [
 
 	^ self readRegister: UcRISCVRegisters x19
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x1: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x1 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x2 [
 
 	^ self readRegister: UcRISCVRegisters x2
@@ -1066,30 +1003,24 @@ UnicornRISCVSimulator >> x28 [
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x28: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x28 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x29 [
 
 	^ self readRegister: UcRISCVRegisters x29
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x29: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x29 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x3 [
 
 	^ self readRegister: UcRISCVRegisters x3
@@ -1102,30 +1033,24 @@ UnicornRISCVSimulator >> x30 [
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x30: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x30 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x31 [
 
 	^ self readRegister: UcRISCVRegisters x31
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x31: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x31 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x4 [
 
 	^ self readRegister: UcRISCVRegisters x4
@@ -1138,45 +1063,36 @@ UnicornRISCVSimulator >> x5 [
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x5: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x5 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x6 [
 
 	^ self readRegister: UcRISCVRegisters x6
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x6: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x6 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x7 [
 
 	^ self readRegister: UcRISCVRegisters x7
 ]
 
 { #category : #'machine registers' }
-<<<<<<< HEAD
 UnicornRISCVSimulator >> x7: aValue [
 
 	^ self writeRegister: UcRISCVRegisters x7 value: aValue
 ]
 
 { #category : #'machine registers' }
-=======
->>>>>>> pharo-9
 UnicornRISCVSimulator >> x8 [
 
 	^ self readRegister: UcRISCVRegisters x8

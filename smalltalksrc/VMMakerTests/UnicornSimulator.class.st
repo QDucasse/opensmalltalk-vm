@@ -131,15 +131,12 @@ UnicornSimulator >> invalidAccessHandler: aFullBlockClosure [
 	invalidAccessHandler := aFullBlockClosure
 ]
 
-<<<<<<< HEAD
 { #category : #initialization }
 UnicornSimulator >> postCallArgumentsNumArgs: numArgs "<Integer>" in: aMemory [ "<ByteArray|Bitmap>"
 
 	self subclassResponsibility
 ]
 
-=======
->>>>>>> pharo-9
 { #category : #initialization }
 UnicornSimulator >> registerHook: aBlock atAddress: anAddress [
 
@@ -148,7 +145,6 @@ UnicornSimulator >> registerHook: aBlock atAddress: anAddress [
 		doing: [ :type :address :size :value | address = anAddress ifTrue: aBlock ]
 ]
 
-<<<<<<< HEAD
 { #category : #executing }
 UnicornSimulator >> retpcIn: aMemory [
 
@@ -174,8 +170,6 @@ UnicornSimulator >> smashCallerSavedRegistersWithValuesFrom: base by: step in: a
 	self subclassResponsibility
 ]
 
-=======
->>>>>>> pharo-9
 { #category : #executing }
 UnicornSimulator >> startAt: begin until: until timeout: timeout count: count [
 
