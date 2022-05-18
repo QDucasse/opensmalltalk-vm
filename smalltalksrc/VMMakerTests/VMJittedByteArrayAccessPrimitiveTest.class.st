@@ -12,8 +12,9 @@ Class {
 VMJittedByteArrayAccessPrimitiveTest class >> testParameters [
 
 	^ ParametrizedTestMatrix new
+		addCase: { #ISA -> #'riscv64' . #wordSize -> 8 };
 		addCase: { #ISA -> #'aarch64'. #wordSize -> 8};
-		addCase: { #ISA -> #'X64'. #wordSize -> 8};
+		"addCase: { #ISA -> #'X64'. #wordSize -> 8};"
 		yourself
 ]
 

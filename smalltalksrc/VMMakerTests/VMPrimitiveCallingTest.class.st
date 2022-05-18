@@ -20,8 +20,8 @@ VMPrimitiveCallingTest >> initStack [
 	machineSimulator framePointerRegisterValue: interpreter framePointer.
 	machineSimulator baseRegisterValue: cogit varBaseAddress.
 	
-	cogit setCStackPointer: interpreter rumpCStackAddress.
-	cogit setCFramePointer: interpreter rumpCStackAddress.
+	"cogit setCStackPointer: interpreter rumpCStackAddress.
+	cogit setCFramePointer: interpreter rumpCStackAddress."
 
 ]
 
@@ -59,7 +59,6 @@ VMPrimitiveCallingTest >> testCallingNamedPrimitiveTakingTracesWithInvalidNumber
 	callingMethod := self jitMethod: (self findMethod: #methodThatCallNamedPrimitive:).
 
 	self initStack.	
-
 	self 
 		callCogMethod: callingMethod 
 		receiver: memory nilObject 
@@ -513,7 +512,6 @@ VMPrimitiveCallingTest >> testPrimitiveCallSetsNewMethod [
 	callingMethod := self jitMethod: (self findMethod: #methodThatCallPrimitive1:).
 
 	self initStack.	
-
 	self 
 		callCogMethod: callingMethod 
 		receiver: memory nilObject 

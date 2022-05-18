@@ -80,7 +80,8 @@ VMJittedGeneralPrimitiveTest >> testCompareSmallIntegerEqualsToBoxedFloat [
 		cogit receiverTags: memory smallIntegerTag.
 		jump := cogit objectRepresentation genPrimitiveEqual.
 	].
-
+	"self openMachineDebugger.
+	1halt."
 	self 
 		executePrimitiveWithReceiver: (self memory integerObjectOf: 42)
 		withArgument: (self memory boxedFloatObjectOf: 42.0).
@@ -459,7 +460,7 @@ VMJittedGeneralPrimitiveTest >> testMoveFloatToFloatPointRegister [
 
 	self deny: (memory isSmallFloatValue: Float fmax).
 	machineSimulator receiverRegisterValue: (memory floatObjectOf: Float fmax).
-
+	
 	self runGeneratedCode.
 	
 	self assert: machineSimulator doublePrecisionFloatingPointRegister0Value equals: Float fmax.

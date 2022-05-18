@@ -10,7 +10,7 @@ VMSimpleStackBasedCogitMonomorphicPICTest >> testCalculateClosePICSize [
 	"Calculate the size of the Closed Pic"
 	self setUpCogMethodEntry.
 	cogit generateClosedPICPrototype.
-	
+
 	self assert: cogit closedPICSize isNotNil
 ]
 
@@ -37,7 +37,7 @@ VMSimpleStackBasedCogitMonomorphicPICTest >> testLinkCallDuringSendInTrampolineR
 		                 literals: { selector };
 		                 buildMethod.
 	cogit methodObj: sendingMethod.
-	sendAddress := self compile: [ 
+	sendAddress := self compile: [
 		               cogit genSendLiteralSelector0ArgsBytecode ].
 
 	"Push receiver then send"
@@ -84,7 +84,7 @@ VMSimpleStackBasedCogitMonomorphicPICTest >> testObtainInlineCacheFromLinkedCall
 		                 literals: { selector };
 		                 buildMethod.
 	cogit methodObj: sendingMethod.
-	sendAddress := self compile: [ 
+	sendAddress := self compile: [
 		               cogit genSendLiteralSelector0ArgsBytecode ].
 
 	"Push receiver then send"

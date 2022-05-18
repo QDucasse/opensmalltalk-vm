@@ -53,11 +53,12 @@ VMTrampolineTest >> setUp [
 	self isAligned ifFalse: [
 		pushedBytes := pushedBytes + self wordSize ].
 
-	registerMask := 0.
+	registerMask := CallerSavedRegisterMask.
+	"registerMask := 0.
 	self wordSize to: pushedBytes by: self wordSize do: [ :i | | registerIndex |
 		registerIndex := i / self wordSize.
 		registerMask := registerMask bitOr: (cogit registerMaskFor: registerIndex).
-	]
+	]"
 ]
 
 { #category : #tests }
@@ -182,7 +183,8 @@ VMTrampolineTest >> testLoadStackPointersShouldLoadStackPointer [
 	self interpreter stackPointer: 17.
 	self interpreter framePointer: 0.
 	machineSimulator smalltalkStackPointerRegisterValue: 0.
-	
+
+	"self openMachineDebugger. 1halt."
 	self runFrom: initialAddress until: self getLastAddress.
 
 	"The generated code should load in SP the value stored in `stackPointer`"

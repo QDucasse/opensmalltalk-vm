@@ -192,6 +192,7 @@ VMJittedPrimitiveAtTest >> testPrimitiveAt32bitIndexableShouldReturnValue [
 		arguments: { memory integerObjectOf: offset }.
 	machineSimulator baseRegisterValue: cogit varBaseAddress.
 
+	"self openMachineDebugger. 1halt."
 	self runUntilReturn.
 
 	self
@@ -479,9 +480,9 @@ VMJittedPrimitiveAtTest >> testPrimitiveAt8bitIndexableWithLargeNumberShouldRetu
 		prepareStackForSendReceiver: integerArray
 		arguments: { memory integerObjectOf: offset }.
 	machineSimulator baseRegisterValue: cogit varBaseAddress.
-
+	
 	self runUntilReturn.
-
+	
 	self
 		assert: (memory integerValueOf: machineSimulator receiverRegisterValue)
 		equals: expectedValue

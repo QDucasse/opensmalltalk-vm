@@ -223,7 +223,6 @@ VMSimpleStackBasedCogitPolymorphicPICTest >> testIsClosedPic [
 VMSimpleStackBasedCogitPolymorphicPICTest >> testMiss [
 
 	| pic |	
-
 	pic := self makePolymorphicPIC.
 
 	self assertPICMiss: pic

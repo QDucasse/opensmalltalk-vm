@@ -3643,6 +3643,17 @@ CogX64Compiler >> genMulR: regSource R: regDest [
 	^cogit gen: IMULRR operand: regSource operand: regDest
 ]
 
+{ #category : #'full transfer run-time support' }
+CogX64Compiler >> genNopsForEntries [
+
+	"Generate the correct amount of nops to disalign the cog entry and no check entry
+	 (see genGetInlineCacheClassTagFromgenGetInlineCacheClassTagFrom:  into:  forEntry:)"
+	self flag: #DONE.
+	cogit Nop.
+	cogit Nop.
+	cogit Nop.
+]
+
 { #category : #'abstract instructions' }
 CogX64Compiler >> genPopRd: reg [
 	<inline: true>
@@ -3805,7 +3816,7 @@ CogX64Compiler >> genRestoreRegs: regMask [
 { #category : #abi }
 CogX64Compiler >> genSaveRegs: regMask [
 	"Save the registers in regMask for a call into the C run-time from a trampoline."
-
+	1halt.
 	self assert: (R15 > RAX and: [R15 - RAX + 1 = 16]).
 	self deny: (regMask anyMask: (cogit registerMaskFor: RSP and: RBP)).
 	R15 to: RAX by: -1 do:

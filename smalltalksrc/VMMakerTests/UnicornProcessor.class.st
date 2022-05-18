@@ -7,6 +7,18 @@ Class {
 	#category : #'VMMakerTests-Unicorn'
 }
 
+{ #category : #registers }
+UnicornProcessor >> a3: anInteger [ 
+
+	machineSimulator a3: anInteger 
+]
+
+{ #category : #registers }
+UnicornProcessor >> a4: anInteger [ 
+
+	machineSimulator a4: anInteger 
+]
+
 { #category : #'as yet unclassified' }
 UnicornProcessor >> cResultRegister [
 	
@@ -96,7 +108,7 @@ UnicornProcessor >> hasLinkRegister [
 UnicornProcessor >> initializeStackFor: aCompiler [
 	
 	"Initialize the machine code simulator"
-	machineSimulator := UnicornSimulator perform: aCompiler backend class ISA asSymbol.
+	machineSimulator := ProcessorSimulator simulatorFor: aCompiler backend class ISA asSymbol.
 	machineSimulator memory: aCompiler objectMemory.
 	machineSimulator mapMemoryInManager: aCompiler objectMemory memoryManager.
 
@@ -241,6 +253,12 @@ UnicornProcessor >> r9b: anInteger [
 ]
 
 { #category : #registers }
+UnicornProcessor >> ra: anInteger [ 
+
+	^ machineSimulator ra: anInteger
+]
+
+{ #category : #registers }
 UnicornProcessor >> rax: anInteger [ 
 	
 	machineSimulator rax: anInteger
@@ -295,6 +313,53 @@ UnicornProcessor >> runUntil: anAddress [
 		count: 0
 ]
 
+{ #category : #'as yet unclassified' }
+UnicornProcessor >> s0: anInteger [ 
+
+	self flag: #TODO.
+	machineSimulator s0: anInteger
+]
+
+{ #category : #accessing }
+UnicornProcessor >> s1: anInteger [ 
+	
+	machineSimulator s1: anInteger 
+]
+
+{ #category : #'as yet unclassified' }
+UnicornProcessor >> s2: anInteger [ 
+
+	self flag: #TODO.
+	machineSimulator s2: anInteger
+]
+
+{ #category : #registers }
+UnicornProcessor >> s6: anInteger [
+	
+	machineSimulator s6: anInteger
+]
+
+{ #category : #'as yet unclassified' }
+UnicornProcessor >> s7: anInteger [ 
+	
+	self flag: #TODO.
+	machineSimulator s7: anInteger
+]
+
+{ #category : #'as yet unclassified' }
+UnicornProcessor >> s8: anInteger [ 
+
+	self flag: #TODO.
+	machineSimulator s8: anInteger
+]
+
+{ #category : #'as yet unclassified' }
+UnicornProcessor >> s9: anInteger [ 
+
+	self flag: #TODO.
+	machineSimulator s9: anInteger
+]
+
 { #category : #initialization }
 UnicornProcessor >> setFramePointer: framePointer stackPointer: stackPointer [
 	
@@ -343,6 +408,55 @@ UnicornProcessor >> sp [
 UnicornProcessor >> sp: anInteger [ 
 	
 	machineSimulator stackPointerRegisterValue: anInteger
+]
+
+{ #category : #'as yet unclassified' }
+UnicornProcessor >> t0: anInteger [ 
+
+	self flag: #TODO.
+	machineSimulator t0: anInteger
+]
+
+{ #category : #'as yet unclassified' }
+UnicornProcessor >> t1: anInteger [ 
+
+	self flag: #TODO.
+	machineSimulator t1: anInteger
+]
+
+{ #category : #'as yet unclassified' }
+UnicornProcessor >> t2: anInteger [ 
+
+	self flag: #TODO.
+	machineSimulator t2: anInteger
+]
+
+{ #category : #'as yet unclassified' }
+UnicornProcessor >> t3: anInteger [ 
+
+	self flag: #TODO.
+	machineSimulator t3: anInteger
+]
+
+{ #category : #'as yet unclassified' }
+UnicornProcessor >> t4: anInteger [ 
+
+	self flag: #TODO.
+	machineSimulator t4: anInteger
+]
+
+{ #category : #'as yet unclassified' }
+UnicornProcessor >> t5: anInteger [ 
+
+	self flag: #TODO.
+	machineSimulator t5: anInteger
+]
+
+{ #category : #'as yet unclassified' }
+UnicornProcessor >> t6: anInteger [ 
+
+	self flag: #TODO.
+	machineSimulator t6: anInteger
 ]
 
 { #category : #'as yet unclassified' }

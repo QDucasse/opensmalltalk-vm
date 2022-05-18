@@ -97,7 +97,7 @@ VMDebugger >> initialDisassembly [
 { #category : #showing }
 VMDebugger >> initialExtent [ 
 
-	^ 1000@1000
+	^ 1600@1000
 ]
 
 { #category : #showing }

@@ -26,9 +26,9 @@ VMSimpleStackBasedCogitMegamorphicPICTest >> testLookupExistingMegamorphicPICRet
 
 	| selector createdPic specialObjectsArray |
 	selector := memory trueObject.
-	
+
 	createdPic := cogit cogOpenPICSelector: selector numArgs: 1.
-	
+
 	self assert: (cogit methodZone openPICWithSelector: selector) equals: createdPic.
 ]
 
@@ -42,15 +42,15 @@ VMSimpleStackBasedCogitMegamorphicPICTest >> testLookupNonExistingMegamorphicPIC
 VMSimpleStackBasedCogitMegamorphicPICTest >> testMiss [
 
 	"We have to call the pic and see if it reaches the abort trampoline"
-	| selector createdPic numArgs finishedSimulation |	
+	| selector createdPic numArgs finishedSimulation |
 
 	selector := memory trueObject.
 	numArgs := 0.
 	createdPic := cogit cogOpenPICSelector: selector numArgs: numArgs.
-	
+
 	cogit setCFramePointer: machineSimulator framePointerRegisterValue.
 	cogit setCStackPointer: machineSimulator stackPointerRegisterValue.
-	
+
 	"Receiver is nil, class tag of the first entry is 1 (a small integer).
 	 - the receiver does not match with the class tag for case 0
 	 - the receiver does not match with the class tag for case 1
@@ -66,7 +66,7 @@ VMSimpleStackBasedCogitMegamorphicPICTest >> testMiss [
 	"Failing all two PIC cases calls the pic trampoline.
 	 - The instruction pointer is at the trampoline
 	 - The class register value contains the pic
-	 - the receiver register value contains the receiver"	
+	 - the receiver register value contains the receiver"
 	self assert: machineSimulator sendNumberOfArgumentsRegisterValue equals: createdPic address
 ]
 
@@ -181,11 +181,12 @@ VMSimpleStackBasedCogitMegamorphicPICTest >> testRelinkCallSiteToMegamorphicPICC
 	Literal 0 -> we are not using it (now it is nil)
 	Literal 1 -> our selector"
 	patchedCogMethod := self
-		                    generateCogMethod: [ 
+		                    generateCogMethod: [
 		                    cogit genSendLiteralSelector0ArgsBytecode ]
 		                    selector: selector.
 
 	createdPic := cogit cogOpenPICSelector: selector numArgs: 1.
+
 
 	"We call to get to the send trampoline"
 	self
@@ -193,7 +194,7 @@ VMSimpleStackBasedCogitMegamorphicPICTest >> testRelinkCallSiteToMegamorphicPICC
 		until: sendTrampolineAddress.
 
 	returnAfterCallAddress := machineSimulator hasLinkRegister
-		                          ifTrue: [ 
+		                          ifTrue: [
 		                          machineSimulator linkRegisterValue ]
 		                          ifFalse: [ machineSimulator peekAddress ].
 	"Let's rewrite the call site"
@@ -205,8 +206,8 @@ VMSimpleStackBasedCogitMegamorphicPICTest >> testRelinkCallSiteToMegamorphicPICC
 				 at: returnAfterCallAddress)
 		target: createdPic asInteger + cogit entryOffset.
 		
-	startAddress := patchedCogMethod address + cogit noCheckEntryOffset.	
-	
+	startAddress := patchedCogMethod address + cogit noCheckEntryOffset.
+
 	cogit flushICacheFrom: startAddress to: startAddress + 32.
 
 	"Let's rerun it to check if it gets to the patched address openPic"

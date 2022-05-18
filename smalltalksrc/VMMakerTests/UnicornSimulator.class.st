@@ -132,11 +132,42 @@ UnicornSimulator >> invalidAccessHandler: aFullBlockClosure [
 ]
 
 { #category : #initialization }
+UnicornSimulator >> postCallArgumentsNumArgs: numArgs "<Integer>" in: aMemory [ "<ByteArray|Bitmap>"
+
+	self subclassResponsibility
+]
+
+{ #category : #initialization }
 UnicornSimulator >> registerHook: aBlock atAddress: anAddress [
 
 	simulator
 		registerInvalidMemoryAccessHook: UcHookType fetchingAccess value
 		doing: [ :type :address :size :value | address = anAddress ifTrue: aBlock ]
+]
+
+{ #category : #executing }
+UnicornSimulator >> retpcIn: aMemory [
+
+	self subclassResponsibility
+
+]
+
+{ #category : #initialization }
+UnicornSimulator >> simulateJumpCallOf: anInteger memory: aSpurSimulatedMemory [
+
+	^ self subclassResponsibility
+]
+
+{ #category : #initialization }
+UnicornSimulator >> simulateReturnIn: aMemory [
+
+	self subclassResponsibility
+]
+
+{ #category : #initialization }
+UnicornSimulator >> smashCallerSavedRegistersWithValuesFrom: base by: step in: aMemory [
+
+	self subclassResponsibility
 ]
 
 { #category : #executing }
