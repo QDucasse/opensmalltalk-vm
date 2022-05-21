@@ -261,7 +261,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> rewriteInlineCacheTag: cacheTag at: callS
 	 by the garbage collector."
 	<inline: true>
 	self flag: #TODO.
-	1halt.
+	"1halt."
 	objectMemory longAt: (self pcRelativeAddressAt: callSiteReturnAddress - 8) put: cacheTag
 ]
 
