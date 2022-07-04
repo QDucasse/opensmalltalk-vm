@@ -2,25 +2,25 @@ Class {
 	#name : #UnicornSimulationTrap,
 	#superclass : #Object,
 	#instVars : [
-		'unicornInvalidAccess',
-		'simulator'
+		'simulator',
+		'runtimeError'
 	],
 	#category : #'VMMakerTests-Unicorn'
 }
 
 { #category : #'instance creation' }
-UnicornSimulationTrap class >> simulator: simulator error: anUnicornInvalidMemoryAccess [
+UnicornSimulationTrap class >> simulator: simulator error: aRuntimeError [
 
 	^ self new
 		simulator: simulator;
-		unicornInvalidAccess: anUnicornInvalidMemoryAccess;
+		runtimeError: aRuntimeError;
 		yourself
 ]
 
 { #category : #accessing }
 UnicornSimulationTrap >> address [
 	
-	^ unicornInvalidAccess address
+	^ runtimeError address
 ]
 
 { #category : #accessing }
@@ -45,6 +45,11 @@ UnicornSimulationTrap >> registerAccessor [
 ]
 
 { #category : #accessing }
+UnicornSimulationTrap >> runtimeError: aRuntimeError [ 
+	runtimeError := aRuntimeError
+]
+
+{ #category : #accessing }
 UnicornSimulationTrap >> simulator [
 	
 	^ simulator
@@ -58,23 +63,18 @@ UnicornSimulationTrap >> simulator: anObject [
 { #category : #accessing }
 UnicornSimulationTrap >> type [
 	
-	unicornInvalidAccess type = UcMemoryAccessType UC_MEM_WRITE_UNMAPPED
+	runtimeError type = UcMemoryAccessType UC_MEM_WRITE_UNMAPPED
 		ifTrue: [ ^ #write ].
-	unicornInvalidAccess type = UcMemoryAccessType UC_MEM_READ_UNMAPPED
+	runtimeError type = UcMemoryAccessType UC_MEM_READ_UNMAPPED
 		ifTrue: [ ^ #read ].
-	unicornInvalidAccess type = UcMemoryAccessType UC_MEM_FETCH_UNMAPPED
+	runtimeError type = UcMemoryAccessType UC_MEM_FETCH_UNMAPPED
 		ifTrue: [ ^ #jump ].	
 	
 	self halt
 ]
 
 { #category : #accessing }
-UnicornSimulationTrap >> unicornInvalidAccess: anUnicornInvalidMemoryAccess [ 
-	unicornInvalidAccess := anUnicornInvalidMemoryAccess
-]
-
-{ #category : #accessing }
 UnicornSimulationTrap >> writtenValue [
 	"This is the value that was tried to be written but failed (if this is a failed write)"
-	^ unicornInvalidAccess value
+	^ runtimeError value
 ]

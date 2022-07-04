@@ -1310,10 +1310,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 			 ^ self
 				   bytesForLogicCqOperationOfSize: 16
 				   andImmediateOperationSize: 12 ]). "DONE"
-			([ RotateRightCqR ] -> [ 
-			 ^ self
-				   bytesForLogicCqOperationOfSize: 16
-				   andImmediateOperationSize: 12 ]). "DONE"
+			([ RotateRightCqR ] -> [ ^ 4 ]). "DONE"
 
 			"Floating point operations"
 			([ AddRdRd ]
@@ -3963,53 +3960,14 @@ CogRiscV64Compiler >> concretizeRotateLeftCqR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeRotateRightCqR [
 
-	"Perform a rotate right between the value of register and the value of the operand.
-	
-	 If the operand is not a literal:
-		rori reg, reg, cq
-
-	 Otherwise load the value in a register:
-		li ConcreteIPReg, cq 
-		ror reg, reg, ConcreteIPReg 
-
-	 If it is a literal:
-	   auipc ConcreteIPReg, 0
-	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		ror reg, reg, ConcreteIPReg 
-		"
-
 	<var: #cq type: #sqInt>
 	<inline: true>
-	| cq destReg srcReg loadOffset rotateOffset flagOffset |
+	| cq destReg srcReg |
 	self flag: #TODO.
 	cq := operands at: 0.
 	srcReg := destReg := operands at: 1.
-	dependent ifNil: [ 
-		self value: cq isContainedIn: 12.
-		"Direct encoding as an immediate"
-		rotateOffset := self
-			                rotateRightValueInRegister: srcReg
-			                byShiftAmount: cq
-			                inRegister: destReg
-			                startingAtIndex: 0.
-		"Update the flags"
-		flagOffset := self
-			              updateFlagsLogicForResultReg: destReg
-			              startingAtIndex: rotateOffset.
-		^ machineCodeSize := rotateOffset + flagOffset ].
-	"Otherwise use the provided literal"
-	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
-	"Perform the different ROT operations"
-	rotateOffset := self
-		                rotateRightValueInRegister: srcReg
-		                byShiftAmountInRegister: ConcreteIPReg
-		                inRegister: destReg
-		                startingAtIndex: loadOffset.
-	"Update the flags"
-	flagOffset := self
-		              updateFlagsLogicForResultReg: destReg
-		              startingAtIndex: loadOffset + rotateOffset.
-	^ machineCodeSize := loadOffset + rotateOffset + flagOffset
+	self machineCodeAt: 0 put: (self customRotateRightValueInRegister: srcReg byShiftAmount: cq inRegister: destReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
@@ -4322,6 +4280,24 @@ CogRiscV64Compiler >> concretizeXorRdRd [
 	self machineCodeAt: 0 put: (self fConvertLongSignedInRegister: X0 toDoublePrecisionInRegister: srcReg1).
 	^ machineCodeSize := 4
 	
+]
+
+{ #category : #'custom instructions' }
+CogRiscV64Compiler >> customRotateRightValueInRegister: srcReg byShiftAmount: shamt inRegister: destReg [ 
+
+	"rori: Adds the sign-extended immediate to register x[rs1] and writes the result to x[rd]. 
+	 Arithmetic overflow is ignored.
+	
+	31        26 25     20 19   15  14  12  11  7  6         0
+	|  	0110000  |  shamt  | rs1   |  000  |  rd  |  0010011  |
+	"
+	"1halt.
+	^ (((((2r0110000) << 26)
+	  bitOr: (shamt bitAnd: 16r1f) << 20) 
+	  bitOr: (srcReg bitAnd: 16r1f) << 15) 
+	  bitOr: (destReg bitAnd: 16r1f) << 7) 
+	  bitOr: 2r0000111"
+	^ 16rFFFF
 ]
 
 { #category : #concretization }

@@ -1,24 +1,11 @@
 Class {
 	#name : #UnicornInvalidMemoryAccess,
-	#superclass : #Error,
+	#superclass : #UnicornRuntimeError,
 	#instVars : [
-		'type',
-		'address',
-		'size',
-		'value'
+		'type'
 	],
 	#category : #'VMMakerTests-Unicorn'
 }
-
-{ #category : #accessing }
-UnicornInvalidMemoryAccess >> address [
-	^ address
-]
-
-{ #category : #accessing }
-UnicornInvalidMemoryAccess >> address: anObject [
-	address := anObject
-]
 
 { #category : #testing }
 UnicornInvalidMemoryAccess >> isFetch [
@@ -33,16 +20,6 @@ UnicornInvalidMemoryAccess >> messageText [
 ]
 
 { #category : #accessing }
-UnicornInvalidMemoryAccess >> size [
-	^ size
-]
-
-{ #category : #accessing }
-UnicornInvalidMemoryAccess >> size: anObject [
-	size := anObject
-]
-
-{ #category : #accessing }
 UnicornInvalidMemoryAccess >> type [
 	^ type
 ]
@@ -50,14 +27,4 @@ UnicornInvalidMemoryAccess >> type [
 { #category : #accessing }
 UnicornInvalidMemoryAccess >> type: anObject [
 	type := anObject
-]
-
-{ #category : #accessing }
-UnicornInvalidMemoryAccess >> value [
-	^ value
-]
-
-{ #category : #accessing }
-UnicornInvalidMemoryAccess >> value: anObject [
-	value := anObject
 ]

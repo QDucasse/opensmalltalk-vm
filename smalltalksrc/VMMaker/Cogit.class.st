@@ -8482,7 +8482,6 @@ Cogit >> handleCallOrJumpSimulationTrap: aProcessorSimulationTrap [
 	<doNotGenerate>
 	| evaluable function memory result savedFramePointer savedStackPointer savedArgumentCount rpc |
 	evaluable := simulatedTrampolines at: aProcessorSimulationTrap address.
-	"1halt."
 	(evaluable isBlock not and: [self isPrimitiveRunningInSmalltalkStack: evaluable selector]) 
 		ifTrue: [ self assertCStackWellAligned ]. 
 
@@ -8572,6 +8571,20 @@ Cogit >> handleCallOrJumpSimulationTrap: aProcessorSimulationTrap [
 ]
 
 { #category : #'simulation only' }
+Cogit >> handleInvalidInstructionSimulationTrap: aProcessorSimulationTrap [
+	<doNotGenerate>
+	| variableValue accessor |
+	1halt.
+	variableValue := (simulatedVariableGetters at: aProcessorSimulationTrap address) value asInteger.
+	accessor := aProcessorSimulationTrap registerAccessor.
+	processor
+		perform: accessor
+		with: variableValue signedIntToLong.
+	accessor ~~ #pc: ifTrue:
+		[processor pc: aProcessorSimulationTrap nextpc]
+]
+
+{ #category : #'simulation only' }
 Cogit >> handleReadSimulationTrap: aProcessorSimulationTrap [
 	<doNotGenerate>
 	| variableValue accessor |
@@ -8591,7 +8604,8 @@ Cogit >> handleSimulationTrap: aProcessorSimulationTrap [
 		{ [#read] -> [self handleReadSimulationTrap: aProcessorSimulationTrap].
 		  [#write] -> [self handleWriteSimulationTrap: aProcessorSimulationTrap].
 		  [#call] -> [self handleCallOrJumpSimulationTrap: aProcessorSimulationTrap].
-		  [#jump] -> [self handleCallOrJumpSimulationTrap: aProcessorSimulationTrap] }
+		  [#jump] -> [self handleCallOrJumpSimulationTrap: aProcessorSimulationTrap] }.
+	^ 1halt.
 ]
 
 { #category : #'simulation only' }

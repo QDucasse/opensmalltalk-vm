@@ -3,7 +3,7 @@ Class {
 	#superclass : #ProcessorSimulator,
 	#instVars : [
 		'stopReason',
-		'invalidAccessHandler'
+		'runtimeErrorHandler'
 	],
 	#category : #'VMMakerTests-Unicorn'
 }
@@ -44,11 +44,11 @@ UnicornSimulator >> doStartAt: startAddress until: until timeout: timeout count:
 
 			"If execution did not stop because of a stop reason, verify the error code"
 			simulator verifyErrorCode: result]
-				on: UnicornInvalidMemoryAccess do: [ :invalidAccess |
+				on: UnicornRuntimeError do: [ :runtimeError |
 
 					self instructionPointerRegisterValue = until ifTrue: [ ^ 0 ].
 
-					(self handleInvalidAccess: invalidAccess)
+					(self handleRuntimeError: runtimeError)
 						ifFalse: [ ^ result ]].
 
 			stopReason ifNotNil: [ ^ result ].
@@ -78,14 +78,14 @@ UnicornSimulator >> finishMappingMemory [
 ]
 
 { #category : #'handling invalid accesses' }
-UnicornSimulator >> handleInvalidAccess: invalidAccess [
+UnicornSimulator >> handleRuntimeError: runtimeError [
 
 	| previousInstructionPointer hasToContinue |
 	previousInstructionPointer := self instructionPointerRegisterValue.
 
 	"If the called handler want to resume execution but it has not set a next instruction pointer to execute I will calculate it"
 
-	(hasToContinue := invalidAccessHandler value: invalidAccess)
+	(hasToContinue := runtimeErrorHandler value: runtimeError)
 		ifTrue: [ previousInstructionPointer = self instructionPointerRegisterValue
 			ifTrue: [
 					self instructionPointerRegisterValue:
@@ -105,8 +105,8 @@ UnicornSimulator >> initialize [
 	registerAliases := Dictionary new.
 	self initializeRegisterAliases.
 
-	invalidAccessHandler := [ :invalidAccess |
-		self cogit handleSimulationTrap: (UnicornSimulationTrap simulator: self error: invalidAccess).
+	runtimeErrorHandler := [ :runtimeError |
+		self cogit handleSimulationTrap: (UnicornSimulationTrap simulator: self error: runtimeError).
 		true]
 ]
 
@@ -123,12 +123,15 @@ UnicornSimulator >> initializeUnicorn [
 				size: size;
 				value: value;
 				yourself.
-			false ]
-]
-
-{ #category : #'handling invalid accesses' }
-UnicornSimulator >> invalidAccessHandler: aFullBlockClosure [
-	invalidAccessHandler := aFullBlockClosure
+			false ].
+	
+	simulator
+		registerInvalidInstructionHook: UcHookType invalidInstruction value
+		doing: [ 
+			simulator stop.
+			stopReason := UnicornInvalidInstruction new;
+				yourself.
+			false ].
 ]
 
 { #category : #initialization }
@@ -150,6 +153,11 @@ UnicornSimulator >> retpcIn: aMemory [
 
 	self subclassResponsibility
 
+]
+
+{ #category : #'handling invalid accesses' }
+UnicornSimulator >> runtimeErrorHandler: aFullBlockClosure [
+	runtimeErrorHandler := aFullBlockClosure
 ]
 
 { #category : #initialization }

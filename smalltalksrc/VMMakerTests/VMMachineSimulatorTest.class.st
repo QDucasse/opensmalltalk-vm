@@ -77,7 +77,7 @@ VMMachineSimulatorTest >> testMemoryAccessExceptionComesWithCorrectAddress [
 	
 	invalidAddressHandled := false.
 	
-	self machineSimulator invalidAccessHandler: [:invalidAccess | 
+	self machineSimulator runtimeErrorHandler: [:invalidAccess | 
 		invalidAddressHandled := true.
 		self 
 			assert: invalidAccess address 
@@ -111,7 +111,7 @@ VMMachineSimulatorTest >> testMemoryAccessExceptionHandledCountIsRespected [
 		"This instruction is never reach"
 		lastInstruction := cogit RetN: 0 ].
 
-	self machineSimulator invalidAccessHandler: [:invalidAccess | 
+	self machineSimulator runtimeErrorHandler: [:invalidAccess | 
 		invalidAddressHandled := true.
 		self 
 			assert: invalidAccess address 
@@ -154,7 +154,7 @@ VMMachineSimulatorTest >> testMemoryAccessExceptionHandledTimeoutIsRespected [
 		lastInstruction := cogit RetN: 0 ].
 
 
-	self machineSimulator invalidAccessHandler: [:invalidAccess | 
+	self machineSimulator runtimeErrorHandler: [:invalidAccess | 
 		invalidAddressHandled := true.
 		self 
 			assert: invalidAccess address 
@@ -190,7 +190,7 @@ VMMachineSimulatorTest >> testMemoryAccessExceptionHandledUntilAddressIsRespecte
 		"This instruction is never reach"
 		cogit RetN: 0 ].
 
-	self machineSimulator invalidAccessHandler: [:invalidAccess | 
+	self machineSimulator runtimeErrorHandler: [:invalidAccess | 
 		invalidAddressHandled := true.
 		self 
 			assert: invalidAccess address 
@@ -226,7 +226,7 @@ VMMachineSimulatorTest >> testMemoryAccessExceptionHandledUntilAddressIsRespecte
 		"This instruction is never reach"
 		cogit RetN: 0 ].
 
-	self machineSimulator invalidAccessHandler: [:invalidAccess | 
+	self machineSimulator runtimeErrorHandler: [:invalidAccess | 
 		invalidAddressHandled := true.
 		self 
 			assert: invalidAccess address 
@@ -258,7 +258,7 @@ VMMachineSimulatorTest >> testMemoryAccessExceptionInCallContinuesToCorrectPC [
 	
 	invalidAddressHandled := false.
 	
-	self machineSimulator invalidAccessHandler: [:invalidAccess | 
+	self machineSimulator runtimeErrorHandler: [:invalidAccess | 
 		invalidAddressHandled := true.
 		self machineSimulator instructionPointerRegisterValue: returningPoint address.
 		true].
@@ -283,7 +283,7 @@ VMMachineSimulatorTest >> testMemoryAccessExceptionInCallHasUpdatedPC [
 	
 	invalidAddressHandled := false.
 	
-	self machineSimulator invalidAccessHandler: [:invalidAccess | 
+	self machineSimulator runtimeErrorHandler: [:invalidAccess | 
 		self 
 			assert: self machineSimulator instructionPointerRegisterValue 
 			equals: 16r7FFF0000.
@@ -311,7 +311,7 @@ VMMachineSimulatorTest >> testMemoryAccessExceptionInJumpContinuesToCorrectPC [
 	
 	invalidAddressHandled := false.
 	
-	self machineSimulator invalidAccessHandler: [:invalidAccess | 
+	self machineSimulator runtimeErrorHandler: [:invalidAccess | 
 		invalidAddressHandled := true.
 		self machineSimulator instructionPointerRegisterValue: returningPoint address.
 		true].
@@ -336,7 +336,7 @@ VMMachineSimulatorTest >> testMemoryAccessExceptionInJumpHasUpdatedPC [
 	
 	invalidAddressHandled := false.
 	
-	self machineSimulator invalidAccessHandler: [:invalidAccess | 
+	self machineSimulator runtimeErrorHandler: [:invalidAccess | 
 		self 
 			assert: self machineSimulator instructionPointerRegisterValue 
 			equals: 16r7FFF0000.
@@ -373,7 +373,7 @@ VMMachineSimulatorTest >> testMemoryAccessExceptionInstructionPointerInCorrectAd
 		ifTrue: [ exptectedAddress := invalidAccessInstruction address + 4 ]
 		ifFalse: [ exptectedAddress := invalidAccessInstruction address ].
 	
-	self machineSimulator invalidAccessHandler: [:invalidAccess | 
+	self machineSimulator runtimeErrorHandler: [:invalidAccess | 
 		invalidAddressHandled := true.
 		self 
 			assert: self machineSimulator lastExecutedInstructionAddress 

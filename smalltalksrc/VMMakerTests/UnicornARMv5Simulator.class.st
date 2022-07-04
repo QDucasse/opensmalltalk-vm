@@ -152,7 +152,7 @@ UnicornARMv5Simulator >> doStartAt: startAddress until: until timeout: timeout c
 				on: UnicornInvalidMemoryAccess do: [ :invalidAccess |
 					self instructionPointerRegisterValue = until ifTrue: [ ^ 0 ].
 					
-					(self handleInvalidAccess: invalidAccess)
+					(self handleRuntimeError: invalidAccess)
 						ifFalse: [ ^ result ].
 						
 					actualCount := actualCount + 1 ].
