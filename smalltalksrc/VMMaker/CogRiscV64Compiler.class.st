@@ -7,6 +7,20 @@ Class {
 		'previousOpcode'
 	],
 	#classVars : [
+		'AddCheckOverflowCqR',
+		'AddCheckOverflowRR',
+		'BrEqualRR',
+		'BrLongEqualRR',
+		'BrLongNotEqualRR',
+		'BrNotEqualRR',
+		'BrSignedGreaterEqualRR',
+		'BrSignedGreaterRR',
+		'BrSignedLessEqualRR',
+		'BrSignedLessRR',
+		'BrUnsignedGreaterEqualRR',
+		'BrUnsignedGreaterRR',
+		'BrUnsignedLessEqualRR',
+		'BrUnsignedLessRR',
 		'CArg0Reg',
 		'CArg1Reg',
 		'CArg2Reg',
@@ -42,6 +56,7 @@ Class {
 		'MSTATUS',
 		'MSUB',
 		'MUL',
+		'MulCheckOverflowRR',
 		'MulRR',
 		'NE',
 		'PC',
@@ -49,6 +64,8 @@ Class {
 		'SDIV',
 		'SMULH',
 		'SP',
+		'SubCheckOverflowCqR',
+		'SubCheckOverflowRR',
 		'X0',
 		'X1',
 		'X10',
@@ -228,9 +245,30 @@ CogRiscV64Compiler class >> initialize [
 	
 	MSTATUS := 2r001100000000. "mstatus csr"
 	
-	"Specific opcodes"
-	self initializeSpecificOpcodes: #(MulRR DivRR RemRR) 
-	     in: thisContext method 
+	"Specific instructions"
+	"Note: Maybe add MoveLowR MoveHighR"
+	self initializeSpecificOpcodes: #(
+		MulRR
+		DivRR
+		RemRR
+		AddCheckOverflowCqR 
+		AddCheckOverflowRR
+		MulCheckOverflowRR
+		SubCheckOverflowCqR
+		SubCheckOverflowRR
+		BrEqualRR
+		BrNotEqualRR 
+		BrUnsignedLessRR
+		BrUnsignedLessEqualRR
+		BrUnsignedGreaterRR
+		BrUnsignedGreaterEqualRR
+		BrSignedLessRR
+		BrSignedLessEqualRR
+		BrSignedGreaterRR
+		BrSignedGreaterEqualRR
+		BrLongEqualRR
+		BrLongNotEqualRR) 
+			in: thisContext method
 	
 	
 	
@@ -1239,6 +1277,10 @@ CogRiscV64Compiler >> computeMaximumSize [
 				   ifTrue: [ 4 ]
 				   ifFalse: [ 8 ] ]). "DONE"
 			([ Stop ] -> [ ^ 4 ]). "DONE"
+			
+			
+			"Branches"
+			([ BrEqualRR ] -> [ ^ 4 ]).
 
 			"Logic"
 			([ AndCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
@@ -1847,6 +1889,22 @@ CogRiscV64Compiler >> concretizeAt: actualAddress [
 
 	self assert: actualAddress \\ 4 = 0.
 	^ super concretizeAt: actualAddress
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrEqualRR [
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	"1halt."
+	offset := self computeJumpTargetOffsetPlus: 0.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	
+	left := operands at: 1.
+	right := operands at: 2.
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: left isEqualToRegisterValue: right).
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
@@ -4374,6 +4432,9 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[JumpFPUnordered]			-> [ ^ self concretizeJumpFPUnordered ].
 		[RetN]	 -> [ ^ self concretizeRetN ].
 		[Stop]	 -> [ ^ self concretizeStop ].
+		
+		"Branches"
+		[ BrEqualRR ] -> [ ^ self concretizeBrEqualRR  ].
 							
 		"Logic"						
 		[AndCqR]		-> [ ^ self concretizeAndCqR ].
@@ -6116,6 +6177,90 @@ CogRiscV64Compiler >> nop [
 	"nop: Pseudoinstruction that expands to addi x0, 0(x0)"
 	self flag: #DONE.
 	^ self addImmediate: 0 toRegister: X0 inRegister: X0 
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
+	"Support for processors without condition codes, such as the MIPS.
+	 Answer the branch opcode.  Modify the receiver and the branch to
+	 implement a suitable conditional branch that doesn't depend on
+	 condition codes being set by the receiver."
+	<returnTypeC: #'AbstractInstruction *'>
+	<var: #branch type: #'AbstractInstruction *'>
+	| newBranchLeft newBranchOpcode newBranchRight |
+	
+	(branch opcode = JumpZero) 
+		ifFalse: [ ^ branch ].
+	
+	((branch opcode = JumpOverflow) or: [branch opcode = JumpNoOverflow]) 
+		ifTrue: [^self noteFollowingOverflowBranch: branch].
+
+	newBranchOpcode := branch opcode caseOf: {
+		[JumpZero] 			-> [BrEqualRR].
+		"[JumpNonZero]			-> [BrNotEqualRR].
+		[JumpBelow]			-> [BrUnsignedLessRR].
+		[JumpBelowOrEqual]	-> [BrUnsignedLessEqualRR].
+		[JumpAbove]			-> [BrUnsignedGreaterRR].
+		[JumpAboveOrEqual]	-> [BrUnsignedGreaterEqualRR].
+		[JumpLess]				-> [BrSignedLessRR].
+		[JumpLessOrEqual]		-> [BrSignedLessEqualRR].
+		[JumpGreater]			-> [BrSignedGreaterRR].
+		[JumpGreaterOrEqual]	-> [BrSignedGreaterEqualRR].
+		[JumpLongZero] 		-> [BrLongEqualRR].
+		[JumpLongNonZero]	-> [BrLongNotEqualRR].
+		
+		[JumpNegative]			-> [BrSignedLessRR]."
+	} otherwise: [self unreachable. 0].
+	
+	opcode caseOf: {
+		"[BrEqualRR]	->	[I.e., two jumps after a compare.
+						newBranchLeft := operands at: 1.
+						newBranchRight := operands at: 2].
+		[BrUnsignedLessRR]	->	[I.e., two jumps after a compare.
+						newBranchLeft := operands at: 1.
+						newBranchRight := operands at: 2]."
+
+		[CmpRR] 	-> 	[newBranchLeft := operands at: 1.
+						 newBranchRight := operands at: 0.
+						 opcode := Label].
+		[CmpCqR]	-> 	[newBranchLeft := operands at: 1.
+						 newBranchRight := ConcreteIPReg.
+						 opcode := MoveCqR.
+						 operands at: 1 put: ConcreteIPReg].
+		[CmpCwR]	-> 	[newBranchLeft := operands at: 1.
+						 newBranchRight := ConcreteIPReg.
+						 opcode := MoveCwR.
+						 operands at: 1 put: ConcreteIPReg].
+		[TstCqR]	->	[newBranchLeft := ConcreteIPReg.
+						 newBranchRight := X0].
+		[AndCqR]	->	[newBranchLeft := operands at: 1.
+						 newBranchRight := X0].
+		"[AndCqRR]	->	[newBranchLeft := operands at: 2.
+						 newBranchRight := X0]."
+		"[OrRR]	->		[newBranchLeft := operands at: 1.
+						 newBranchRight := X0]."
+		"[XorRR]	->		[newBranchLeft := operands at: 1.
+						 newBranchRight := X0]."
+		"[SubCwR]	->	[newBranchLeft := operands at: 1.
+						 newBranchRight := X0]."
+		[SubCqR]	->	[newBranchLeft := operands at: 1.
+						 newBranchRight := X0].
+		[ArithmeticShiftRightCqR]	->	[newBranchLeft := operands at: 1.
+						 newBranchRight := X0].
+	} otherwise: [self unreachable].
+
+	branch rewriteOpcode: newBranchOpcode with: newBranchLeft with: newBranchRight.
+	^branch
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> noteFollowingOverflowBranch: branch [
+	"Support for processors without condition codes, such as the MIPS.
+	 Answer the branch opcode.  Modify the receiver and the branch to
+	 implement a suitable conditional branch that doesn't depend on
+	 condition codes being set by the receiver."
+	<var: #branch type: #'AbstractInstruction *'>
+	^ branch
 ]
 
 { #category : #'inline cacheing' }

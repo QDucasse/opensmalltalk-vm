@@ -1641,6 +1641,16 @@ CogAbstractInstruction >> rewriteJumpFullAt: callSiteReturnAddress target: callT
 	^self rewriteJumpLongAt: callSiteReturnAddress target: callTargetAddress
 ]
 
+{ #category : #'abstract instructions' }
+CogAbstractInstruction >> rewriteOpcode: anOpcode with: left with: right [
+	<inline: true>
+	opcode := anOpcode.
+	operands
+		"0 is target"
+		at: 1 put: left;
+		at: 2 put: right
+]
+
 { #category : #abi }
 CogAbstractInstruction >> saveAndRestoreLinkRegAround: aBlock [
 	"If the processor's ABI includes a link register, generate instructions
