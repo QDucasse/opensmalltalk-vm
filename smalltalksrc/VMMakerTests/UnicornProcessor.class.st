@@ -67,6 +67,12 @@ UnicornProcessor >> ecx: anInteger [
 	machineSimulator ecx: anInteger
 ]
 
+{ #category : #'as yet unclassified' }
+UnicornProcessor >> edi: anInteger [ 
+	
+	machineSimulator edi: anInteger
+]
+
 { #category : #registers }
 UnicornProcessor >> edx: anInteger [ 
 	
@@ -286,6 +292,12 @@ UnicornProcessor >> rdx: anInteger [
 UnicornProcessor >> retpcIn: aSpurSimulatedMemory [ 
 
 	^ machineSimulator retpcIn: aSpurSimulatedMemory 
+]
+
+{ #category : #'as yet unclassified' }
+UnicornProcessor >> rsi: anInteger [ 
+	
+	machineSimulator rsi: anInteger
 ]
 
 { #category : #registers }
