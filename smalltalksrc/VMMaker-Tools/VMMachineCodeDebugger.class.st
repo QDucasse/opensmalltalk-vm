@@ -61,6 +61,7 @@ VMMachineCodeDebugger class >> openOnCogit: aCogit ip: anInstructionPointer [
 	self new
 		cogit: aCogit;
 		machineSimulator: aCogit processor machineSimulator;
+		trampolineDictionary: aCogit trampolineDictionary;
 		initialInstructionToDisassemble: anInstructionPointer;
 		openWithSpec.
 ]
@@ -570,7 +571,7 @@ VMMachineCodeDebugger >> refreshAll [
 	self refreshInstructions.
 	self refreshStack.
 	self refreshRegisters.
-	"self refreshTrampolines."
+	self refreshTrampolines.
 ]
 
 { #category : #showing }
