@@ -84,7 +84,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> inlineCacheTagAt: callSiteReturnAddress [
 
 	<inline: true>
 	self flag: #TODO.
-	^objectMemory longAt: (self pcRelativeAddressAt: 
+	^objectMemory unsignedLongAt: (self pcRelativeAddressAt: 
 		"Need to go before the call and at the start of the literal load"
 		(callSiteReturnAddress - self callInstructionByteSize - self loadLiteralByteSize) asUnsignedInteger)
 ]
