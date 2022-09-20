@@ -241,7 +241,8 @@ CogRiscV64Compiler class >> initializeAbstractRegisters [
 
 	"Assign the abstract registers with the identities/indices of the relevant concrete registers."
 
-	super initializeAbstractRegisters.
+	super 
+	.
 
 	"https://en.wikichip.org/wiki/risc-v/registers
 	Caller saved Registers:
@@ -289,6 +290,16 @@ CogRiscV64Compiler class >> initializeAbstractRegisters [
 	DPFPReg5 := F5.
 	DPFPReg6 := F6.
 	DPFPReg7 := F7.
+
+	"Placeholders for now, need to add the V extension and corresponding registers"
+	VReg0 := F0.
+	VReg1 := F1.
+	VReg2 := F2.
+	VReg3 := F3.
+	VReg4 := F4.
+	VReg5 := F5.
+	VReg6 := F6.
+	VReg7 := F7.
 
 	NumFloatRegisters := 8
 ]
