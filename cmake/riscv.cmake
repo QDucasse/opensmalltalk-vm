@@ -1,7 +1,49 @@
+# ==============================================================================
 # Usage: cmake -DCMAKE_TOOLCHAIN_FILE=<this file>
 
-# CMAKE COMMAND from oot build directory:
-# cmake -S ../opensmalltalk-vm -DBUILD_BUNDLE=FALSE -DGENERATE_SOURCES=FALSE -DFLAVOUR=CoInterpreter -DPHARO_DEPENDENCIES_PREFER_DOWNLOAD_BINARIES=FALSE -DFEATURE_FFI=FALSE -DFEATURE_THREADED_FFI=FALSE -DFEATURE_LIB_GIT2=FALSE -DCMAKE_TOOLCHAIN_FILE=../opensmalltalk-vm/cmake/riscv.cmake -B .
+# CMAKE COMMAND from oot build directory without plugins:
+# cmake -S ../opensmalltalk-vm -DBUILD_BUNDLE=FALSE -DGENERATE_SOURCES=FALSE -DFLAVOUR=CoInterpreter -DPHARO_DEPENDENCIES_PREFER_DOWNLOAD_BINARIES=FALSE \
+# -DFEATURE_FFI=FALSE -DFEATURE_THREADED_FFI=FALSE -DFEATURE_LIB_GIT2=FALSE \
+# -DCMAKE_TOOLCHAIN_FILE=../opensmalltalk-vm/cmake/riscv.cmake -B .
+
+# CMake command setup:
+# --------------------
+
+# Base command, no build bundle, sources already generated to the corresponding flavour
+# cmake -S ../opensmalltalk-vm -DBUILD_BUNDLE=FALSE -DGENERATE_SOURCES=FALSE -DFLAVOUR=CoInterpreter -DPHARO_DEPENDENCIES_PREFER_DOWNLOAD_BINARIES=FALSE
+
+# FFI
+# -DFFI_INCLUDE_DIR=/home/quentin/Desktop/GitProjects/tools/libffi/libffi-rv64/include \
+# -DFFI_LIBRARY=/home/quentin/Desktop/GitProjects/tools/libffi/libffi-rv64/lib/libffi.so \
+
+# libgit
+# -DFEATURE_LIB_GIT2=FALSE \
+
+# Openssl
+# -DOPENSSL_ROOT_DIR=/home/quentin/Desktop/GitProjects/tools/openssl-build \
+# -DOPENSSL_INCLUDE_DIR=/home/quentin/Desktop/GitProjects/tools/openssl-build/include \
+# -DOPENSSL_CRYPTO_LIBRARY=/home/quentin/Desktop/GitProjects/tools/openssl-build/lib \
+
+# uuid
+# -DLIB_UUID_INCLUDE_DIR=/opt/riscv-glibc/sysroot/usr/include/linux \
+
+# toolchain
+# -DCMAKE_TOOLCHAIN_FILE=../opensmalltalk-vm/cmake/riscv.cmake -B .
+
+# ==============================================================================
+
+# Complete command:
+# cmake -S ../opensmalltalk-vm -DBUILD_BUNDLE=FALSE -DGENERATE_SOURCES=FALSE -DFLAVOUR=CoInterpreter -DPHARO_DEPENDENCIES_PREFER_DOWNLOAD_BINARIES=FALSE \
+# -DFFI_INCLUDE_DIR=/home/quentin/Desktop/GitProjects/tools/libffi/libffi-rv64/include \
+# -DFFI_LIBRARY=/home/quentin/Desktop/GitProjects/tools/libffi/libffi-rv64/lib/libffi.so \
+# -DFEATURE_LIB_GIT2=FALSE \
+# -DOPENSSL_ROOT_DIR=/home/quentin/Desktop/GitProjects/tools/openssl-build \
+# -DOPENSSL_INCLUDE_DIR=/home/quentin/Desktop/GitProjects/tools/openssl-build/include \
+# -DOPENSSL_CRYPTO_LIBRARY=/home/quentin/Desktop/GitProjects/tools/openssl-build/lib \
+# -DLIB_UUID_INCLUDE_DIR=/opt/riscv-glibc/sysroot/usr/include/linux \
+# -DCMAKE_TOOLCHAIN_FILE=../opensmalltalk-vm/cmake/riscv.cmake -B .
+
+# ==============================================================================
 
 # Look for RISC-V github GCC
 FIND_FILE(RISCV_GLIBC_GCC_COMPILER "riscv64-unknown-linux-gnu-gcc" PATHS ENV INCLUDE)
