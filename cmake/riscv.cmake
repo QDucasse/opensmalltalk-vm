@@ -58,7 +58,7 @@ set(CROSS_COMPILE "/opt/riscv-glibc-2.30.9000/bin/riscv64-unknown-linux-gnu-")
 set(CMAKE_SYSTEM_NAME          Linux)
 set(CMAKE_SYSTEM_PROCESSOR     riscv.64) # This format is useful if we need the libffi that will work out of the box this way
 # Set the sysroot path for RISCV
-set(CMAKE_SYSROOT "/opt/riscv-glic-2.30.9000/sysroot")
+set(CMAKE_SYSROOT "/opt/riscv-glibc-2.30.9000/sysroot")
 
 # Setup the C and C++ compilers
 set(CMAKE_C_COMPILER ${CROSS_COMPILE}gcc)
