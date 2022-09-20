@@ -1346,7 +1346,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 					 self assertValue: cq isContainedIn: 12.
 					 ^ self bytesToLoadImmediate: cq ]
 				 ifNotNil: [ "Literal load" ^ self literalLoadInstructionBytes ] ]). "DONE"
-			([ MoveC32R ] -> [ ^ self shouldBeImplemented ]). "DONE"
+			([ MoveC32R ] -> [ ^ 0 ]). "shouldBeImplemented"
 			([ MoveCwR ] -> [ ^ 8 "always a auipc addi/ld sequence" ]). "DONE"
 			([ MoveRR ] -> [ ^ 4 ]). "DONE"
 
