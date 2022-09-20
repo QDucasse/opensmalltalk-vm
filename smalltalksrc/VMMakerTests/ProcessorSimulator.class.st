@@ -693,7 +693,6 @@ ProcessorSimulator >> register: aRegisterIndex write: aByteArray [
 ]
 
 { #category : #registers }
-
 ProcessorSimulator >> registerAliases [
 
 	^ registerAliases
