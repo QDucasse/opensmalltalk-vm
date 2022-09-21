@@ -46,18 +46,19 @@
 # ==============================================================================
 
 # Look for RISC-V github GCC
-FIND_FILE(RISCV_GLIBC_GCC_COMPILER "riscv64-unknown-linux-gnu-gcc" PATHS ENV INCLUDE)
-set(RISCV_GCC_COMPILER ${RISCV_GLIBC_GCC_COMPILER})
+# FIND_FILE(RISCV_GLIBC_GCC_COMPILER "riscv64-unknown-linux-gnu-gcc" PATHS ENV INCLUDE)
+# set(RISCV_GCC_COMPILER ${RISCV_GLIBC_GCC_COMPILER})
 
 # Get gcc path and  extract the prefix
-get_filename_component(RISCV_TOOLCHAIN_BIN_GCC ${RISCV_GCC_COMPILER} NAME)
-STRING(REGEX REPLACE "\-gcc" "-" CROSS_COMPILE ${RISCV_TOOLCHAIN_BIN_GCC})
+# get_filename_component(RISCV_TOOLCHAIN_BIN_GCC ${RISCV_GCC_COMPILER} NAME)
+# STRING(REGEX REPLACE "\-gcc" "-" CROSS_COMPILE ${RISCV_TOOLCHAIN_BIN_GCC})
+set(CROSS_COMPILE "/opt/riscv-glibc-2.30.9000/bin/riscv64-unknown-linux-gnu-")
 
 # Define the System and Processor
 set(CMAKE_SYSTEM_NAME          Linux)
 set(CMAKE_SYSTEM_PROCESSOR     riscv.64) # This format is useful if we need the libffi that will work out of the box this way
 # Set the sysroot path for RISCV
-set(CMAKE_SYSROOT "/opt/riscv-glibc/sysroot")
+set(CMAKE_SYSROOT "/opt/riscv-glibc-2.30.9000/sysroot")
 
 # Setup the C and C++ compilers
 set(CMAKE_C_COMPILER ${CROSS_COMPILE}gcc)
