@@ -1319,19 +1319,18 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ XorCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
 
 			"Arithmetic"
-			([ AddCqR ] -> [ ^ self bytesForADDCq ]). "DONE"
+			([ AddCqR ] -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4 ]). "DONE"
 			([ CmpCqR ] -> [ (self value: (operands at: 0) isContainedIn: 12)
 				ifTrue: [ ^ self bytesToLoadImmediate: (operands at: 0) + 4 ] "Immediate embedded in operations" 
 				ifFalse: [ ^ self literalLoadInstructionBytes + 4 ]. ]). "DONE"
 			([ CmpC32R ] -> [ ^ self bytesForCMPCq ]). "DONE"
-			([ SubCqR ] -> [ ^ self bytesForADDCq ]). "DONE"
+			([ SubCqR ] -> [ ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck
+			   + self bytesForArithmeticFlagUpdateWithMov + 4  ]). "DONE"
 			([ LoadEffectiveAddressMwrR ]
 			 -> [ ^ self bytesForLoadEffectiveAddress ]). "DONE"
 
 			"Arithmetic with an ensured literal load"
-			([ AddCwR ] -> [ 
-			 ^ self literalLoadInstructionBytes + self bytesForADDOverflowCheck
-			   + self bytesForArithmeticFlagUpdateWithMov + 4 ]). "DONE"
+			([ AddCwR ] -> [ ^ self literalLoadInstructionBytes + 4 ]). "DONE"
 			([ SubCwR ] -> [ 
 			 ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck
 			   + self bytesForArithmeticFlagUpdateWithMov + 4 ]). "DONE"
@@ -1349,9 +1348,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 			   + 4 ]). "DONE"
 
 			"Arithmetic Register-Only"
-			([ AddRR ] -> [ 
-			 ^ self bytesForADDOverflowCheck
-			   + self bytesForArithmeticFlagUpdateWithMov + 4 ]). "DONE"
+			([ AddRR ] -> [ ^ 4 ]). "DONE"
 			([ SubRR ] -> [ 
 			 ^ self bytesForSUBOverflowCheck
 			   + self bytesForArithmeticFlagUpdateWithMov + 4 ]). "DONE"
@@ -1547,15 +1544,14 @@ CogRiscV64Compiler >> concretizeAddCheckOverflowCqR [
 	 add   res,  imm,  src 
     slti  t1,   src,   0       # t1 = (src < 0)
     slt   t2,   res,   imm     # t2 = (src + imm < res)
-	 * since res and src2 are equal we have to res to another result then move back
+	 * since res and src are equal we have to res to another result then move back
     bne   t1,   t2,    offset  # overflow if (src < 0) && (src + imm >= res)  case 1 0 (underflow)
                                           || (src >= 0) && (src + imm < t0)   case 0 1 (overflow) "
 	<inline: true>
 	| cq srcReg destReg |
 	self flag: #DONE.
 	cq := operands at: 0.
-	srcReg := operands at: 1.
-	destReg := operands at: 2.
+	srcReg := destReg := operands at: 1.
 	self assertValue: cq isContainedIn: 12.
 	"Perform the ADD operation"
 	self machineCodeAt: 0 put: (self
@@ -1580,7 +1576,7 @@ CogRiscV64Compiler >> concretizeAddCheckOverflowCqR [
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeAddCheckOverflowRR [
-		"Check for the overflow, as according to the example in the book: 
+	"Check for the overflow, as according to the example in the book: 
 	 add   res,  src1,  src2 
     slti  t1,   src2,  0       # t1 = (src2 < 0)
     slt   t2,   res,   src1    # t2 = (src1 + src2 < res)
@@ -1629,36 +1625,20 @@ CogRiscV64Compiler >> concretizeAddCqR [
 
 	<var: #cq type: #sqInt>
 	<inline: true>
-	| cq destReg sourceReg loadOffset flagOffset overflowOffset |
+	| cq destReg sourceReg loadOffset |
 	self flag: #DONE.
 	cq := operands at: 0.
-	sourceReg := operands at: 1.
-	destReg := operands at: 2.
-	destReg ifNil: [ destReg := sourceReg ].
-	self assert: (destReg isNotNil).
+	sourceReg := destReg := operands at: 1.
 	"Load cq if needed in a register (whether big immediate or literal) 
 	 or use the immediate instruction if it is a small immediate"
 	dependent ifNil: [ 
 		self assertValue: cq isContainedIn: 12.
 		"Use the provided immediate instruction"
-		self machineCodeAt: 0 put: (self
-				 addImmediate: cq
-				 toRegister: sourceReg
-				 inRegister: ConcreteZeroReg).
-		"Check for overflow"
-		overflowOffset := self
-			                  checkADDOverflowWithSourceReg: sourceReg
-			                  immediate: cq
-			                  andResultReg: ConcreteZeroReg
-			                  startingAtIndex: 4.
-
-		"Update flag registers"
-		flagOffset := self
-			              updateFlagsADDForSourceReg: sourceReg
-			              resultReg: ConcreteZeroReg
-			              andMoveResultTo: destReg
-			              startingAtIndex: overflowOffset + 4.
-		^ machineCodeSize := flagOffset + overflowOffset + 4 ].
+		self machineCodeAt: 0 put: (self 
+			addImmediate: cq 
+			toRegister: sourceReg
+			inRegister: destReg).
+		^ machineCodeSize := 4 ].
 
 	"Otherwise, use the provided literal"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
@@ -1666,22 +1646,9 @@ CogRiscV64Compiler >> concretizeAddCqR [
 	self machineCodeAt: loadOffset put: (self
 			 addRegister: sourceReg
 			 toRegister: ConcreteIPReg
-			 inRegister: ConcreteZeroReg).
-
-	"Check for overflow"
-	overflowOffset := self
-		                  checkADDOverflowWithSourceReg1: sourceReg
-		                  sourceReg2: ConcreteIPReg
-		                  andResultReg: ConcreteZeroReg
-		                  startingAtIndex: loadOffset + 4.
-
-	"Update flag registers"
-	flagOffset := self
-		              updateFlagsADDForSourceReg: sourceReg
-		              resultReg: ConcreteZeroReg
-		              andMoveResultTo: destReg
-		              startingAtIndex: loadOffset + overflowOffset + 4.
-	^ machineCodeSize := loadOffset + flagOffset + overflowOffset + 4
+			 inRegister: destReg).
+		
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
@@ -1699,23 +1666,9 @@ CogRiscV64Compiler >> concretizeAddCwR [
 	self machineCodeAt: loadOffset put: (self
 			 addRegister: sourceReg
 			 toRegister: ConcreteIPReg
-			 inRegister: ConcreteZeroReg).
+			 inRegister: destReg).
 
-	"Check for overflow"
-	overflowOffset := self
-		                  checkADDOverflowWithSourceReg1: sourceReg
-		                  sourceReg2: ConcreteIPReg
-		                  andResultReg: ConcreteZeroReg
-		                  startingAtIndex: loadOffset + 4.
-
-	"Update flag registers"
-	flagOffset := self
-		              updateFlagsADDForSourceReg: ConcreteIPReg
-		              resultReg: ConcreteZeroReg
-		              andMoveResultTo: destReg
-		              startingAtIndex: loadOffset + overflowOffset + 4.
-
-	^ machineCodeSize := loadOffset + flagOffset + overflowOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
@@ -1727,26 +1680,12 @@ CogRiscV64Compiler >> concretizeAddRR [
 	srcReg1 := operands at: 0.
 	srcReg2 := destReg := operands at: 1.
 	"Perform the ADD operation"
-	self machineCodeAt: 0 put: (self
-			 addRegister: srcReg1
-			 toRegister: srcReg2
-			 inRegister: ConcreteZeroReg).
-
-	"Check for overflow"
-	overflowOffset := self
-		                  checkADDOverflowWithSourceReg1: srcReg1
-		                  sourceReg2: srcReg2
-		                  andResultReg: ConcreteZeroReg
-		                  startingAtIndex: 4.
-
-	"Update flag registers"
-	flagOffset := self
-		              updateFlagsADDForSourceReg: srcReg1
-		              resultReg: ConcreteZeroReg
-		              andMoveResultTo: destReg
-		              startingAtIndex: overflowOffset + 4.
-
-	^ machineCodeSize := flagOffset + overflowOffset + 4
+	self machineCodeAt: 0 put: (self 
+		addRegister: srcReg1 
+		toRegister: srcReg2 
+		inRegister: destReg).
+		
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
@@ -4368,22 +4307,114 @@ CogRiscV64Compiler >> concretizeStop [
 ]
 
 { #category : #concretization }
+CogRiscV64Compiler >> concretizeSubCheckOverflowCqR [
+	"Check for the overflow, as according to the example in the book: 
+	 sub   res,  imm,  src      # res = src - imm
+    slti  t1,   src,  0        # t1 = (src2 < 0)
+    slt   t2,   res,   imm     # t2 = (src1 - src2 < res)
+	 * since res and src are equal we have to res to another result then move back
+    be    t1,   t2,    offset  # overflow if (src2 < 0) && (src1 + src2 < res)    case 1 1 (overflow)
+                                          || (src2 >= 0) && (src1 + src2 >= res)  case 0 0 (underflow)"
+	<inline: true>
+	| cq srcReg destReg |
+	self flag: #DONE.
+	cq := (operands at: 0) negated.
+	srcReg := destReg := operands at: 1.
+	"Perform the SUB operation"
+	self machineCodeAt: 0 put: (self
+		addImmediate: cq
+		toRegister:  srcReg
+		inRegister: ConcreteOverflowReg).
+	"1. Check if one operand is negative, OR EQUAL TO ZERO"
+	self machineCodeAt: 4 put: (self 
+		setOneIn: ConcreteIPReg2 
+		ifValueIn: srcReg
+		isLessThanImmediate: 1). 
+	"2. Check if the sum is smaller than one operand"
+	self machineCodeAt: 8 put: (self 
+		setOneIn: ConcreteIPReg3 
+		ifValueIn: destReg 
+		isLessThanValueIn: ConcreteOverflowReg).
+	"3. Move result to destination register"
+	self machineCodeAt: 12 put: (self 
+		moveRegister: ConcreteOverflowReg toRegister: destReg).
+	^ machineCodeSize := 16
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeSubCheckOverflowRR [
+	"Check for the overflow, as according to the example in the book: 
+	 sub   res,  src1,  src2    # res = src1 - src2 
+    slti  t1,   src2,  0       # t1 = (src2 < 0)
+    slt   t2,   res,   src1    # t2 = (src1 - src2 < res)
+    be    t1,   t2,    offset  # overflow if (src2 < 0) && (src1 + src2 < res)    case 1 1 (overflow)
+                                          || (src2 >= 0) && (src1 + src2 >= res)  case 0 0 (underflow)"
+	<inline: true>
+	| srcReg1 srcReg2 destReg |
+	self flag: #DONE.
+	srcReg1 := operands at: 0.
+	srcReg2 := destReg := operands at: 1.
+	"Perform the SUB operation"
+	self machineCodeAt: 0 put: (self
+		subtractRegister: srcReg2
+		fromRegister:  srcReg1
+		intoRegister: ConcreteOverflowReg).
+	"1. Check if one operand is negative, OR EQUAL TO ZERO"
+	self machineCodeAt: 4 put: (self 
+		setOneIn: ConcreteIPReg2 
+		ifValueIn: srcReg2 
+		isLessThanImmediate: 1). 
+	"2. Check if the sum is smaller than one operand"
+	self machineCodeAt: 8 put: (self 
+		setOneIn: ConcreteIPReg3 
+		ifValueIn: destReg 
+		isLessThanValueIn: srcReg1).
+	"3. Move result to destination register"
+	self machineCodeAt: 12 put: (self 
+		moveRegister: ConcreteOverflowReg toRegister: destReg).
+	^ machineCodeSize := 16
+]
+
+{ #category : #concretization }
 CogRiscV64Compiler >> concretizeSubCqR [
 
 	"Perform a sub operation between the value of register and the value of the operand.
-	 Since no subi exist in RISC-V, it simply calls addcq with the negated operand."
+	 Since no subi exist in RISC-V, it will always load the value to a register then sub the registers."
 
 	<var: #cq type: #sqInt>
 	<inline: true>
 	| cq destReg sourceReg loadOffset flagOffset overflowOffset |
 	self flag: #TODO.
 	cq := operands at: 0.
-	operands at: 0 put: cq negated.
-	
-	
-	^ self concretizeAddCqR 
-	
-	
+	sourceReg := destReg := operands at: 1.
+
+	"Load the Cq"
+	dependent
+		ifNil: [ "Immediate load in a register"
+			loadOffset := self loadImmediate: cq inRegister: ConcreteIPReg ]
+		ifNotNil: [ "Literal -> compute the distance then load the actual value in a register" 
+			loadOffset := self loadLiteralInRegister: ConcreteIPReg ].
+
+	"Perform the SUB operation to a temp register (as operands AND result are needed for overflow check)"
+	self machineCodeAt: loadOffset put: (self
+			 subtractRegister: ConcreteIPReg
+			 fromRegister: sourceReg
+			 intoRegister: ConcreteZeroReg).
+
+	"Check for overflow"
+	overflowOffset := self
+		                  checkSUBOverflowWithSourceReg1: sourceReg
+		                  sourceReg2: ConcreteIPReg
+		                  andResultReg: ConcreteZeroReg
+		                  startingAtIndex: loadOffset + 4.
+
+	"Update flag registers"
+	flagOffset := self
+		              updateFlagsSUBForSourceReg: sourceReg
+		              resultReg: ConcreteZeroReg
+		              andMoveResultTo: destReg
+		              startingAtIndex: loadOffset + overflowOffset + 4.
+	^ machineCodeSize := loadOffset + flagOffset + overflowOffset + 4
 ]
 
 { #category : #concretization }
@@ -6552,28 +6583,28 @@ CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 
 { #category : #'machine code instruction' }
 CogRiscV64Compiler >> noteFollowingOverflowBranch: branch [
-	"Support for processors without condition codes, such as the MIPS.
+	"Support for processors without condition codes, such as the RISC-V.
 	 Answer the branch opcode.  Modify the receiver and the branch to
 	 implement a suitable conditional branch that doesn't depend on
 	 condition codes being set by the receiver."
 	<var: #branch type: #'AbstractInstruction *'>
 	| newBranchOpcode |
 
-"	(opcode = MulRR) ifTrue:
-		[opcode := MulCheckOverflowRR.
+	({SubCqR. SubRR} includes: opcode) ifTrue:
+		[opcode := opcode caseOf: {
+			[ SubCqR ] -> [ SubCheckOverflowCqR ].
+			[ SubRR ] -> [ SubCheckOverflowRR ].
+		}.
 		 newBranchOpcode := branch opcode caseOf: {
-			[JumpOverflow]		-> [BrNotEqualRR].
-			[JumpNoOverflow]	-> [BrEqualRR].
+			[JumpOverflow]		-> [BrEqualRR].
+			[JumpNoOverflow]	-> [BrNotEqualRR].
 		 } otherwise: [self unreachable. 0].
-		 branch rewriteOpcode: newBranchOpcode with: ConcreteIPReg2 with: ConcreteIPReg2.
+		 branch rewriteOpcode: newBranchOpcode with: ConcreteIPReg2 with: ConcreteIPReg3.
 		 ^branch].
-"
 
 	opcode := opcode caseOf: {
 		[AddCqR] -> [AddCheckOverflowCqR].
 		[AddRR]  -> [AddCheckOverflowRR].
-		[SubCqR] -> [SubCheckOverflowCqR].
-		[SubRR]  -> [SubCheckOverflowRR].
 	   [MulRR]  -> [MulCheckOverflowRR].
 	} otherwise: [self unreachable. 0].
 
