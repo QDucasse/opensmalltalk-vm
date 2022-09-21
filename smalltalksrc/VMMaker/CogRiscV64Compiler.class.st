@@ -1236,7 +1236,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ JumpNoCarry ] -> [ ^ 4 ]). "DONE"
 			([ JumpLess ] -> [ ^ 4 ]). "DONE"
 			([ JumpGreaterOrEqual ] -> [ ^ 4 ]). "DONE"
-			([ JumpGreater ] -> [ ^ 20 ]). "DONE"
+			([ JumpGreater ] -> [ ^ 12 ]). "DONE"
 			([ JumpLessOrEqual ] -> [ ^ 12 ]). "DONE"
 			([ JumpBelow ] -> [ ^ 4 ]). "DONE"
 			([ JumpAboveOrEqual ] -> [ ^ 4 ]). "DONE"
@@ -2387,7 +2387,6 @@ CogRiscV64Compiler >> concretizeJumpGreater [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 8.
-	(self isInImmediateBranchRange: offset) ifFalse: [ ^ self concretizeJumpLongGreater ].
 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump Greater means jump if ZF = 0 and SF = OF"
 	"Check if SF and OF are different with a XOR (1 if different)"
@@ -4370,7 +4369,7 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[JumpNoCarry]		-> [ ^ self concretizeJumpNoCarry ].
 		[JumpLess]			-> [ ^ self concretizeJumpLess ].
 		[JumpGreaterOrEqual]	-> [ ^ self concretizeJumpGreaterOrEqual ].
-		[JumpGreater]			-> [ ^ self concretizeJumpLongGreater ].
+		[JumpGreater]			-> [ ^ self concretizeJumpGreater ].
 		[JumpLessOrEqual]		-> [ ^ self concretizeJumpLessOrEqual ].
 		[JumpBelow]				-> [ ^ self concretizeJumpBelow ]. "unsigned lower"
 		[JumpAboveOrEqual]		-> [ ^ self concretizeJumpAboveOrEqual ]. "unsigned greater or equal"
