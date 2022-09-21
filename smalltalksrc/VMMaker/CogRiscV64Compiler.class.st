@@ -4396,13 +4396,13 @@ CogRiscV64Compiler >> concretizeSubCheckOverflowRR [
 	"1. Check if one operand is negative, OR EQUAL TO ZERO"
 	self machineCodeAt: 4 put: (self 
 		setOneIn: ConcreteIPReg2 
-		ifValueIn: srcReg2 
+		ifValueIn: srcReg1
 		isLessThanImmediate: 1). 
 	"2. Check if the sum is smaller than one operand"
 	self machineCodeAt: 8 put: (self 
 		setOneIn: ConcreteIPReg3 
 		ifValueIn: ConcreteOverflowReg 
-		isLessThanValueIn: srcReg1).
+		isLessThanValueIn: srcReg2).
 	"3. Move result to destination register"
 	self machineCodeAt: 12 put: (self 
 		moveRegister: ConcreteOverflowReg toRegister: destReg).
