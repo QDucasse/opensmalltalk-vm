@@ -1265,6 +1265,12 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ BrUnsignedGreaterRR ]       -> [ ^ 4 ]).
 			([ BrUnsignedGreaterEqualRR ]  -> [ ^ 4 ]).
 			([ BrLongEqualRR ]             -> [ ^ 12 ]).
+			"Overflow"
+			([ AddCheckOverflowRR ]       -> [ ^ 16 ]).
+			([ AddCheckOverflowCqR ]      -> [ ^ 16 ]).
+			([ SubCheckOverflowRR ]       -> [ ^ 16 ]).
+			([ SubCheckOverflowCqR ]      -> [ ^ 16 ]).
+			([ MulCheckOverflowRR ]       -> [ ^ 16 ]).	
 			"Control"
 			([ Call ] -> [ ^ self callInstructionByteSize ]). "TODO"
 			([ CallFull ] -> [ ^ self literalLoadInstructionBytes + 4 ]). "TODO"
@@ -1533,6 +1539,78 @@ CogRiscV64Compiler >> computeSignedValueOf: aValue ofSize: aSize [
 			mask := (1 << aSize) - 1.
 			^ mask - aValue abs + 1 ]  "Compute two's complement" 
 		ifFalse: [ ^ aValue ]
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeAddCheckOverflowCqR [
+	"Check for the overflow, as according to the example in the book: 
+	 add   res,  imm,  src 
+    slti  t1,   src,   0       # t1 = (src < 0)
+    slt   t2,   res,   imm     # t2 = (src + imm < res)
+	 * since res and src2 are equal we have to res to another result then move back
+    bne   t1,   t2,    offset  # overflow if (src < 0) && (src + imm >= res)  case 1 0 (underflow)
+                                          || (src >= 0) && (src + imm < t0)   case 0 1 (overflow) "
+	<inline: true>
+	| cq srcReg destReg |
+	self flag: #DONE.
+	cq := operands at: 0.
+	srcReg := operands at: 1.
+	destReg := operands at: 2.
+	self assertValue: cq isContainedIn: 12.
+	"Perform the ADD operation"
+	self machineCodeAt: 0 put: (self
+		addImmediate: cq
+		toRegister: srcReg
+		inRegister: ConcreteOverflowReg).
+	"1. Check if one operand is negative"
+	self machineCodeAt: 4 put: (self 
+		setOneIn: ConcreteIPReg2 
+		ifValueIn: srcReg
+		isLessThanImmediate: 0).
+	"2. Check if the sum is smaller than one operand"
+	self machineCodeAt: 8 put: (self 
+		setOneIn: ConcreteIPReg3 
+		ifValueIn: ConcreteOverflowReg 
+		isLessThanImmediate: cq).
+	"3. Move result to destination register"
+	self machineCodeAt: 12 put: (self 
+		moveRegister: ConcreteOverflowReg toRegister: destReg).
+	^ machineCodeSize := 16
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeAddCheckOverflowRR [
+		"Check for the overflow, as according to the example in the book: 
+	 add   res,  src1,  src2 
+    slti  t1,   src2,  0       # t1 = (src2 < 0)
+    slt   t2,   res,   src1    # t2 = (src1 + src2 < res)
+	 * since res and src2 are equal we have to res to another result then move back
+    bne   t1,   t2,    offset  # overflow if (src2 < 0) && (src1 + src2 >= res)  case 1 0 (underflow)
+                                          || (src2 >= 0) && (src1 + src2 < res)  case 0 1 (overflow)"
+	<inline: true>
+	| srcReg1 srcReg2 destReg |
+	self flag: #DONE.
+	srcReg1 := operands at: 0.
+	srcReg2 := destReg := operands at: 1.
+	"Perform the ADD operation"
+	self machineCodeAt: 0 put: (self
+		addRegister: srcReg1
+		toRegister: srcReg2
+		inRegister: ConcreteOverflowReg).
+	"1. Check if one operand is negative"
+	self machineCodeAt: 4 put: (self 
+		setOneIn: ConcreteIPReg2 
+		ifValueIn: srcReg2 
+		isLessThanImmediate: 0).
+	"2. Check if the sum is smaller than one operand"
+	self machineCodeAt: 8 put: (self 
+		setOneIn: ConcreteIPReg3 
+		ifValueIn: ConcreteOverflowReg 
+		isLessThanValueIn: srcReg1).
+	"3. Move result to destination register"
+	self machineCodeAt: 12 put: (self 
+		moveRegister: ConcreteOverflowReg toRegister: destReg).
+	^ machineCodeSize := 16
 ]
 
 { #category : #concretization }
@@ -4578,6 +4656,12 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[ BrUnsignedGreaterEqualRR ] -> [ ^ self concretizeBrUnsignedGreaterEqualRR ].
 		[ BrLongEqualRR  ]           -> [ ^ self concretizeBrLongEqualRR ].
 		[ BrLongNotEqualRR  ]        -> [ ^ self concretizeBrLongNotEqualRR ].
+		"Overflow"
+		[ AddCheckOverflowRR ]       -> [ ^ self concretizeAddCheckOverflowRR ].
+      [ AddCheckOverflowCqR ]      -> [ ^ self concretizeAddCheckOverflowCqR ].
+		[ SubCheckOverflowRR ]       -> [ ^ self concretizeSubCheckOverflowRR ].
+      [ SubCheckOverflowCqR ]      -> [ ^ self concretizeSubCheckOverflowCqR ].
+      [ MulCheckOverflowRR ]       -> [ ^ self concretizeMulCheckOverflowRR ].
 		"Control"
 		[Call]					-> [ ^ self concretizeCall ]. "call code within code space"
 		[CallFull]			-> [ ^ self concretizeCallFull ]. "call code anywhere in address space"
@@ -6474,34 +6558,31 @@ CogRiscV64Compiler >> noteFollowingOverflowBranch: branch [
 	 condition codes being set by the receiver."
 	<var: #branch type: #'AbstractInstruction *'>
 	| newBranchOpcode |
-	^ branch
-	
-	"
-	(opcode = MulRR) ifTrue:
+
+"	(opcode = MulRR) ifTrue:
 		[opcode := MulCheckOverflowRR.
 		 newBranchOpcode := branch opcode caseOf: {
 			[JumpOverflow]		-> [BrNotEqualRR].
 			[JumpNoOverflow]	-> [BrEqualRR].
 		 } otherwise: [self unreachable. 0].
-		 branch rewriteOpcode: newBranchOpcode with: OverflowTemp1 with: OverflowTemp2.
+		 branch rewriteOpcode: newBranchOpcode with: ConcreteIPReg2 with: ConcreteIPReg2.
 		 ^branch].
-
+"
 
 	opcode := opcode caseOf: {
-		[AddCqR]	-> [AddCheckOverflowCqR].
-		[AddRR]		-> [AddCheckOverflowRR].
-		[SubCqR]	-> [SubCheckOverflowCqR].
-		[SubRR]		-> [SubCheckOverflowRR].
+		[AddCqR] -> [AddCheckOverflowCqR].
+		[AddRR]  -> [AddCheckOverflowRR].
+		[SubCqR] -> [SubCheckOverflowCqR].
+		[SubRR]  -> [SubCheckOverflowRR].
+	   [MulRR]  -> [MulCheckOverflowRR].
 	} otherwise: [self unreachable. 0].
 
 	newBranchOpcode := branch opcode caseOf: {
-		[JumpOverflow]		-> [BrSignedLessRR].
-		[JumpNoOverflow]	-> [BrSignedGreaterEqualRR].
+		[JumpOverflow]		-> [BrNotEqualRR].
+		[JumpNoOverflow]	-> [BrEqualRR].
 	} otherwise: [self unreachable. 0].
-	branch rewriteOpcode: newBranchOpcode with: Overflow with: ZR.
-	^branch"
-
-	
+	branch rewriteOpcode: newBranchOpcode with: ConcreteIPReg2 with: ConcreteIPReg3.
+	^branch
 ]
 
 { #category : #'inline cacheing' }
