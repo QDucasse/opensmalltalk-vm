@@ -4318,11 +4318,11 @@ CogRiscV64Compiler >> concretizeSubCheckOverflowCqR [
 	<inline: true>
 	| cq srcReg destReg |
 	self flag: #DONE.
-	cq := (operands at: 0) negated.
+	cq := operands at: 0.
 	srcReg := destReg := operands at: 1.
 	"Perform the SUB operation"
 	self machineCodeAt: 0 put: (self
-		addImmediate: cq
+		addImmediate: cq negated
 		toRegister:  srcReg
 		inRegister: ConcreteOverflowReg).
 	"1. Check if one operand is negative, OR EQUAL TO ZERO"
@@ -4333,8 +4333,8 @@ CogRiscV64Compiler >> concretizeSubCheckOverflowCqR [
 	"2. Check if the sum is smaller than one operand"
 	self machineCodeAt: 8 put: (self 
 		setOneIn: ConcreteIPReg3 
-		ifValueIn: destReg 
-		isLessThanValueIn: ConcreteOverflowReg).
+		ifValueIn: ConcreteOverflowReg 
+		isLessThanImmediate: cq).
 	"3. Move result to destination register"
 	self machineCodeAt: 12 put: (self 
 		moveRegister: ConcreteOverflowReg toRegister: destReg).
@@ -4356,8 +4356,8 @@ CogRiscV64Compiler >> concretizeSubCheckOverflowRR [
 	srcReg2 := destReg := operands at: 1.
 	"Perform the SUB operation"
 	self machineCodeAt: 0 put: (self
-		subtractRegister: srcReg2
-		fromRegister:  srcReg1
+		subtractRegister: srcReg1
+		fromRegister:  srcReg2
 		intoRegister: ConcreteOverflowReg).
 	"1. Check if one operand is negative, OR EQUAL TO ZERO"
 	self machineCodeAt: 4 put: (self 
@@ -4367,7 +4367,7 @@ CogRiscV64Compiler >> concretizeSubCheckOverflowRR [
 	"2. Check if the sum is smaller than one operand"
 	self machineCodeAt: 8 put: (self 
 		setOneIn: ConcreteIPReg3 
-		ifValueIn: destReg 
+		ifValueIn: ConcreteOverflowReg 
 		isLessThanValueIn: srcReg1).
 	"3. Move result to destination register"
 	self machineCodeAt: 12 put: (self 
