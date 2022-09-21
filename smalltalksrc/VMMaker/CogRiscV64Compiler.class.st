@@ -1244,8 +1244,16 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ Fill32 ] -> [ ^ 4 ]). "DONE"
 			([ Nop ] -> [ ^ 4 ]). "DONE"
 			"Branches"
-			([ BrEqualRR ] -> [ ^ 4 ]).
-			([ BrNotEqualRR ] -> [ ^ 4 ]).
+			([ BrEqualRR ]                 -> [ ^ 4 ]).
+			([ BrNotEqualRR ]              -> [ ^ 4 ]).
+			([ BrSignedGreaterRR ]         -> [ ^ 4 ]).
+			([ BrSignedGreaterEqualRR ]    -> [ ^ 4 ]).
+			([ BrSignedLessRR ]            -> [ ^ 4 ]).
+			([ BrSignedLessEqualRR ]       -> [ ^ 4 ]).
+			([ BrUnsignedLessRR ]          -> [ ^ 4 ]).
+			([ BrUnsignedLessEqualRR ]     -> [ ^ 4 ]).
+			([ BrUnsignedGreaterRR ]       -> [ ^ 4 ]).
+			([ BrUnsignedGreaterEqualRR ]  -> [ ^ 4 ]).
 			"Control"
 			([ Call ] -> [ ^ self callInstructionByteSize ]). "TODO"
 			([ CallFull ] -> [ ^ self literalLoadInstructionBytes + 4 ]). "TODO"
@@ -1922,6 +1930,118 @@ CogRiscV64Compiler >> concretizeBrNotEqualRR [
 	right := operands at: 2.
  	self assert: (self isInImmediateBranchRange: offset).
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: left isNotEqualToRegisterValue: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrSignedGreaterEqualRR [  
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: left isGreaterThanOrEqualRegisterValue: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrSignedGreaterRR [  
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: left isGreaterThanRegisterValue: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrSignedLessEqualRR [  
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: left isLessThanOrEqualRegisterValue: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrSignedLessRR [  
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: left isLessThanRegisterValue: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrUnsignedGreaterEqualRR [   
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: left isGreaterThanOrEqualRegisterValueUnsigned: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrUnsignedGreaterRR [  
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: left isGreaterThanRegisterValueUnsigned: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrUnsignedLessEqualRR [  
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: left isLessThanOrEqualRegisterValueUnsigned: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrUnsignedLessRR [  
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: left isLessThanRegisterValueUnsigned: right).
 	^ machineCodeSize := 4
 ]
 
@@ -4375,8 +4495,16 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[Fill32]			 -> [ ^ self concretizeFill32 ].
 		[Nop]				 -> [ ^ self concretizeNop ].
 		"Branches"
-		[ BrEqualRR ]      -> [ ^ self concretizeBrEqualRR ].
-		[ BrNotEqualRR ]      -> [ ^ self concretizeBrNotEqualRR ].
+		[ BrEqualRR ]                -> [ ^ self concretizeBrEqualRR ].
+		[ BrNotEqualRR ]             -> [ ^ self concretizeBrNotEqualRR ].
+	   [ BrSignedGreaterRR ]        -> [ ^ self concretizeBrSignedGreaterRR ].
+		[ BrSignedGreaterEqualRR ]   -> [ ^ self concretizeBrSignedGreaterEqualRR ].
+		[ BrSignedLessRR ]           -> [ ^ self concretizeBrSignedLessRR ].
+		[ BrSignedLessEqualRR ]      -> [ ^ self concretizeBrSignedLessEqualRR ].
+		[ BrUnsignedLessRR ]         -> [ ^ self concretizeBrUnsignedLessRR ].
+	   [ BrUnsignedLessEqualRR ]    -> [ ^ self concretizeBrUnsignedLessEqualRR ].
+		[ BrUnsignedGreaterRR ]      -> [ ^ self concretizeBrUnsignedGreaterRR ].
+		[ BrUnsignedGreaterEqualRR ] -> [ ^ self concretizeBrUnsignedGreaterEqualRR ].
 		"Control"
 		[Call]					-> [ ^ self concretizeCall ]. "call code within code space"
 		[CallFull]			-> [ ^ self concretizeCallFull ]. "call code anywhere in address space"
@@ -5540,7 +5668,12 @@ CogRiscV64Compiler >> isInLongJumpCallRange: offset [
 
 { #category : #'machine code instruction' }
 CogRiscV64Compiler >> isJump [
-	^super isJump or: [{BrEqualRR. BrNotEqualRR} includes: opcode]
+	^super isJump or: [{
+		BrEqualRR. BrNotEqualRR. 
+		BrSignedGreaterRR. BrSignedGreaterEqualRR. 
+		BrSignedLessRR. BrSignedLessEqualRR.
+		BrUnsignedLessRR. BrUnsignedLessEqualRR. 
+		BrUnsignedGreaterRR. BrUnsignedGreaterEqualRR } includes: opcode]
 ]
 
 { #category : #testing }
@@ -6215,7 +6348,7 @@ CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 						 newBranchRight := operands at: 0.
 						 opcode := Label].
 
-		[CmpCqR]	-> 	[1halt. newBranchLeft := operands at: 1.
+		[CmpCqR]	-> 	[newBranchLeft := operands at: 1.
 						 newBranchRight := ConcreteZeroReg.
 						 opcode := MoveCqR.
 						 operands at: 1 put: ConcreteZeroReg].
