@@ -1254,6 +1254,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ BrUnsignedLessEqualRR ]     -> [ ^ 4 ]).
 			([ BrUnsignedGreaterRR ]       -> [ ^ 4 ]).
 			([ BrUnsignedGreaterEqualRR ]  -> [ ^ 4 ]).
+			([ BrLongEqualRR ]             -> [ ^ 12 ]).
 			"Control"
 			([ Call ] -> [ ^ self callInstructionByteSize ]). "TODO"
 			([ CallFull ] -> [ ^ self literalLoadInstructionBytes + 4 ]). "TODO"
@@ -1917,6 +1918,66 @@ CogRiscV64Compiler >> concretizeBrEqualRR [
  	self assert: (self isInImmediateBranchRange: offset).
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: left isEqualToRegisterValue: right).
 	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrLongEqualRR [
+	| offset offsetHigh offsetLow leftReg rightReg |
+	self flag: #TODO.
+	"<var: #jumpTargetInstruction type: #'AbstractInstruction *'>
+	jumpTargetInstruction := self longJumpTargetAddress.
+	self flag: #todo. ""Check not crossing 256MB block.""
+	jumpTargetAddr := jumpTargetInstruction asUnsignedInteger bitAnd: 16rFFFFFFF."
+	
+	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4. 
+	self assert: (self isInLongJumpCallRange: offset).
+	
+	leftReg := operands at: 1.
+	rightReg := operands at: 2.
+
+	"This mangling avoid having to bias the 11th bit in case of a negative value
+	 it is also used in loadImmediate:inRegister:"
+	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
+	offsetLow := self computeSignedValue64Bits: (offset bitAnd: 16rFFF).
+	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
+	
+
+	"Branch over the jump if the condition is not met"
+	self machineCodeAt: 0 put: (self  branchTo: 12 ifRegisterValue: leftReg isNotEqualToRegisterValue: rightReg).
+	"Perform the actual jump"
+	self machineCodeAt: 4 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+	self machineCodeAt: 8 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
+	^ machineCodeSize := 12
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrLongNotEqualRR [
+	| offset offsetHigh offsetLow leftReg rightReg |
+	self flag: #TODO.
+	"<var: #jumpTargetInstruction type: #'AbstractInstruction *'>
+	jumpTargetInstruction := self longJumpTargetAddress.
+	self flag: #todo. ""Check not crossing 256MB block.""
+	jumpTargetAddr := jumpTargetInstruction asUnsignedInteger bitAnd: 16rFFFFFFF."
+	
+	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4. 
+	self assert: (self isInLongJumpCallRange: offset).
+	
+	leftReg := operands at: 1.
+	rightReg := operands at: 2.
+
+	"This mangling avoid having to bias the 11th bit in case of a negative value
+	 it is also used in loadImmediate:inRegister:"
+	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
+	offsetLow := self computeSignedValue64Bits: (offset bitAnd: 16rFFF).
+	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
+	
+
+	"Branch over the jump if the condition is not met"
+	self machineCodeAt: 0 put: (self  branchTo: 12 ifRegisterValue: leftReg isEqualToRegisterValue: rightReg).
+	"Perform the actual jump"
+	self machineCodeAt: 4 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+	self machineCodeAt: 8 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
+	^ machineCodeSize := 12
 ]
 
 { #category : #concretization }
@@ -4505,6 +4566,8 @@ CogRiscV64Compiler >> dispatchConcretize [
 	   [ BrUnsignedLessEqualRR ]    -> [ ^ self concretizeBrUnsignedLessEqualRR ].
 		[ BrUnsignedGreaterRR ]      -> [ ^ self concretizeBrUnsignedGreaterRR ].
 		[ BrUnsignedGreaterEqualRR ] -> [ ^ self concretizeBrUnsignedGreaterEqualRR ].
+		[ BrLongEqualRR  ]           -> [ ^ self concretizeBrLongEqualRR ].
+		[ BrLongNotEqualRR  ]        -> [ ^ self concretizeBrLongNotEqualRR ].
 		"Control"
 		[Call]					-> [ ^ self concretizeCall ]. "call code within code space"
 		[CallFull]			-> [ ^ self concretizeCallFull ]. "call code anywhere in address space"
@@ -5673,7 +5736,8 @@ CogRiscV64Compiler >> isJump [
 		BrSignedGreaterRR. BrSignedGreaterEqualRR. 
 		BrSignedLessRR. BrSignedLessEqualRR.
 		BrUnsignedLessRR. BrUnsignedLessEqualRR. 
-		BrUnsignedGreaterRR. BrUnsignedGreaterEqualRR } includes: opcode]
+		BrUnsignedGreaterRR. BrUnsignedGreaterEqualRR.
+		BrLongEqualRR. BrLongNotEqualRR } includes: opcode]
 ]
 
 { #category : #testing }
@@ -6333,61 +6397,61 @@ CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 		ifTrue: [^self noteFollowingOverflowBranch: branch]."
 	
 	"((opcode = CmpRR) and: (branch opcode = JumpZero)) ifFalse: [ ^ branch ]."
-	({ CmpRR. CmpCqR. TstCqR } includes: opcode)
-		ifFalse: [ ^ branch ].
 	
 	opcode caseOf: {
-		"[BrEqualRR]	->	[""I.e., two jumps after a compare.""
-						newBranchLeft := operands at: 1.
-						newBranchRight := operands at: 2].
-		[BrUnsignedLessRR]	->	[""I.e., two jumps after a compare.""
-						newBranchLeft := operands at: 1.
-						newBranchRight := operands at: 2]."
-
-		[CmpRR] 	-> 	[newBranchLeft := operands at: 1.
-						 newBranchRight := operands at: 0.
-						 opcode := Label].
-
-		[CmpCqR]	-> 	[newBranchLeft := operands at: 1.
-						 newBranchRight := ConcreteZeroReg.
-						 opcode := MoveCqR.
-						 operands at: 1 put: ConcreteZeroReg].
-		"[CmpCwR]	-> 	[newBranchLeft := operands at: 1.
-						 newBranchRight := AT.
-						 opcode := MoveCwR.
-						 operands at: 1 put: AT]."
-		[TstCqR]	->	[newBranchLeft := ConcreteZeroReg. "Need to change once everything is done"
-						 newBranchRight := X0].
-		"[AndCqR]	->	[newBranchLeft := operands at: 1.
-						 newBranchRight := ZR].
-		[AndCqRR]	->	[newBranchLeft := operands at: 2.
-						 newBranchRight := ZR].
-		[OrRR]	->		[newBranchLeft := operands at: 1.
-						 newBranchRight := ZR].
-		[XorRR]	->		[newBranchLeft := operands at: 1.
-						 newBranchRight := ZR].
-		[SubCwR]	->	[newBranchLeft := operands at: 1.
-						 newBranchRight := ZR].
-		[SubCqR]	->	[newBranchLeft := operands at: 1.
-						 newBranchRight := ZR].
+		[BrEqualRR]	->	["I.e., two jumps after a compare."
+			           newBranchLeft := operands at: 1.
+			           newBranchRight := operands at: 2].
+		[BrUnsignedLessRR]	->	["I.e., two jumps after a compare."
+			           newBranchLeft := operands at: 1.
+			           newBranchRight := operands at: 2].
+		[CmpRR]   -> [newBranchLeft := operands at: 1.
+		              newBranchRight := operands at: 0.
+		              opcode := Label].
+		[CmpCqR]	 -> [newBranchLeft := operands at: 1.
+						  newBranchRight := ConcreteIPReg."Need to change once everything is done"
+						  opcode := MoveCqR.
+						  operands at: 1 put: ConcreteIPReg].
+		[CmpCwR]	 -> [newBranchLeft := operands at: 1.
+						  newBranchRight := ConcreteIPReg. "Need to change once everything is done"
+						  opcode := MoveCwR.
+						  operands at: 1 put: ConcreteIPReg].
+      [CmpC32R]	 -> [newBranchLeft := operands at: 1.
+						  newBranchRight := ConcreteIPReg. "Need to change once everything is done"
+						  opcode := MoveCwR.
+						  operands at: 1 put: ConcreteIPReg].
+		[TstCqR]	 ->	 [newBranchLeft := ConcreteZeroReg. "Need to change once everything is done"
+						  newBranchRight := X0].
+		[AndCqR]	 ->	 [newBranchLeft := operands at: 1.
+				        newBranchRight := X0].
+		[AndCqRR]	 -> [newBranchLeft := operands at: 2.
+						  newBranchRight := X0].
+		[OrRR]   	 -> [newBranchLeft := operands at: 1.
+						  newBranchRight := X0].
+		[XorRR]   -> [newBranchLeft := operands at: 1.
+		              newBranchRight := X0].
+		[SubCwR]	 ->	 [newBranchLeft := operands at: 1.
+						  newBranchRight := X0].
+		[SubCqR]	 -> [newBranchLeft := operands at: 1.
+						  newBranchRight := X0].
 		[ArithmeticShiftRightCqR]	->	[newBranchLeft := operands at: 1.
-						 newBranchRight := ZR]."
+						 newBranchRight := X0].
 	} otherwise: [self unreachable].
 	
 	newBranchOpcode := branch opcode caseOf: {
-		[JumpZero] 			-> [BrEqualRR].
-		[JumpNonZero]			-> [BrNotEqualRR].
-		[JumpBelow]			-> [BrUnsignedLessRR].
-		[JumpBelowOrEqual]	-> [BrUnsignedLessEqualRR].
-		[JumpAbove]			-> [BrUnsignedGreaterRR].
-		[JumpAboveOrEqual]	-> [BrUnsignedGreaterEqualRR].
-		[JumpLess]				-> [BrSignedLessRR].
-		[JumpLessOrEqual]		-> [BrSignedLessEqualRR].
-		[JumpGreater]			-> [BrSignedGreaterRR].
-		[JumpGreaterOrEqual]	-> [BrSignedGreaterEqualRR].
-		[JumpLongZero] 		-> [BrLongEqualRR].
-		[JumpLongNonZero]	-> [BrLongNotEqualRR].
-		[JumpNegative]			-> [BrSignedLessRR].
+		[JumpZero]           -> [BrEqualRR].
+		[JumpNonZero]        -> [BrNotEqualRR].
+		[JumpBelow]          -> [BrUnsignedLessRR].
+		[JumpBelowOrEqual]   -> [BrUnsignedLessEqualRR].
+		[JumpAbove]          -> [BrUnsignedGreaterRR].
+		[JumpAboveOrEqual]   -> [BrUnsignedGreaterEqualRR].
+		[JumpLess]           -> [BrSignedLessRR].
+		[JumpLessOrEqual]    -> [BrSignedLessEqualRR].
+		[JumpGreater]        -> [BrSignedGreaterRR].
+		[JumpGreaterOrEqual] -> [BrSignedGreaterEqualRR].
+		[JumpLongZero]       -> [BrLongEqualRR].
+		[JumpLongNonZero]    -> [BrLongNotEqualRR].
+		[JumpNegative]       -> [BrSignedLessRR].
 	} otherwise: [self unreachable. 0].
 
 	branch rewriteOpcode: newBranchOpcode with: newBranchLeft with: newBranchRight.
