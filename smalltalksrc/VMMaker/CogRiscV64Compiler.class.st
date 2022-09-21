@@ -7,6 +7,8 @@ Class {
 		'previousOpcode'
 	],
 	#classVars : [
+		'AddCheckOverflowCqR',
+		'AddCheckOverflowRR',
 		'BrEqualRR',
 		'BrLongEqualRR',
 		'BrLongNotEqualRR',
@@ -54,6 +56,7 @@ Class {
 		'MSTATUS',
 		'MSUB',
 		'MUL',
+		'MulCheckOverflowRR',
 		'MulRR',
 		'NE',
 		'PC',
@@ -61,6 +64,8 @@ Class {
 		'SDIV',
 		'SMULH',
 		'SP',
+		'SubCheckOverflowCqR',
+		'SubCheckOverflowRR',
 		'X0',
 		'X1',
 		'X10',
@@ -245,6 +250,11 @@ CogRiscV64Compiler class >> initialize [
 		MulRR 
 		DivRR 
 		RemRR 
+		AddCheckOverflowCqR
+		AddCheckOverflowRR 
+		SubCheckOverflowCqR
+		SubCheckOverflowRR 
+		MulCheckOverflowRR
 		BrEqualRR
 		BrNotEqualRR
 		BrUnsignedLessRR
@@ -6393,10 +6403,8 @@ CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 	| newBranchLeft newBranchOpcode newBranchRight |
 	
 	"Specific for overflow"
-	"((branch opcode = JumpOverflow) or: [branch opcode = JumpNoOverflow]) 
-		ifTrue: [^self noteFollowingOverflowBranch: branch]."
-	
-	"((opcode = CmpRR) and: (branch opcode = JumpZero)) ifFalse: [ ^ branch ]."
+	((branch opcode = JumpOverflow) or: [branch opcode = JumpNoOverflow]) 
+		ifTrue: [^self noteFollowingOverflowBranch: branch].
 	
 	opcode caseOf: {
 		[BrEqualRR]	->	["I.e., two jumps after a compare."
