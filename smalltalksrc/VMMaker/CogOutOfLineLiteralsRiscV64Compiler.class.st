@@ -13,8 +13,7 @@ CogOutOfLineLiteralsRiscV64Compiler class >> literalsManagerClass [
 CogOutOfLineLiteralsRiscV64Compiler >> cmpC32RTempByteSize [
 	
 	self flag: #TODO.
-	"1halt."
-	^ 40
+	^ 8
 ]
 
 { #category : #concretization }
@@ -123,7 +122,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> literalBeforeFollowingAddress: followingA
 	^objectMemory long64At: (self pcRelativeAddressAt: 
 		((self instructionIsLD: (self instructionBeforeAddress: followingAddress))
 			ifTrue: [self instructionAddressBefore: followingAddress - 4] "need to go before auipc + ld"
-			ifFalse: [ self instructionAddressBefore: followingAddress + 4 - self cmpC32RTempByteSize ])) "need to go in the load at the beginning of the cmp"
+			ifFalse: [ self instructionAddressBefore: followingAddress + 4 ])) "need to go in the load at the beginning of the cmp"
 ]
 
 { #category : #'concretization helpers' }
