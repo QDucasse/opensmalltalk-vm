@@ -1295,7 +1295,9 @@ CogRiscV64Compiler >> computeMaximumSize [
 
 			"Arithmetic"
 			([ AddCqR ] -> [ ^ self bytesForADDCq ]). "DONE"
-			([ CmpCqR ] -> [ ^ self bytesForCMPCq ]). "DONE"
+			([ CmpCqR ] -> [ (self value: (operands at: 0) isContainedIn: 12)
+				ifTrue: [ ^ self bytesToLoadImmediate: (operands at: 0) + 4 ] "Immediate embedded in operations" 
+				ifFalse: [ ^ self literalLoadInstructionBytes + 4 ]. ]). "DONE"
 			([ CmpC32R ] -> [ ^ self bytesForCMPCq ]). "DONE"
 			([ SubCqR ] -> [ ^ self bytesForADDCq ]). "DONE"
 			([ LoadEffectiveAddressMwrR ]
@@ -1998,20 +2000,7 @@ CogRiscV64Compiler >> concretizeCmpCqR [
 			 fromRegister: srcReg
 			 intoRegister: ConcreteZeroReg).
 
-	"Check for overflow"
-	overflowOffset := self
-		                  checkSUBOverflowWithSourceReg1: srcReg
-		                  sourceReg2: ConcreteIPReg
-		                  andResultReg: ConcreteZeroReg
-		                  startingAtIndex: loadOffset + 4.
-
-	"Update flag registers"
-	flagOffset := self
-		              updateFlagsCMPForSourceReg: srcReg
-		              resultReg: ConcreteZeroReg
-		              startingAtIndex: loadOffset + overflowOffset + 4.
-
-	^ machineCodeSize := loadOffset + overflowOffset + flagOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
@@ -6211,7 +6200,9 @@ CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 		ifTrue: [^self noteFollowingOverflowBranch: branch]."
 	
 	"((opcode = CmpRR) and: (branch opcode = JumpZero)) ifFalse: [ ^ branch ]."
-	opcode = TstCqR ifFalse: [ ^ branch ].
+	({ CmpRR. CmpCqR. TstCqR } includes: opcode)
+		ifFalse: [ ^ branch ].
+	
 	opcode caseOf: {
 		"[BrEqualRR]	->	[""I.e., two jumps after a compare.""
 						newBranchLeft := operands at: 1.
@@ -6224,11 +6215,11 @@ CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 						 newBranchRight := operands at: 0.
 						 opcode := Label].
 
-		"[CmpCqR]	-> 	[newBranchLeft := operands at: 1.
-						 newBranchRight := AT.
+		[CmpCqR]	-> 	[1halt. newBranchLeft := operands at: 1.
+						 newBranchRight := ConcreteZeroReg.
 						 opcode := MoveCqR.
-						 operands at: 1 put: AT].
-		[CmpCwR]	-> 	[newBranchLeft := operands at: 1.
+						 operands at: 1 put: ConcreteZeroReg].
+		"[CmpCwR]	-> 	[newBranchLeft := operands at: 1.
 						 newBranchRight := AT.
 						 opcode := MoveCwR.
 						 operands at: 1 put: AT]."
