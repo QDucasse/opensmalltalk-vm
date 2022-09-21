@@ -1262,9 +1262,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ AddCqR ] -> [ ^ self bytesForADDCq ]). "DONE"
 			([ CmpCqR ] -> [ ^ self bytesForCMPCq ]). "DONE"
 			([ CmpC32R ] -> [ ^ self bytesForCMPCq ]). "DONE"
-			([ SubCqR ] -> [ 
-			 ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck
-			   + self bytesForArithmeticFlagUpdateWithMov + 4 ]). "DONE"
+			([ SubCqR ] -> [ ^ self bytesForADDCq ]). "DONE"
 			([ LoadEffectiveAddressMwrR ]
 			 -> [ ^ self bytesForLoadEffectiveAddress ]). "DONE"
 
@@ -1500,8 +1498,10 @@ CogRiscV64Compiler >> concretizeAddCqR [
 	| cq destReg sourceReg loadOffset flagOffset overflowOffset |
 	self flag: #DONE.
 	cq := operands at: 0.
-	"1halt."
-	sourceReg := destReg := operands at: 1.
+	sourceReg := operands at: 1.
+	destReg := operands at: 2.
+	destReg ifNil: [ destReg := sourceReg ].
+	self assert: (destReg isNotNil).
 	"Load cq if needed in a register (whether big immediate or literal) 
 	 or use the immediate instruction if it is a small immediate"
 	dependent ifNil: [ 
@@ -4051,42 +4051,19 @@ CogRiscV64Compiler >> concretizeStop [
 CogRiscV64Compiler >> concretizeSubCqR [
 
 	"Perform a sub operation between the value of register and the value of the operand.
-	 Since no subi exist in RISC-V, it will always load the value to a register then sub the registers."
+	 Since no subi exist in RISC-V, it simply calls addcq with the negated operand."
 
 	<var: #cq type: #sqInt>
 	<inline: true>
 	| cq destReg sourceReg loadOffset flagOffset overflowOffset |
 	self flag: #TODO.
 	cq := operands at: 0.
-	sourceReg := destReg := operands at: 1.
-
-	"Load the Cq"
-	dependent
-		ifNil: [ "Immediate load in a register"
-			loadOffset := self loadImmediate: cq inRegister: ConcreteIPReg ]
-		ifNotNil: [ "Literal -> compute the distance then load the actual value in a register" 
-			loadOffset := self loadLiteralInRegister: ConcreteIPReg ].
-
-	"Perform the SUB operation to a temp register (as operands AND result are needed for overflow check)"
-	self machineCodeAt: loadOffset put: (self
-			 subtractRegister: ConcreteIPReg
-			 fromRegister: sourceReg
-			 intoRegister: ConcreteZeroReg).
-
-	"Check for overflow"
-	overflowOffset := self
-		                  checkSUBOverflowWithSourceReg1: sourceReg
-		                  sourceReg2: ConcreteIPReg
-		                  andResultReg: ConcreteZeroReg
-		                  startingAtIndex: loadOffset + 4.
-
-	"Update flag registers"
-	flagOffset := self
-		              updateFlagsSUBForSourceReg: sourceReg
-		              resultReg: ConcreteZeroReg
-		              andMoveResultTo: destReg
-		              startingAtIndex: loadOffset + overflowOffset + 4.
-	^ machineCodeSize := loadOffset + flagOffset + overflowOffset + 4
+	operands at: 0 put: cq negated.
+	
+	
+	^ self concretizeAddCqR 
+	
+	
 ]
 
 { #category : #concretization }
