@@ -8,6 +8,17 @@ Class {
 	],
 	#classVars : [
 		'BrEqualRR',
+		'BrLongEqualRR',
+		'BrLongNotEqualRR',
+		'BrNotEqualRR',
+		'BrSignedGreaterEqualRR',
+		'BrSignedGreaterRR',
+		'BrSignedLessEqualRR',
+		'BrSignedLessRR',
+		'BrUnsignedGreaterEqualRR',
+		'BrUnsignedGreaterRR',
+		'BrUnsignedLessEqualRR',
+		'BrUnsignedLessRR',
 		'CArg0Reg',
 		'CArg1Reg',
 		'CArg2Reg',
@@ -230,7 +241,22 @@ CogRiscV64Compiler class >> initialize [
 	MSTATUS := 2r001100000000. "mstatus csr"
 	
 	"Specific opcodes"
-	self initializeSpecificOpcodes: #(MulRR DivRR RemRR BrEqualRR) 
+	self initializeSpecificOpcodes: #(
+		MulRR 
+		DivRR 
+		RemRR 
+		BrEqualRR
+		BrNotEqualRR
+		BrUnsignedLessRR
+		BrUnsignedLessEqualRR
+		BrUnsignedGreaterRR
+		BrUnsignedGreaterEqualRR
+		BrSignedLessRR
+		BrSignedLessEqualRR
+		BrSignedGreaterRR
+		BrSignedGreaterEqualRR
+		BrLongEqualRR
+		BrLongNotEqualRR) 
 	     in: thisContext method 
 	
 	"When inspecting the Assocation, use the following to add the class variable:
@@ -1218,7 +1244,8 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ Fill32 ] -> [ ^ 4 ]). "DONE"
 			([ Nop ] -> [ ^ 4 ]). "DONE"
 			"Branches"
-			([ BrEqualRR ] -> [ ^ 4 ]). "TODO"
+			([ BrEqualRR ] -> [ ^ 4 ]).
+			([ BrNotEqualRR ] -> [ ^ 4 ]).
 			"Control"
 			([ Call ] -> [ ^ self callInstructionByteSize ]). "TODO"
 			([ CallFull ] -> [ ^ self literalLoadInstructionBytes + 4 ]). "TODO"
@@ -1879,6 +1906,20 @@ CogRiscV64Compiler >> concretizeBrEqualRR [
 	right := operands at: 2.
  	self assert: (self isInImmediateBranchRange: offset).
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: left isEqualToRegisterValue: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrNotEqualRR [ 
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: left isNotEqualToRegisterValue: right).
 	^ machineCodeSize := 4
 ]
 
@@ -4338,15 +4379,15 @@ CogRiscV64Compiler >> dispatchConcretize [
 	<returnTypeC: #void>
 	self flag: #TODO.
 	opcode caseOf: {
-		"Branches"
-		[ BrEqualRR ]      -> [ ^ self concretizeBrEqualRR ].
 		"Noops & Pseudo Ops"
 		[Label]			 -> [ ^ self concretizeLabel ].
 		[Literal]		 	 -> [ ^ self concretizeLiteral ].
 		[AlignmentNops]	 -> [ ^ self concretizeAlignmentNops ].
 		[Fill32]			 -> [ ^ self concretizeFill32 ].
 		[Nop]				 -> [ ^ self concretizeNop ].
-
+		"Branches"
+		[ BrEqualRR ]      -> [ ^ self concretizeBrEqualRR ].
+		[ BrNotEqualRR ]      -> [ ^ self concretizeBrNotEqualRR ].
 		"Control"
 		[Call]					-> [ ^ self concretizeCall ]. "call code within code space"
 		[CallFull]			-> [ ^ self concretizeCallFull ]. "call code anywhere in address space"
@@ -5510,7 +5551,7 @@ CogRiscV64Compiler >> isInLongJumpCallRange: offset [
 
 { #category : #'machine code instruction' }
 CogRiscV64Compiler >> isJump [
-	^super isJump or: [{BrEqualRR} includes: opcode]
+	^super isJump or: [{BrEqualRR. BrNotEqualRR} includes: opcode]
 ]
 
 { #category : #testing }
@@ -6170,7 +6211,7 @@ CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 		ifTrue: [^self noteFollowingOverflowBranch: branch]."
 	
 	"((opcode = CmpRR) and: (branch opcode = JumpZero)) ifFalse: [ ^ branch ]."
-	branch opcode = JumpZero ifFalse: [ ^branch ].
+	opcode = TstCqR ifFalse: [ ^ branch ].
 	opcode caseOf: {
 		"[BrEqualRR]	->	[""I.e., two jumps after a compare.""
 						newBranchLeft := operands at: 1.
@@ -6211,7 +6252,7 @@ CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 	
 	newBranchOpcode := branch opcode caseOf: {
 		[JumpZero] 			-> [BrEqualRR].
-		"[JumpNonZero]			-> [BrNotEqualRR].
+		[JumpNonZero]			-> [BrNotEqualRR].
 		[JumpBelow]			-> [BrUnsignedLessRR].
 		[JumpBelowOrEqual]	-> [BrUnsignedLessEqualRR].
 		[JumpAbove]			-> [BrUnsignedGreaterRR].
@@ -6222,7 +6263,7 @@ CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 		[JumpGreaterOrEqual]	-> [BrSignedGreaterEqualRR].
 		[JumpLongZero] 		-> [BrLongEqualRR].
 		[JumpLongNonZero]	-> [BrLongNotEqualRR].
-		[JumpNegative]			-> [BrSignedLessRR]."
+		[JumpNegative]			-> [BrSignedLessRR].
 	} otherwise: [self unreachable. 0].
 
 	branch rewriteOpcode: newBranchOpcode with: newBranchLeft with: newBranchRight.
