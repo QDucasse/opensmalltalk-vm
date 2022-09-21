@@ -1877,7 +1877,6 @@ CogRiscV64Compiler >> concretizeBrEqualRR [
 	left := operands at: 1.
 	right := operands at: 2.
  	self assert: (self isInImmediateBranchRange: offset).
-	"Jump if the zero flag is set to 1"
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: left isEqualToRegisterValue: right).
 	^ machineCodeSize := 4
 ]
@@ -2388,6 +2387,7 @@ CogRiscV64Compiler >> concretizeJumpGreater [
 	| offset |
 	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 8.
+	(self isInImmediateBranchRange: offset) ifFalse: [ ^ self concretizeJumpLongGreater ].
 	self assert: (self isInImmediateBranchRange: offset).
 	"Jump Greater means jump if ZF = 0 and SF = OF"
 	"Check if SF and OF are different with a XOR (1 if different)"
@@ -2488,10 +2488,9 @@ CogRiscV64Compiler >> concretizeJumpLongGreater [
 	<inline: true>
 	| offset offsetHigh offsetLow |
 	self flag: #TODO.
-	self assert: (operands at: 0) ~= 0.
-	self assert: (operands at: 0) \\ 4 = 0.
-	"Compute the offset from the address of the first instruction (auipc)"
-	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4.
+	offset := self computeJumpTargetOffsetPlus: 8.
+	self assert: offset ~= 0.
+	self assert: offset \\ 4 = 0.
 	self assert: (self isInLongJumpCallRange: offset).
 	
 	"This mangling avoid having to bias the 11th bit in case of a negative value
@@ -4343,14 +4342,15 @@ CogRiscV64Compiler >> dispatchConcretize [
 	<returnTypeC: #void>
 	self flag: #TODO.
 	opcode caseOf: {
+		"Branches"
+		[ BrEqualRR ]      -> [ ^ self concretizeBrEqualRR ].
 		"Noops & Pseudo Ops"
 		[Label]			 -> [ ^ self concretizeLabel ].
 		[Literal]		 	 -> [ ^ self concretizeLiteral ].
 		[AlignmentNops]	 -> [ ^ self concretizeAlignmentNops ].
 		[Fill32]			 -> [ ^ self concretizeFill32 ].
 		[Nop]				 -> [ ^ self concretizeNop ].
-		"Branches"
-		[ BrEqualRR ]      -> [ ^self concretizeBrEqualRR ].
+
 		"Control"
 		[Call]					-> [ ^ self concretizeCall ]. "call code within code space"
 		[CallFull]			-> [ ^ self concretizeCallFull ]. "call code anywhere in address space"
@@ -5512,6 +5512,11 @@ CogRiscV64Compiler >> isInLongJumpCallRange: offset [
 	^ self value: offset isContainedIn: 32
 ]
 
+{ #category : #'machine code instruction' }
+CogRiscV64Compiler >> isJump [
+	^super isJump or: [opcode = BrEqualRR]
+]
+
 { #category : #testing }
 CogRiscV64Compiler >> isJumpAt: pc [
 	| instr |
@@ -6169,7 +6174,7 @@ CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 		ifTrue: [^self noteFollowingOverflowBranch: branch]."
 	
 	((opcode = CmpRR) and: (branch opcode = JumpZero)) ifFalse: [ ^ branch ].
-	1halt.
+
 	opcode caseOf: {
 		"[BrEqualRR]	->	[""I.e., two jumps after a compare.""
 						newBranchLeft := operands at: 1.
