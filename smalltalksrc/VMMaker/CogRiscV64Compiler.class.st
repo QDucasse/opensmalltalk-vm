@@ -3852,6 +3852,40 @@ CogRiscV64Compiler >> concretizeMoveXwrRR [
 ]
 
 { #category : #concretization }
+CogRiscV64Compiler >> concretizeMulCheckOverflowRR [ 
+
+	<inline:true>
+	| srcReg1 srcReg2 destReg | 
+	self flag: #TODO.
+	srcReg1 := operands at: 0.
+	srcReg2 := destReg := operands at: 1.
+	"Multiply the two registers and store the higher half in a temp register (here overflow 1)
+	 Note that the mul high is performed first to avoid overwriting one operand (2-address code here)"
+	self machineCodeAt: 0 put: (self 
+		multiplyHighRegisterValue: srcReg1
+		byRegisterValue: srcReg2
+		inRegister: ConcreteIPReg2
+	).
+	
+	"Multiply and store the lower part in the destination register"
+	self machineCodeAt: 4 put: (self 
+		multiplyRegisterValue: srcReg1
+		byRegisterValue: srcReg2 
+		inRegister: destReg
+	).
+			
+	"Create a temp register to be either all 0s or all 1s depending on the result sign
+	 An arithmetic shift of 63 on the result will produce such a value"
+	self machineCodeAt: 8 put: (self
+		arithmeticShiftRightValueInRegister: destReg
+		byShiftAmount: 63
+		intoRegister: ConcreteIPReg3
+	).
+
+^ machineCodeSize := 12
+]
+
+{ #category : #concretization }
 CogRiscV64Compiler >> concretizeMulRR [ 
 
 	<inline:true>
