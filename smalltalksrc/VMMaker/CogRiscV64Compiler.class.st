@@ -1262,7 +1262,8 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ AndCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
 			([ AndCqRR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
 			([ OrCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
-			([ TstCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
+			([ TstCqR ] -> [ dependent ifNil: [ ^ 4 ].
+				^ self literalLoadInstructionBytes + 4  ]). "DONE"
 			([ XorCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
 
 			"Arithmetic"
@@ -4221,18 +4222,14 @@ CogRiscV64Compiler >> concretizeTstCqR [
 				 bitwiseAndBetweenRegister: srcReg
 				 andImmediate: cq
 				 toRegister: ConcreteZeroReg).
-		"Update flag registers, here no difference between immediate or not"
-		flagOffset := self updateFlagsLogicForResultReg: ConcreteZeroReg startingAtIndex: 4.
-		^ machineCodeSize := flagOffset + 4 ].
+		^ machineCodeSize :=  4 ].
 	"Literal -> compute the distance, load the actual value then and between the 2 registers"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
 	self machineCodeAt: loadOffset put: (self
 			 bitwiseAndBetweenRegister: srcReg
 			 andRegister: ConcreteIPReg
 			 toRegister: ConcreteZeroReg).
-	"Check and update the flags"
-	flagOffset := self updateFlagsLogicForResultReg: ConcreteZeroReg startingAtIndex: loadOffset + 4.
-	^ machineCodeSize := loadOffset + flagOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
@@ -5513,7 +5510,7 @@ CogRiscV64Compiler >> isInLongJumpCallRange: offset [
 
 { #category : #'machine code instruction' }
 CogRiscV64Compiler >> isJump [
-	^super isJump or: [opcode = BrEqualRR]
+	^super isJump or: [{BrEqualRR} includes: opcode]
 ]
 
 { #category : #testing }
@@ -6172,8 +6169,8 @@ CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 	"((branch opcode = JumpOverflow) or: [branch opcode = JumpNoOverflow]) 
 		ifTrue: [^self noteFollowingOverflowBranch: branch]."
 	
-	((opcode = CmpRR) and: (branch opcode = JumpZero)) ifFalse: [ ^ branch ].
-
+	"((opcode = CmpRR) and: (branch opcode = JumpZero)) ifFalse: [ ^ branch ]."
+	branch opcode = JumpZero ifFalse: [ ^branch ].
 	opcode caseOf: {
 		"[BrEqualRR]	->	[""I.e., two jumps after a compare.""
 						newBranchLeft := operands at: 1.
@@ -6193,10 +6190,10 @@ CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 		[CmpCwR]	-> 	[newBranchLeft := operands at: 1.
 						 newBranchRight := AT.
 						 opcode := MoveCwR.
-						 operands at: 1 put: AT].
-		[TstCqR]	->	[newBranchLeft := Cmp.
-						 newBranchRight := ZR].
-		[AndCqR]	->	[newBranchLeft := operands at: 1.
+						 operands at: 1 put: AT]."
+		[TstCqR]	->	[newBranchLeft := ConcreteZeroReg. "Need to change once everything is done"
+						 newBranchRight := X0].
+		"[AndCqR]	->	[newBranchLeft := operands at: 1.
 						 newBranchRight := ZR].
 		[AndCqRR]	->	[newBranchLeft := operands at: 2.
 						 newBranchRight := ZR].
