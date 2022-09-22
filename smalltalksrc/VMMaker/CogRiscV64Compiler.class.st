@@ -6574,7 +6574,7 @@ CogRiscV64Compiler >> noteFollowingOverflowBranch: branch [
 	<var: #branch type: #'AbstractInstruction *'>
 	| newBranchOpcode |
 
-	({SubCqR. SubRR} includes: opcode) ifTrue:
+	(opcode = SubRR or: opcode = SubCqR) ifTrue:
 		[opcode := opcode caseOf: {
 			[ SubCqR ] -> [ SubCheckOverflowCqR ].
 			[ SubRR ] -> [ SubCheckOverflowRR ].
