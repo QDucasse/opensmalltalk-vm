@@ -1327,10 +1327,6 @@ CogRiscV64Compiler >> computeMaximumSize [
 				   ifTrue: [ 4 ]
 				   ifFalse: [ 8 ] ]). "DONE"
 			([ Stop ] -> [ ^ 4 ]). "DONE"
-			
-			
-			"Branches"
-			([ BrEqualRR ] -> [ ^ 4 ]).
 
 			"Logic"
 			([ AndCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
