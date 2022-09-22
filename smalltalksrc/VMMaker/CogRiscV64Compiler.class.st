@@ -10,6 +10,12 @@ Class {
 		'AddCheckOverflowCqR',
 		'AddCheckOverflowRR',
 		'BrEqualRR',
+		'BrFPEqualRR',
+		'BrFPGreaterEqualRR',
+		'BrFPGreaterRR',
+		'BrFPLessEqualRR',
+		'BrFPLessRR',
+		'BrFPNotEqualRR',
 		'BrLongEqualRR',
 		'BrLongNotEqualRR',
 		'BrNotEqualRR',
@@ -245,19 +251,18 @@ CogRiscV64Compiler class >> initialize [
 	
 	MSTATUS := 2r001100000000. "mstatus csr"
 	
-	"Specific instructions"
-	"Note: Maybe add MoveLowR MoveHighR"
+	"Specific opcodes"
 	self initializeSpecificOpcodes: #(
-		MulRR
-		DivRR
-		RemRR
-		AddCheckOverflowCqR 
-		AddCheckOverflowRR
-		MulCheckOverflowRR
+		MulRR 
+		DivRR 
+		RemRR 
+		AddCheckOverflowCqR
+		AddCheckOverflowRR 
 		SubCheckOverflowCqR
-		SubCheckOverflowRR
+		SubCheckOverflowRR 
+		MulCheckOverflowRR
 		BrEqualRR
-		BrNotEqualRR 
+		BrNotEqualRR
 		BrUnsignedLessRR
 		BrUnsignedLessEqualRR
 		BrUnsignedGreaterRR
@@ -267,9 +272,19 @@ CogRiscV64Compiler class >> initialize [
 		BrSignedGreaterRR
 		BrSignedGreaterEqualRR
 		BrLongEqualRR
-		BrLongNotEqualRR) 
-			in: thisContext method
+		BrLongNotEqualRR
+		BrFPEqualRR
+		BrFPNotEqualRR
+		BrFPLessRR
+		BrFPLessEqualRR
+		BrFPGreaterRR
+		BrFPGreaterEqualRR) 
+	     in: thisContext method 
 	
+	"When inspecting the Assocation, use the following to add the class variable:
+	(ClassVariable key: self key value: value)
+    owningClass: CogRiscV64Compiler;
+    become: self"
 	
 	
 ]
@@ -279,7 +294,8 @@ CogRiscV64Compiler class >> initializeAbstractRegisters [
 
 	"Assign the abstract registers with the identities/indices of the relevant concrete registers."
 
-	super initializeAbstractRegisters.
+	super 
+	.
 
 	"https://en.wikichip.org/wiki/risc-v/registers
 	Caller saved Registers:
@@ -327,6 +343,16 @@ CogRiscV64Compiler class >> initializeAbstractRegisters [
 	DPFPReg5 := F5.
 	DPFPReg6 := F6.
 	DPFPReg7 := F7.
+
+	"Placeholders for now, need to add the V extension and corresponding registers"
+	VReg0 := F0.
+	VReg1 := F1.
+	VReg2 := F2.
+	VReg3 := F3.
+	VReg4 := F4.
+	VReg5 := F5.
+	VReg6 := F6.
+	VReg7 := F7.
 
 	NumFloatRegisters := 8
 ]
@@ -1239,6 +1265,30 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ AlignmentNops ] -> [ ^ (operands at: 0) - 4 ]).
 			([ Fill32 ] -> [ ^ 4 ]). "DONE"
 			([ Nop ] -> [ ^ 4 ]). "DONE"
+			"Branches"
+			([ BrEqualRR ]                 -> [ ^ 4 ]).
+			([ BrNotEqualRR ]              -> [ ^ 4 ]).
+			([ BrSignedGreaterRR ]         -> [ ^ 4 ]).
+			([ BrSignedGreaterEqualRR ]    -> [ ^ 4 ]).
+			([ BrSignedLessRR ]            -> [ ^ 4 ]).
+			([ BrSignedLessEqualRR ]       -> [ ^ 4 ]).
+			([ BrUnsignedLessRR ]          -> [ ^ 4 ]).
+			([ BrUnsignedLessEqualRR ]     -> [ ^ 4 ]).
+			([ BrUnsignedGreaterRR ]       -> [ ^ 4 ]).
+			([ BrUnsignedGreaterEqualRR ]  -> [ ^ 4 ]).
+			([ BrLongEqualRR ]             -> [ ^ 12 ]).
+			([ BrFPEqualRR ]               -> [ ^ 8 ]).
+			([ BrFPNotEqualRR ]            -> [ ^ 8 ]).
+			([ BrFPLessRR ]                -> [ ^ 8 ]).
+			([ BrFPLessEqualRR ]           -> [ ^ 8 ]).
+			([ BrFPGreaterRR ]             -> [ ^ 8 ]).
+			([ BrFPGreaterEqualRR ]        -> [ ^ 8 ]).
+			"Overflow"
+			([ AddCheckOverflowRR ]       -> [ ^ 16 ]).
+			([ AddCheckOverflowCqR ]      -> [ ^ 16 ]).
+			([ SubCheckOverflowRR ]       -> [ ^ 16 ]).
+			([ SubCheckOverflowCqR ]      -> [ ^ 16 ]).
+			([ MulCheckOverflowRR ]       -> [ ^ 16 ]).	
 			"Control"
 			([ Call ] -> [ ^ self callInstructionByteSize ]). "TODO"
 			([ CallFull ] -> [ ^ self literalLoadInstructionBytes + 4 ]). "TODO"
@@ -1286,23 +1336,23 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ AndCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
 			([ AndCqRR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
 			([ OrCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
-			([ TstCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
+			([ TstCqR ] -> [ dependent ifNil: [ ^ 4 ].
+				^ self literalLoadInstructionBytes + 4  ]). "DONE"
 			([ XorCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
 
 			"Arithmetic"
-			([ AddCqR ] -> [ ^ self bytesForADDCq ]). "DONE"
-			([ CmpCqR ] -> [ ^ self bytesForCMPCq ]). "DONE"
+			([ AddCqR ] -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4 ]). "DONE"
+			([ CmpCqR ] -> [ (self value: (operands at: 0) isContainedIn: 12)
+				ifTrue: [ ^ self bytesToLoadImmediate: (operands at: 0) + 4 ] "Immediate embedded in operations" 
+				ifFalse: [ ^ self literalLoadInstructionBytes + 4 ]. ]). "DONE"
 			([ CmpC32R ] -> [ ^ self bytesForCMPCq ]). "DONE"
-			([ SubCqR ] -> [ 
-			 ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck
-			   + self bytesForArithmeticFlagUpdateWithMov + 4 ]). "DONE"
+			([ SubCqR ] -> [ ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck
+			   + self bytesForArithmeticFlagUpdateWithMov + 4  ]). "DONE"
 			([ LoadEffectiveAddressMwrR ]
 			 -> [ ^ self bytesForLoadEffectiveAddress ]). "DONE"
 
 			"Arithmetic with an ensured literal load"
-			([ AddCwR ] -> [ 
-			 ^ self literalLoadInstructionBytes + self bytesForADDOverflowCheck
-			   + self bytesForArithmeticFlagUpdateWithMov + 4 ]). "DONE"
+			([ AddCwR ] -> [ ^ self literalLoadInstructionBytes + 4 ]). "DONE"
 			([ SubCwR ] -> [ 
 			 ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck
 			   + self bytesForArithmeticFlagUpdateWithMov + 4 ]). "DONE"
@@ -1320,9 +1370,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 			   + 4 ]). "DONE"
 
 			"Arithmetic Register-Only"
-			([ AddRR ] -> [ 
-			 ^ self bytesForADDOverflowCheck
-			   + self bytesForArithmeticFlagUpdateWithMov + 4 ]). "DONE"
+			([ AddRR ] -> [ ^ 4 ]). "DONE"
 			([ SubRR ] -> [ 
 			 ^ self bytesForSUBOverflowCheck
 			   + self bytesForArithmeticFlagUpdateWithMov + 4 ]). "DONE"
@@ -1377,7 +1425,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 					 self assertValue: cq isContainedIn: 12.
 					 ^ self bytesToLoadImmediate: cq ]
 				 ifNotNil: [ "Literal load" ^ self literalLoadInstructionBytes ] ]). "DONE"
-			([ MoveC32R ] -> [ ^ self shouldBeImplemented ]). "DONE"
+			([ MoveC32R ] -> [ ^ 0 ]). "shouldBeImplemented"
 			([ MoveCwR ] -> [ ^ 8 "always a auipc addi/ld sequence" ]). "DONE"
 			([ MoveRR ] -> [ ^ 4 ]). "DONE"
 
@@ -1513,6 +1561,77 @@ CogRiscV64Compiler >> computeSignedValueOf: aValue ofSize: aSize [
 ]
 
 { #category : #concretization }
+CogRiscV64Compiler >> concretizeAddCheckOverflowCqR [
+	"Check for the overflow, as according to the example in the book: 
+	 add   res,  imm,  src 
+    slti  t1,   src,   0       # t1 = (src < 0)
+    slt   t2,   res,   imm     # t2 = (src + imm < res)
+	 * since res and src are equal we have to res to another result then move back
+    bne   t1,   t2,    offset  # overflow if (src < 0) && (src + imm >= res)  case 1 0 (underflow)
+                                          || (src >= 0) && (src + imm < t0)   case 0 1 (overflow) "
+	<inline: true>
+	| cq srcReg destReg |
+	self flag: #DONE.
+	cq := operands at: 0.
+	srcReg := destReg := operands at: 1.
+	self assertValue: cq isContainedIn: 12.
+	"Perform the ADD operation"
+	self machineCodeAt: 0 put: (self
+		addImmediate: cq
+		toRegister: srcReg
+		inRegister: ConcreteOverflowReg).
+	"1. Check if one operand is negative"
+	self machineCodeAt: 4 put: (self 
+		setOneIn: ConcreteIPReg2 
+		ifValueIn: srcReg
+		isLessThanImmediate: 0).
+	"2. Check if the sum is smaller than one operand"
+	self machineCodeAt: 8 put: (self 
+		setOneIn: ConcreteIPReg3 
+		ifValueIn: ConcreteOverflowReg 
+		isLessThanImmediate: cq).
+	"3. Move result to destination register"
+	self machineCodeAt: 12 put: (self 
+		moveRegister: ConcreteOverflowReg toRegister: destReg).
+	^ machineCodeSize := 16
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeAddCheckOverflowRR [
+	"Check for the overflow, as according to the example in the book: 
+	 add   res,  src1,  src2 
+    slti  t1,   src2,  0       # t1 = (src2 < 0)
+    slt   t2,   res,   src1    # t2 = (src1 + src2 < res)
+	 * since res and src2 are equal we have to res to another result then move back
+    bne   t1,   t2,    offset  # overflow if (src2 < 0) && (src1 + src2 >= res)  case 1 0 (underflow)
+                                          || (src2 >= 0) && (src1 + src2 < res)  case 0 1 (overflow)"
+	<inline: true>
+	| srcReg1 srcReg2 destReg |
+	self flag: #DONE.
+	srcReg1 := operands at: 0.
+	srcReg2 := destReg := operands at: 1.
+	"Perform the ADD operation"
+	self machineCodeAt: 0 put: (self
+		addRegister: srcReg1
+		toRegister: srcReg2
+		inRegister: ConcreteOverflowReg).
+	"1. Check if one operand is negative"
+	self machineCodeAt: 4 put: (self 
+		setOneIn: ConcreteIPReg2 
+		ifValueIn: srcReg2 
+		isLessThanImmediate: 0).
+	"2. Check if the sum is smaller than one operand"
+	self machineCodeAt: 8 put: (self 
+		setOneIn: ConcreteIPReg3 
+		ifValueIn: ConcreteOverflowReg 
+		isLessThanValueIn: srcReg1).
+	"3. Move result to destination register"
+	self machineCodeAt: 12 put: (self 
+		moveRegister: ConcreteOverflowReg toRegister: destReg).
+	^ machineCodeSize := 16
+]
+
+{ #category : #concretization }
 CogRiscV64Compiler >> concretizeAddCqR [
 
 	"Perform an add operation between the value of register and the value of the operand.
@@ -1528,34 +1647,20 @@ CogRiscV64Compiler >> concretizeAddCqR [
 
 	<var: #cq type: #sqInt>
 	<inline: true>
-	| cq destReg sourceReg loadOffset flagOffset overflowOffset |
+	| cq destReg sourceReg loadOffset |
 	self flag: #DONE.
 	cq := operands at: 0.
-	"1halt."
 	sourceReg := destReg := operands at: 1.
 	"Load cq if needed in a register (whether big immediate or literal) 
 	 or use the immediate instruction if it is a small immediate"
 	dependent ifNil: [ 
 		self assertValue: cq isContainedIn: 12.
 		"Use the provided immediate instruction"
-		self machineCodeAt: 0 put: (self
-				 addImmediate: cq
-				 toRegister: sourceReg
-				 inRegister: ConcreteZeroReg).
-		"Check for overflow"
-		overflowOffset := self
-			                  checkADDOverflowWithSourceReg: sourceReg
-			                  immediate: cq
-			                  andResultReg: ConcreteZeroReg
-			                  startingAtIndex: 4.
-
-		"Update flag registers"
-		flagOffset := self
-			              updateFlagsADDForSourceReg: sourceReg
-			              resultReg: ConcreteZeroReg
-			              andMoveResultTo: destReg
-			              startingAtIndex: overflowOffset + 4.
-		^ machineCodeSize := flagOffset + overflowOffset + 4 ].
+		self machineCodeAt: 0 put: (self 
+			addImmediate: cq 
+			toRegister: sourceReg
+			inRegister: destReg).
+		^ machineCodeSize := 4 ].
 
 	"Otherwise, use the provided literal"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
@@ -1563,22 +1668,9 @@ CogRiscV64Compiler >> concretizeAddCqR [
 	self machineCodeAt: loadOffset put: (self
 			 addRegister: sourceReg
 			 toRegister: ConcreteIPReg
-			 inRegister: ConcreteZeroReg).
-
-	"Check for overflow"
-	overflowOffset := self
-		                  checkADDOverflowWithSourceReg1: sourceReg
-		                  sourceReg2: ConcreteIPReg
-		                  andResultReg: ConcreteZeroReg
-		                  startingAtIndex: loadOffset + 4.
-
-	"Update flag registers"
-	flagOffset := self
-		              updateFlagsADDForSourceReg: sourceReg
-		              resultReg: ConcreteZeroReg
-		              andMoveResultTo: destReg
-		              startingAtIndex: loadOffset + overflowOffset + 4.
-	^ machineCodeSize := loadOffset + flagOffset + overflowOffset + 4
+			 inRegister: destReg).
+		
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
@@ -1596,23 +1688,9 @@ CogRiscV64Compiler >> concretizeAddCwR [
 	self machineCodeAt: loadOffset put: (self
 			 addRegister: sourceReg
 			 toRegister: ConcreteIPReg
-			 inRegister: ConcreteZeroReg).
+			 inRegister: destReg).
 
-	"Check for overflow"
-	overflowOffset := self
-		                  checkADDOverflowWithSourceReg1: sourceReg
-		                  sourceReg2: ConcreteIPReg
-		                  andResultReg: ConcreteZeroReg
-		                  startingAtIndex: loadOffset + 4.
-
-	"Update flag registers"
-	flagOffset := self
-		              updateFlagsADDForSourceReg: ConcreteIPReg
-		              resultReg: ConcreteZeroReg
-		              andMoveResultTo: destReg
-		              startingAtIndex: loadOffset + overflowOffset + 4.
-
-	^ machineCodeSize := loadOffset + flagOffset + overflowOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
@@ -1624,26 +1702,12 @@ CogRiscV64Compiler >> concretizeAddRR [
 	srcReg1 := operands at: 0.
 	srcReg2 := destReg := operands at: 1.
 	"Perform the ADD operation"
-	self machineCodeAt: 0 put: (self
-			 addRegister: srcReg1
-			 toRegister: srcReg2
-			 inRegister: ConcreteZeroReg).
-
-	"Check for overflow"
-	overflowOffset := self
-		                  checkADDOverflowWithSourceReg1: srcReg1
-		                  sourceReg2: srcReg2
-		                  andResultReg: ConcreteZeroReg
-		                  startingAtIndex: 4.
-
-	"Update flag registers"
-	flagOffset := self
-		              updateFlagsADDForSourceReg: srcReg1
-		              resultReg: ConcreteZeroReg
-		              andMoveResultTo: destReg
-		              startingAtIndex: overflowOffset + 4.
-
-	^ machineCodeSize := flagOffset + overflowOffset + 4
+	self machineCodeAt: 0 put: (self 
+		addRegister: srcReg1 
+		toRegister: srcReg2 
+		inRegister: destReg).
+		
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
@@ -1897,13 +1961,331 @@ CogRiscV64Compiler >> concretizeBrEqualRR [
 	<inline: true>
 	| offset left right |
 	self flag: #TODO.
-	"1halt."
 	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateBranchRange: offset).
-	
 	left := operands at: 1.
 	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
 	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: left isEqualToRegisterValue: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrFPEqualRR [ 
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 4.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	"No direct branching but set one in register if comparison!"
+	self machineCodeAt: 0 put: (self 
+		fSetOneIn: ConcreteIPReg  
+		ifRegisterValue: left 
+		isEqualToRegisterValue: right).
+	"Sets one if values equal -> br if ConcreteIPReg is not equal to zero"
+	self machineCodeAt: 4 put: (self 
+		branchTo: offset 
+		ifRegisterValueIsNotEqualToZero: ConcreteIPReg ).
+	^ machineCodeSize := 8
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrFPGreaterEqualRR [ 
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 4.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	"No direct branching but set one in register if comparison!"
+	"left>=right reversed to right<left"
+	self machineCodeAt: 0 put: (self 
+		fSetOneIn: ConcreteIPReg  
+		ifRegisterValue: right 
+		isLessThanRegisterValue: left).
+	"Sets one if right<left -> NOT left>=right -> br if set is equal to zero"
+	self machineCodeAt: 4 put: (self 
+		branchTo: offset 
+		ifRegisterValueIsEqualToZero: ConcreteIPReg ).
+	^ machineCodeSize := 8
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrFPGreaterRR [ 
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 4.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	"No direct branching but set one in register if comparison!"
+	"left>right reversed to right<=left"
+	self machineCodeAt: 0 put: (self 
+		fSetOneIn: ConcreteIPReg  
+		ifRegisterValue: right 
+		isLessThanOrEqualToRegisterValue: left).
+	"Sets one if right<left -> br if ConcreteIPReg is equal to zero"
+	self machineCodeAt: 4 put: (self 
+		branchTo: offset 
+		ifRegisterValueIsEqualToZero: ConcreteIPReg ).
+	^ machineCodeSize := 8
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrFPLessEqualRR [ 
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 4.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	"No direct branching but set one in register if comparison!"
+	self machineCodeAt: 0 put: (self 
+		fSetOneIn: ConcreteIPReg  
+		ifRegisterValue: left 
+		isLessThanOrEqualToRegisterValue: right).
+	"Sets one if values equal -> br if ConcreteIPReg is not equal to zero"
+	self machineCodeAt: 4 put: (self 
+		branchTo: offset 
+		ifRegisterValueIsNotEqualToZero: ConcreteIPReg ).
+	^ machineCodeSize := 8
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrFPLessRR [ 
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 4.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	"No direct branching but set one in register if comparison!"
+	self machineCodeAt: 0 put: (self 
+		fSetOneIn: ConcreteIPReg  
+		ifRegisterValue: left 
+		isLessThanRegisterValue: right).
+	"Sets one if values equal -> br if ConcreteIPReg is not equal to zero"
+	self machineCodeAt: 4 put: (self 
+		branchTo: offset 
+		ifRegisterValueIsNotEqualToZero: ConcreteIPReg ).
+	^ machineCodeSize := 8
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrFPNotEqualRR [ 
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 4.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	"No direct branching but set one in register if comparison!"
+	self machineCodeAt: 0 put: (self 
+		fSetOneIn: ConcreteIPReg  
+		ifRegisterValue: left 
+		isEqualToRegisterValue: right).
+	"Sets one if values equal -> br if ConcreteIPReg is equal to zero"
+	self machineCodeAt: 4 put: (self 
+		branchTo: offset 
+		ifRegisterValueIsEqualToZero: ConcreteIPReg ).
+	^ machineCodeSize := 8
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrLongEqualRR [
+	| offset offsetHigh offsetLow leftReg rightReg |
+	self flag: #TODO.
+	"<var: #jumpTargetInstruction type: #'AbstractInstruction *'>
+	jumpTargetInstruction := self longJumpTargetAddress.
+	self flag: #todo. ""Check not crossing 256MB block.""
+	jumpTargetAddr := jumpTargetInstruction asUnsignedInteger bitAnd: 16rFFFFFFF."
+	
+	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4. 
+	self assert: (self isInLongJumpCallRange: offset).
+	
+	leftReg := operands at: 1.
+	rightReg := operands at: 2.
+
+	"This mangling avoid having to bias the 11th bit in case of a negative value
+	 it is also used in loadImmediate:inRegister:"
+	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
+	offsetLow := self computeSignedValue64Bits: (offset bitAnd: 16rFFF).
+	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
+	
+
+	"Branch over the jump if the condition is not met"
+	self machineCodeAt: 0 put: (self  branchTo: 12 ifRegisterValue: leftReg isNotEqualToRegisterValue: rightReg).
+	"Perform the actual jump"
+	self machineCodeAt: 4 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+	self machineCodeAt: 8 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
+	^ machineCodeSize := 12
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrLongNotEqualRR [
+	| offset offsetHigh offsetLow leftReg rightReg |
+	self flag: #TODO.
+	"<var: #jumpTargetInstruction type: #'AbstractInstruction *'>
+	jumpTargetInstruction := self longJumpTargetAddress.
+	self flag: #todo. ""Check not crossing 256MB block.""
+	jumpTargetAddr := jumpTargetInstruction asUnsignedInteger bitAnd: 16rFFFFFFF."
+	
+	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4. 
+	self assert: (self isInLongJumpCallRange: offset).
+	
+	leftReg := operands at: 1.
+	rightReg := operands at: 2.
+
+	"This mangling avoid having to bias the 11th bit in case of a negative value
+	 it is also used in loadImmediate:inRegister:"
+	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
+	offsetLow := self computeSignedValue64Bits: (offset bitAnd: 16rFFF).
+	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
+	
+
+	"Branch over the jump if the condition is not met"
+	self machineCodeAt: 0 put: (self  branchTo: 12 ifRegisterValue: leftReg isEqualToRegisterValue: rightReg).
+	"Perform the actual jump"
+	self machineCodeAt: 4 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+	self machineCodeAt: 8 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
+	^ machineCodeSize := 12
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrNotEqualRR [ 
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: left isNotEqualToRegisterValue: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrSignedGreaterEqualRR [  
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: left isGreaterThanOrEqualRegisterValue: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrSignedGreaterRR [  
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: left isGreaterThanRegisterValue: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrSignedLessEqualRR [  
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: left isLessThanOrEqualRegisterValue: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrSignedLessRR [  
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValue: left isLessThanRegisterValue: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrUnsignedGreaterEqualRR [   
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: left isGreaterThanOrEqualRegisterValueUnsigned: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrUnsignedGreaterRR [  
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: left isGreaterThanRegisterValueUnsigned: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrUnsignedLessEqualRR [  
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: left isLessThanOrEqualRegisterValueUnsigned: right).
+	^ machineCodeSize := 4
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeBrUnsignedLessRR [  
+
+	<inline: true>
+	| offset left right |
+	self flag: #TODO.
+	offset := self computeJumpTargetOffsetPlus: 0.
+	left := operands at: 1.
+	right := operands at: 2.
+ 	self assert: (self isInImmediateBranchRange: offset).
+	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueUnsigned: left isLessThanRegisterValueUnsigned: right).
 	^ machineCodeSize := 4
 ]
 
@@ -1982,20 +2364,7 @@ CogRiscV64Compiler >> concretizeCmpCqR [
 			 fromRegister: srcReg
 			 intoRegister: ConcreteZeroReg).
 
-	"Check for overflow"
-	overflowOffset := self
-		                  checkSUBOverflowWithSourceReg1: srcReg
-		                  sourceReg2: ConcreteIPReg
-		                  andResultReg: ConcreteZeroReg
-		                  startingAtIndex: loadOffset + 4.
-
-	"Update flag registers"
-	flagOffset := self
-		              updateFlagsCMPForSourceReg: srcReg
-		              resultReg: ConcreteZeroReg
-		              startingAtIndex: loadOffset + overflowOffset + 4.
-
-	^ machineCodeSize := loadOffset + overflowOffset + flagOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
@@ -2207,184 +2576,114 @@ CogRiscV64Compiler >> concretizeJump [
 CogRiscV64Compiler >> concretizeJumpAbove [
 
 	<inline: true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 4.
-	self assert: (self isInImmediateBranchRange: offset).
-	"Check the condition!"
-	"Jump Above means jump if 	CF=0 and ZF=0"
-	self machineCodeAt: 0 put: (self bitwiseOrBetweenRegister: ConcreteCarryReg 
-	                               andRegister: ConcreteZeroReg 
-	                               toRegister: ConcreteIPReg).
-	"The previous instruction should have put 0 in ipreg if both cf and zf are equal to 0"
-	self machineCodeAt: 4 put: (self branchTo: offset 
-	                                 ifRegisterValueIsEqualToZero: ConcreteIPReg).
-	^ machineCodeSize := 8.
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpAboveOrEqual [
 
 	<inline: true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
-	self assert: (self isInImmediateBranchRange: offset).
-	"Jump above or equal translates to jump if CF=0"
-	self machineCodeAt: 0 put: (self branchTo: offset 
-   				                     ifRegisterValueIsEqualToZero: ConcreteCarryReg).
-	^ machineCodeSize := 4 
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpBelow [
 
 	<inline: true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump Below translates to jump if Carry = 1"
-	self machineCodeAt: 0 put: (self branchTo: offset 
-	                                 ifRegisterValueIsNotEqualToZero: ConcreteCarryReg).
-	^ machineCodeSize := 4
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpBelowOrEqual [
 
 	<inline: true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 4.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump Below or Equal translates to jump if 	CF=1 or ZF=1"
-	self machineCodeAt: 0 put: (self bitwiseOrBetweenRegister: ConcreteCarryReg 
-	                                 andRegister: ConcreteZeroReg
-	                                 toRegister: ConcreteIPReg).
-	"Or the two registers and check that the result is not 0"
-	self machineCodeAt: 4 put: (self branchTo: offset 
-	                                 ifRegisterValueIsNotEqualToZero: ConcreteIPReg).
-	^ machineCodeSize := 8
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpCarry [
 
 	<inline: true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Carry set if carry register at 1"
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNotEqualToZero: ConcreteCarryReg).
-	^ machineCodeSize := 4
+	self shouldBeImplemented. "Add case in noteFollowingConditional:"
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpFPEqual [
 
-	<inline:true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump Equal for floating points means jump if the zero flag is set to 1"
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNotEqualToZero: ConcreteZeroReg).
-	^ machineCodeSize := 4
+	<inline: true>
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpFPGreater [
 
-	<inline:true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 4.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump Greater for floating points means jump if ZF = 0 and CF = 0"
-	"Perform an OR operation between the two registers"
-	self machineCodeAt: 0 put: (self bitwiseOrBetweenRegister: ConcreteZeroReg
-											  andRegister: ConcreteCarryReg
-											  toRegister: ConcreteIPReg).
-	"Jump if it is equal to 0 (i.e. both were equal to 0"
-	self machineCodeAt: 4 put: (self branchTo: offset
-											  ifRegisterValueIsEqualToZero: ConcreteIPReg).
-	^ machineCodeSize := 8
+	<inline: true>
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpFPGreaterOrEqual [
 
-	<inline:true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump Greater or Equal for floating points means jump if the carry flag is not set"
-	self machineCodeAt: 0 put: (self branchTo: offset 
-											  ifRegisterValueIsEqualToZero: ConcreteCarryReg).
-	^ machineCodeSize := 4
+	<inline: true>
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpFPLess [
 
-	<inline:true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump Less for floating points means jump if CF = 1"
-	self machineCodeAt: 0 put: (self branchTo: offset 
-											  ifRegisterValueIsNotEqualToZero: ConcreteCarryReg).
-	^ machineCodeSize := 4
+	<inline: true>
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpFPLessOrEqual [
 
-	<inline:true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 4.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump Less or Equal for floating points means jump if ZF = 1 or CF = 1"
-	"Perform an OR operation between the two registers"
-	self machineCodeAt: 0 put: (self bitwiseOrBetweenRegister: ConcreteZeroReg
-											  andRegister: ConcreteCarryReg
-											  toRegister: ConcreteIPReg).
-	"Jump if it is equal to 1 (i.e. at least one was 1)"
-	self machineCodeAt: 4 put: (self branchTo: offset
-											  ifRegisterValueIsNotEqualToZero: ConcreteIPReg).
-	^ machineCodeSize := 8
+	<inline: true>
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpFPNotEqual [
 
-	<inline:true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump Not Equal for floating points means jump if the zero flag register is set to 0"
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsEqualToZero: ConcreteZeroReg).
-	^ machineCodeSize := 4
+	<inline: true>
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpFPOrdered [
 
-	<inline:true>
-	1halt.
+	<inline: true>
+	self shouldBeImplemented. "Add case in noteFollowingConditional:"
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpFPUnordered [
 
-	<inline:true>
-	1halt.
+	<inline: true>
+	self shouldBeImplemented. "Add case in noteFollowingConditional:"
+	^0
 ]
 
 { #category : #concretization }
@@ -2410,76 +2709,36 @@ CogRiscV64Compiler >> concretizeJumpFull [
 CogRiscV64Compiler >> concretizeJumpGreater [
 
 	<inline: true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 8.
-	self assert: (self isInImmediateBranchRange: offset).
-	"Jump Greater means jump if ZF = 0 and SF = OF"
-	"Check if SF and OF are different with a XOR (1 if different)"
-	self machineCodeAt: 0 put: (self bitwiseXorBetweenRegister: ConcreteSignReg  
-											  andRegister: ConcreteOverflowReg 
-											  intoRegister: ConcreteIPReg).
-	"Or will set 1 if SF is different from OF or if ZF=1"
-	self machineCodeAt: 4 put: (self bitwiseOrBetweenRegister: ConcreteIPReg 
-											  andRegister: ConcreteZeroReg 
-											  toRegister: ConcreteIPReg).
-	"Jump if the result is 0"
-	self machineCodeAt: 8 put: (self branchTo: offset
-											  ifRegisterValueIsEqualToZero: ConcreteIPReg).
-	^ machineCodeSize := 12
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpGreaterOrEqual [ 
 
 	<inline: true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump Greater or Equal means jump if SF = OF"
-	self machineCodeAt: 0 put: (self branchTo: offset 
-											  ifRegisterValue: ConcreteSignReg 
-	                                 isEqualToRegisterValue: ConcreteOverflowReg).
-	^ machineCodeSize := 4
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpLess [
 
 	<inline: true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump Less means jump if SF different from 	OF"
-	self machineCodeAt: 0 put: (self branchTo: offset 
-	                                 ifRegisterValue: ConcreteSignReg 
-	                                 isNotEqualToRegisterValue: ConcreteOverflowReg).
-	^ machineCodeSize := 4
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpLessOrEqual [ 
 
 	<inline: true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 8.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump Less or Equal means jump if SF different from 	OF or 	ZF=1"
-	"Check if SF and OF are different with a XOR"
-	self machineCodeAt: 0 put: (self bitwiseXorBetweenRegister: ConcreteSignReg  
-											  andRegister: ConcreteOverflowReg 
-											  intoRegister: ConcreteIPReg).
-	"Or to check if it is different or zf=1"
-	self machineCodeAt: 4 put: (self bitwiseOrBetweenRegister: ConcreteIPReg 
-											  andRegister: ConcreteZeroReg 
-											  toRegister: ConcreteIPReg).
-	"Jump if the result is One"
-	self machineCodeAt: 8 put: (self branchTo: offset
-											  ifRegisterValueIsNotEqualToZero: ConcreteIPReg).
-	^ machineCodeSize := 12
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
@@ -2507,171 +2766,75 @@ CogRiscV64Compiler >> concretizeJumpLong [
 ]
 
 { #category : #concretization }
-CogRiscV64Compiler >> concretizeJumpLongGreater [
-
-	"JumpLong works the same way as a Call buts does not store the return address"
-	<inline: true>
-	| offset offsetHigh offsetLow |
-	self flag: #TODO.
-	self assert: (operands at: 0) ~= 0.
-	self assert: (operands at: 0) \\ 4 = 0.
-	"Compute the offset from the address of the first instruction (auipc)"
-	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4.
-	self assert: (self isInLongJumpCallRange: offset).
-	
-	"This mangling avoid having to bias the 11th bit in case of a negative value
-	 it is also used in loadImmediate:inRegister:"
-	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
-	offsetLow := self computeSignedValue64Bits: (offset bitAnd: 16rFFF).
-	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
-	
-	"Jump Greater means jump if ZF = 0 and SF = OF"
-	"Check if SF and OF are different with a XOR (1 if different)"
-	self machineCodeAt: 0 put: (self bitwiseXorBetweenRegister: ConcreteSignReg  
-											  andRegister: ConcreteOverflowReg 
-											  intoRegister: ConcreteIPReg).
-	"Or will set 1 if SF is different from OF or if ZF=1"
-	self machineCodeAt: 4 put: (self bitwiseOrBetweenRegister: ConcreteIPReg 
-											  andRegister: ConcreteZeroReg 
-											  toRegister: ConcreteIPReg).
-	"Branch over the jump if the condition is not met -> Here the condition is greater if ConcreteIPReg = 0 and it should proceed to the big jump"
-	self machineCodeAt: 8 put: (self  branchTo: 12 ifRegisterValueIsNotEqualToZero: ConcreteIPReg "should jump after the jump").
-	"Perform the actual jump"
-	self machineCodeAt: 12 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
-	self machineCodeAt: 16 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
-	^ machineCodeSize := 20
-]
-
-{ #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpLongNonZero [
 
-	"JumpLong works the same way as a Call buts does not store the return address"
 	<inline: true>
-	| offset offsetHigh offsetLow |
-	self flag: #TODO.
-	self assert: (operands at: 0) ~= 0.
-	self assert: (operands at: 0) \\ 4 = 0.
-	"Compute the offset from the address of the first instruction (auipc)"
-	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4.
-	self assert: (self isInLongJumpCallRange: offset).
-	
-	"This mangling avoid having to bias the 11th bit in case of a negative value
-	 it is also used in loadImmediate:inRegister:"
-	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
-	offsetLow := self computeSignedValue64Bits: (offset bitAnd: 16rFFF).
-	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
-	
-	"Branch over the jump if the condition is not met"
-	self machineCodeAt: 0 put: (self  branchTo: 12 ifRegisterValueIsNotEqualToZero: ConcreteZeroReg "should jump after the jump").
-	"Perform the actual jump"
-	self machineCodeAt: 4 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
-	self machineCodeAt: 8 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
-	^ machineCodeSize := 12
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpLongZero [
 
-	"JumpLong works the same way as a Call buts does not store the return address"
-	<inline: true>	
-	| offset offsetHigh offsetLow |
-	self flag: #TODO.
-	self assert: (operands at: 0) ~= 0.
-	self assert: (operands at: 0) \\ 4 = 0.
-	"Compute the offset from the address of the first instruction (auipc)"
-	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4. 
-	self assert: (self isInLongJumpCallRange: offset).
-
-	"This mangling avoid having to bias the 11th bit in case of a negative value
-	 it is also used in loadImmediate:inRegister:"
-	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
-	offsetLow := self computeSignedValue64Bits: (offset bitAnd: 16rFFF).
-	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
-	
-	"Branch over the jump if the condition is not met"
-	self machineCodeAt: 0 put: (self  branchTo: 12 ifRegisterValueIsEqualToZero: ConcreteZeroReg "should jump after the jump").
-	"Perform the actual jump"
-	self machineCodeAt: 4 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
-	self machineCodeAt: 8 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
-	^ machineCodeSize := 12
+	<inline: true>
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpNegative [
 
 	<inline: true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump if sign register is set to 1"
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNotEqualToZero: ConcreteSignReg).
-	^ machineCodeSize := 4
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpNoCarry [
 
 	<inline: true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump if carry register set to 0"
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsEqualToZero: ConcreteCarryReg).
-	^ machineCodeSize := 4
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpNoOverflow [
 
-	<inline:true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump if the overflow flag register is not set"
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsEqualToZero: ConcreteOverflowReg).
-	^ machineCodeSize := 4	
+	<inline: true>
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpNonNegative [
 
 	<inline: true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump if Sign flag is set to 0"
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsEqualToZero: ConcreteSignReg).
-	^ machineCodeSize := 4
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self shouldBeImplemented.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpNonZero [
 
 	<inline: true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump if the zero flag register is set to 0"
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsEqualToZero: ConcreteZeroReg).
-	^ machineCodeSize := 4
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpOverflow [
 
-	<inline:true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump if the overflow register flag is set to 1"
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNotEqualToZero: ConcreteOverflowReg).
-	^ machineCodeSize := 4	
+	<inline: true>
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
@@ -2689,13 +2852,9 @@ CogRiscV64Compiler >> concretizeJumpR [
 CogRiscV64Compiler >> concretizeJumpZero [
 
 	<inline: true>
-	| offset |
-	self flag: #TODO.
-	offset := self computeJumpTargetOffsetPlus: 0.
- 	self assert: (self isInImmediateBranchRange: offset).
-	"Jump if the zero flag is set to 1"
-	self machineCodeAt: 0 put: (self branchTo: offset ifRegisterValueIsNotEqualToZero: ConcreteZeroReg).
-	^ machineCodeSize := 4
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
@@ -3640,6 +3799,40 @@ CogRiscV64Compiler >> concretizeMoveXwrRR [
 ]
 
 { #category : #concretization }
+CogRiscV64Compiler >> concretizeMulCheckOverflowRR [ 
+
+	<inline:true>
+	| srcReg1 srcReg2 destReg | 
+	self flag: #TODO.
+	srcReg1 := operands at: 0.
+	srcReg2 := destReg := operands at: 1.
+	"Multiply the two registers and store the higher half in a temp register (here overflow 1)
+	 Note that the mul high is performed first to avoid overwriting one operand (2-address code here)"
+	self machineCodeAt: 0 put: (self 
+		multiplyHighRegisterValue: srcReg1
+		byRegisterValue: srcReg2
+		inRegister: ConcreteIPReg2
+	).
+	
+	"Multiply and store the lower part in the destination register"
+	self machineCodeAt: 4 put: (self 
+		multiplyRegisterValue: srcReg1
+		byRegisterValue: srcReg2 
+		inRegister: destReg
+	).
+			
+	"Create a temp register to be either all 0s or all 1s depending on the result sign
+	 An arithmetic shift of 63 on the result will produce such a value"
+	self machineCodeAt: 8 put: (self
+		arithmeticShiftRightValueInRegister: destReg
+		byShiftAmount: 63
+		intoRegister: ConcreteIPReg3
+	).
+
+^ machineCodeSize := 12
+]
+
+{ #category : #concretization }
 CogRiscV64Compiler >> concretizeMulRR [ 
 
 	<inline:true>
@@ -4095,6 +4288,75 @@ CogRiscV64Compiler >> concretizeStop [
 ]
 
 { #category : #concretization }
+CogRiscV64Compiler >> concretizeSubCheckOverflowCqR [
+	"Check for the overflow, as according to the example in the book: 
+	 sub   res,  imm,  src      # res = src - imm
+    slti  t1,   src,  0        # t1 = (src2 < 0)
+    slt   t2,   res,   imm     # t2 = (src1 - src2 < res)
+	 * since res and src are equal we have to res to another result then move back
+    be    t1,   t2,    offset  # overflow if (src2 < 0) && (src1 + src2 < res)    case 1 1 (overflow)
+                                          || (src2 >= 0) && (src1 + src2 >= res)  case 0 0 (underflow)"
+	<inline: true>
+	| cq srcReg destReg |
+	self flag: #DONE.
+	cq := operands at: 0.
+	srcReg := destReg := operands at: 1.
+	"Perform the SUB operation"
+	self machineCodeAt: 0 put: (self
+		addImmediate: cq negated
+		toRegister:  srcReg
+		inRegister: ConcreteOverflowReg).
+	"1. Check if one operand is negative, OR EQUAL TO ZERO"
+	self machineCodeAt: 4 put: (self 
+		setOneIn: ConcreteIPReg2 
+		ifValueIn: srcReg
+		isLessThanImmediate: 1). 
+	"2. Check if the sum is smaller than one operand"
+	self machineCodeAt: 8 put: (self 
+		setOneIn: ConcreteIPReg3 
+		ifValueIn: ConcreteOverflowReg 
+		isLessThanImmediate: cq).
+	"3. Move result to destination register"
+	self machineCodeAt: 12 put: (self 
+		moveRegister: ConcreteOverflowReg toRegister: destReg).
+	^ machineCodeSize := 16
+]
+
+{ #category : #concretization }
+CogRiscV64Compiler >> concretizeSubCheckOverflowRR [
+	"Check for the overflow, as according to the example in the book: 
+	 sub   res,  src1,  src2    # res = src1 - src2 
+    slti  t1,   src2,  0       # t1 = (src2 < 0)
+    slt   t2,   res,   src1    # t2 = (src1 - src2 < res)
+    be    t1,   t2,    offset  # overflow if (src2 < 0) && (src1 + src2 < res)    case 1 1 (overflow)
+                                          || (src2 >= 0) && (src1 + src2 >= res)  case 0 0 (underflow)"
+	<inline: true>
+	| srcReg1 srcReg2 destReg |
+	self flag: #DONE.
+	srcReg1 := operands at: 0.
+	srcReg2 := destReg := operands at: 1.
+	"Perform the SUB operation"
+	self machineCodeAt: 0 put: (self
+		subtractRegister: srcReg1
+		fromRegister:  srcReg2
+		intoRegister: ConcreteOverflowReg).
+	"1. Check if one operand is negative, OR EQUAL TO ZERO"
+	self machineCodeAt: 4 put: (self 
+		setOneIn: ConcreteIPReg2 
+		ifValueIn: srcReg1
+		isLessThanImmediate: 1). 
+	"2. Check if the sum is smaller than one operand"
+	self machineCodeAt: 8 put: (self 
+		setOneIn: ConcreteIPReg3 
+		ifValueIn: ConcreteOverflowReg 
+		isLessThanValueIn: srcReg2).
+	"3. Move result to destination register"
+	self machineCodeAt: 12 put: (self 
+		moveRegister: ConcreteOverflowReg toRegister: destReg).
+	^ machineCodeSize := 16
+]
+
+{ #category : #concretization }
 CogRiscV64Compiler >> concretizeSubCqR [
 
 	"Perform a sub operation between the value of register and the value of the operand.
@@ -4271,18 +4533,14 @@ CogRiscV64Compiler >> concretizeTstCqR [
 				 bitwiseAndBetweenRegister: srcReg
 				 andImmediate: cq
 				 toRegister: ConcreteZeroReg).
-		"Update flag registers, here no difference between immediate or not"
-		flagOffset := self updateFlagsLogicForResultReg: ConcreteZeroReg startingAtIndex: 4.
-		^ machineCodeSize := flagOffset + 4 ].
+		^ machineCodeSize :=  4 ].
 	"Literal -> compute the distance, load the actual value then and between the 2 registers"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
 	self machineCodeAt: loadOffset put: (self
 			 bitwiseAndBetweenRegister: srcReg
 			 andRegister: ConcreteIPReg
 			 toRegister: ConcreteZeroReg).
-	"Check and update the flags"
-	flagOffset := self updateFlagsLogicForResultReg: ConcreteZeroReg startingAtIndex: loadOffset + 4.
-	^ machineCodeSize := loadOffset + flagOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
@@ -4397,6 +4655,31 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[AlignmentNops]	 -> [ ^ self concretizeAlignmentNops ].
 		[Fill32]			 -> [ ^ self concretizeFill32 ].
 		[Nop]				 -> [ ^ self concretizeNop ].
+		"Branches"
+		[ BrEqualRR ]                -> [ ^ self concretizeBrEqualRR ].
+		[ BrNotEqualRR ]             -> [ ^ self concretizeBrNotEqualRR ].
+	   [ BrSignedGreaterRR ]        -> [ ^ self concretizeBrSignedGreaterRR ].
+		[ BrSignedGreaterEqualRR ]   -> [ ^ self concretizeBrSignedGreaterEqualRR ].
+		[ BrSignedLessRR ]           -> [ ^ self concretizeBrSignedLessRR ].
+		[ BrSignedLessEqualRR ]      -> [ ^ self concretizeBrSignedLessEqualRR ].
+		[ BrUnsignedLessRR ]         -> [ ^ self concretizeBrUnsignedLessRR ].
+	   [ BrUnsignedLessEqualRR ]    -> [ ^ self concretizeBrUnsignedLessEqualRR ].
+		[ BrUnsignedGreaterRR ]      -> [ ^ self concretizeBrUnsignedGreaterRR ].
+		[ BrUnsignedGreaterEqualRR ] -> [ ^ self concretizeBrUnsignedGreaterEqualRR ].
+		[ BrLongEqualRR  ]           -> [ ^ self concretizeBrLongEqualRR ].
+		[ BrLongNotEqualRR  ]        -> [ ^ self concretizeBrLongNotEqualRR ].
+		[ BrFPEqualRR ]              -> [ ^ self concretizeBrFPEqualRR ].
+		[ BrFPNotEqualRR ]           -> [ ^ self concretizeBrFPNotEqualRR ].
+		[ BrFPLessRR ]               -> [ ^ self concretizeBrFPLessRR ].
+		[ BrFPLessEqualRR ]          -> [ ^ self concretizeBrFPLessEqualRR ].	   
+		[ BrFPGreaterRR ]            -> [ ^ self concretizeBrFPGreaterRR ].
+		[ BrFPGreaterEqualRR ]       -> [ ^ self concretizeBrFPGreaterEqualRR ].
+		"Overflow"
+		[ AddCheckOverflowRR ]       -> [ ^ self concretizeAddCheckOverflowRR ].
+      [ AddCheckOverflowCqR ]      -> [ ^ self concretizeAddCheckOverflowCqR ].
+		[ SubCheckOverflowRR ]       -> [ ^ self concretizeSubCheckOverflowRR ].
+      [ SubCheckOverflowCqR ]      -> [ ^ self concretizeSubCheckOverflowCqR ].
+      [ MulCheckOverflowRR ]       -> [ ^ self concretizeMulCheckOverflowRR ].
 		"Control"
 		[Call]					-> [ ^ self concretizeCall ]. "call code within code space"
 		[CallFull]			-> [ ^ self concretizeCallFull ]. "call code anywhere in address space"
@@ -4625,14 +4908,14 @@ CogRiscV64Compiler >> extractOffsetFromCall: callAddress [
 { #category : #'instruction extraction' }
 CogRiscV64Compiler >> extractOffsetFromConditionalBranch: instruction [ 
 
-	"Branch instruction encode the offset from bits 31->25 as 12|10:5 
-	                                  and from bits 11->7  as 4:1|11"
+	"Branch instruction encode the offset from bits 31->25 as 12|10:5 -> offset2
+	                                  and from bits 11->7  as 4:1|11  -> offset1"
 	| offset1 offset2 |
 	self flag: #TODO.
 	offset1 := instruction >> 7 bitAnd: 16r1F.
 	offset2 := instruction >> 25 bitAnd: 16r7F.
-	^ ((((offset1 >> 6 bitAnd: 16r1) << 12) "12"
-	  bitOr: ((offset2 bitAnd: 16r1) << 11)) "11"
+	^ ((((offset2 >> 6 bitAnd: 16r1) << 12) "12"
+	  bitOr: ((offset1 bitAnd: 16r1) << 11)) "11"
 	  bitOr: ((offset2 bitAnd: 16r3F) << 5)) "10:5"
 	  bitOr: ((offset1 >> 1 bitAnd: 16rF) << 1) "4:1"
 	  
@@ -5064,6 +5347,30 @@ CogRiscV64Compiler >> fullCallsAreRelative [
 	^false
 ]
 
+{ #category : #'machine code instruction' }
+CogRiscV64Compiler >> genCaptureCStackPointers: captureFramePointer [
+
+	"Save the register to a caller-saved register.
+	The caller may have been using the same register for something else.
+	So we need to save it and restore it later.
+	Make sure to reuse a caller-saved register: we can reuse it freely"
+	self hasVarBaseRegister ifTrue:
+		[cogit
+			MoveR: VarBaseReg R: ConcreteIPReg;
+			MoveCq: cogit varBaseAddress R: VarBaseReg].
+	captureFramePointer ifTrue:
+		[cogit MoveR: FPReg Aw: cogit cFramePointerAddress].
+
+	"Capture the stack pointer prior to the call"
+	cogit MoveR: self cStackPointer Aw: cogit cStackPointerAddress.
+	
+	"Restore the base register for our caller"
+	self hasVarBaseRegister ifTrue:
+		[cogit MoveR: ConcreteIPReg R: VarBaseReg].
+
+	cogit RetN: 0.
+]
+
 { #category : #'abstract instructions' }
 CogRiscV64Compiler >> genDivR: abstractRegDenominator R: abstractRegNumerator Quo: abstractRegQuotient Rem: abstractRegRemainder [
 
@@ -5383,7 +5690,7 @@ CogRiscV64Compiler >> instructionBeforeAddress: followingAddress [
 	"Answer the instruction immediately preceding followingAddress."
 	<inline: true>
 	<returnTypeC: #'uint32_t'>
-	^objectMemory long32At: (self instructionAddressBefore: followingAddress)
+	^objectMemory uint32AtPointer: (self instructionAddressBefore: followingAddress)
 ]
 
 { #category : #'instruction detection' }
@@ -5407,6 +5714,15 @@ CogRiscV64Compiler >> instructionIsAUIPC: instruction [
 
 	self flag: #DONE.
 	^ (instruction bitAnd: 16r7F) = 2r0010111.
+
+]
+
+{ #category : #'instruction detection' }
+CogRiscV64Compiler >> instructionIsB: instruction withCondition: condition [
+
+	self flag: #DONE.
+	"Check bits 12 to 14 to the correct condition"
+	^ ((instruction >> 12 bitAnd: 16r7) = condition) and: [(instruction bitAnd: 16r7F) = 2r1100011].
 
 ]
 
@@ -5535,6 +5851,20 @@ CogRiscV64Compiler >> isInLongJumpCallRange: offset [
 	<var: #operand type: #'usqIntptr_t'>
 	self flag: #TODO.
 	^ self value: offset isContainedIn: 32
+]
+
+{ #category : #'machine code instruction' }
+CogRiscV64Compiler >> isJump [
+	^super isJump or: [{
+		BrEqualRR. BrNotEqualRR. 
+		BrSignedGreaterRR. BrSignedGreaterEqualRR. 
+		BrSignedLessRR. BrSignedLessEqualRR.
+		BrUnsignedLessRR. BrUnsignedLessEqualRR. 
+		BrUnsignedGreaterRR. BrUnsignedGreaterEqualRR.
+		BrLongEqualRR. BrLongNotEqualRR.
+		BrFPEqualRR. BrFPNotEqualRR.
+		BrFPLessRR. BrFPLessEqualRR.
+		BrFPGreaterRR. BrFPGreaterEqualRR } includes: opcode]
 ]
 
 { #category : #testing }
@@ -6179,7 +6509,7 @@ CogRiscV64Compiler >> nop [
 	^ self addImmediate: 0 toRegister: X0 inRegister: X0 
 ]
 
-{ #category : #concretization }
+{ #category : #'machine code instruction' }
 CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 	"Support for processors without condition codes, such as the MIPS.
 	 Answer the branch opcode.  Modify the receiver and the branch to
@@ -6189,78 +6519,112 @@ CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 	<var: #branch type: #'AbstractInstruction *'>
 	| newBranchLeft newBranchOpcode newBranchRight |
 	
-	(branch opcode = JumpZero) 
-		ifFalse: [ ^ branch ].
-	
+	"Specific for overflow"
 	((branch opcode = JumpOverflow) or: [branch opcode = JumpNoOverflow]) 
 		ifTrue: [^self noteFollowingOverflowBranch: branch].
-
-	newBranchOpcode := branch opcode caseOf: {
-		[JumpZero] 			-> [BrEqualRR].
-		"[JumpNonZero]			-> [BrNotEqualRR].
-		[JumpBelow]			-> [BrUnsignedLessRR].
-		[JumpBelowOrEqual]	-> [BrUnsignedLessEqualRR].
-		[JumpAbove]			-> [BrUnsignedGreaterRR].
-		[JumpAboveOrEqual]	-> [BrUnsignedGreaterEqualRR].
-		[JumpLess]				-> [BrSignedLessRR].
-		[JumpLessOrEqual]		-> [BrSignedLessEqualRR].
-		[JumpGreater]			-> [BrSignedGreaterRR].
-		[JumpGreaterOrEqual]	-> [BrSignedGreaterEqualRR].
-		[JumpLongZero] 		-> [BrLongEqualRR].
-		[JumpLongNonZero]	-> [BrLongNotEqualRR].
-		
-		[JumpNegative]			-> [BrSignedLessRR]."
-	} otherwise: [self unreachable. 0].
 	
 	opcode caseOf: {
-		"[BrEqualRR]	->	[I.e., two jumps after a compare.
-						newBranchLeft := operands at: 1.
-						newBranchRight := operands at: 2].
-		[BrUnsignedLessRR]	->	[I.e., two jumps after a compare.
-						newBranchLeft := operands at: 1.
-						newBranchRight := operands at: 2]."
-
-		[CmpRR] 	-> 	[newBranchLeft := operands at: 1.
-						 newBranchRight := operands at: 0.
-						 opcode := Label].
-		[CmpCqR]	-> 	[newBranchLeft := operands at: 1.
-						 newBranchRight := ConcreteIPReg.
-						 opcode := MoveCqR.
-						 operands at: 1 put: ConcreteIPReg].
-		[CmpCwR]	-> 	[newBranchLeft := operands at: 1.
-						 newBranchRight := ConcreteIPReg.
-						 opcode := MoveCwR.
-						 operands at: 1 put: ConcreteIPReg].
-		[TstCqR]	->	[newBranchLeft := ConcreteIPReg.
-						 newBranchRight := X0].
-		[AndCqR]	->	[newBranchLeft := operands at: 1.
-						 newBranchRight := X0].
-		"[AndCqRR]	->	[newBranchLeft := operands at: 2.
-						 newBranchRight := X0]."
-		"[OrRR]	->		[newBranchLeft := operands at: 1.
-						 newBranchRight := X0]."
-		"[XorRR]	->		[newBranchLeft := operands at: 1.
-						 newBranchRight := X0]."
-		"[SubCwR]	->	[newBranchLeft := operands at: 1.
-						 newBranchRight := X0]."
-		[SubCqR]	->	[newBranchLeft := operands at: 1.
-						 newBranchRight := X0].
+		[BrEqualRR]	->	["I.e., two jumps after a compare."
+			           newBranchLeft := operands at: 1.
+			           newBranchRight := operands at: 2].
+		[BrUnsignedLessRR]	->	["I.e., two jumps after a compare."
+			           newBranchLeft := operands at: 1.
+			           newBranchRight := operands at: 2].
+		[CmpRR]   -> [newBranchLeft := operands at: 1.
+		              newBranchRight := operands at: 0.
+		              opcode := Label].
+		[CmpRdRd] -> [newBranchLeft := operands at: 0.
+		              newBranchRight := operands at: 1.
+		              opcode := Label].
+		[CmpCqR]	 -> [newBranchLeft := operands at: 1.
+						  newBranchRight := ConcreteIPReg."Need to change once everything is done"
+						  opcode := MoveCqR.
+						  operands at: 1 put: ConcreteIPReg].
+		[CmpCwR]	 -> [newBranchLeft := operands at: 1.
+						  newBranchRight := ConcreteIPReg. "Need to change once everything is done"
+						  opcode := MoveCwR.
+						  operands at: 1 put: ConcreteIPReg].
+      [CmpC32R]	 -> [newBranchLeft := operands at: 1.
+						  newBranchRight := ConcreteIPReg. "Need to change once everything is done"
+						  opcode := MoveCwR.
+						  operands at: 1 put: ConcreteIPReg].
+		[TstCqR]	 ->	 [newBranchLeft := ConcreteZeroReg. "Need to change once everything is done"
+						  newBranchRight := X0].
+		[AndCqR]	 ->	 [newBranchLeft := operands at: 1.
+				        newBranchRight := X0].
+		[AndCqRR]	 -> [newBranchLeft := operands at: 2.
+						  newBranchRight := X0].
+		[OrRR]   	 -> [newBranchLeft := operands at: 1.
+						  newBranchRight := X0].
+		[XorRR]   -> [newBranchLeft := operands at: 1.
+		              newBranchRight := X0].
+		[SubCwR]	 ->	 [newBranchLeft := operands at: 1.
+						  newBranchRight := X0].
+		[SubCqR]	 -> [newBranchLeft := operands at: 1.
+						  newBranchRight := X0].
 		[ArithmeticShiftRightCqR]	->	[newBranchLeft := operands at: 1.
 						 newBranchRight := X0].
 	} otherwise: [self unreachable].
+	
+	newBranchOpcode := branch opcode caseOf: {
+		[JumpZero]             -> [BrEqualRR].
+		[JumpNonZero]          -> [BrNotEqualRR].
+		[JumpBelow]            -> [BrUnsignedLessRR].
+		[JumpBelowOrEqual]     -> [BrUnsignedLessEqualRR].
+		[JumpAbove]            -> [BrUnsignedGreaterRR].
+		[JumpAboveOrEqual]     -> [BrUnsignedGreaterEqualRR].
+		[JumpLess]             -> [BrSignedLessRR].
+		[JumpLessOrEqual]      -> [BrSignedLessEqualRR].
+		[JumpGreater]          -> [BrSignedGreaterRR].
+		[JumpGreaterOrEqual]   -> [BrSignedGreaterEqualRR].
+		[JumpLongZero]         -> [BrLongEqualRR].
+		[JumpLongNonZero]      -> [BrLongNotEqualRR].
+		[JumpNegative]         -> [BrSignedLessRR].
+		[JumpFPEqual]          -> [BrFPEqualRR].
+		[JumpFPNotEqual]       -> [BrFPNotEqualRR].
+		[JumpFPLess]           -> [BrFPLessRR].
+	   [JumpFPLessOrEqual]    -> [BrFPLessEqualRR].
+		[JumpFPGreater]        -> [BrFPGreaterRR].
+		[JumpFPGreaterOrEqual] -> [BrFPGreaterEqualRR].
+	} otherwise: [self unreachable. 0].
 
 	branch rewriteOpcode: newBranchOpcode with: newBranchLeft with: newBranchRight.
 	^branch
 ]
 
-{ #category : #concretization }
+{ #category : #'machine code instruction' }
 CogRiscV64Compiler >> noteFollowingOverflowBranch: branch [
-	"Support for processors without condition codes, such as the MIPS.
+	"Support for processors without condition codes, such as the RISC-V.
 	 Answer the branch opcode.  Modify the receiver and the branch to
 	 implement a suitable conditional branch that doesn't depend on
 	 condition codes being set by the receiver."
 	<var: #branch type: #'AbstractInstruction *'>
-	^ branch
+	| newBranchOpcode |
+
+	({SubCqR. SubRR} includes: opcode) ifTrue:
+		[opcode := opcode caseOf: {
+			[ SubCqR ] -> [ SubCheckOverflowCqR ].
+			[ SubRR ] -> [ SubCheckOverflowRR ].
+		}.
+		 newBranchOpcode := branch opcode caseOf: {
+			[JumpOverflow]		-> [BrEqualRR].
+			[JumpNoOverflow]	-> [BrNotEqualRR].
+		 } otherwise: [self unreachable. 0].
+		 branch rewriteOpcode: newBranchOpcode with: ConcreteIPReg2 with: ConcreteIPReg3.
+		 ^branch].
+
+	opcode := opcode caseOf: {
+		[AddCqR] -> [AddCheckOverflowCqR].
+		[AddRR]  -> [AddCheckOverflowRR].
+	   [MulRR]  -> [MulCheckOverflowRR].
+	} otherwise: [self unreachable. 0].
+
+	newBranchOpcode := branch opcode caseOf: {
+		[JumpOverflow]		-> [BrNotEqualRR].
+		[JumpNoOverflow]	-> [BrEqualRR].
+	} otherwise: [self unreachable. 0].
+	branch rewriteOpcode: newBranchOpcode with: ConcreteIPReg2 with: ConcreteIPReg3.
+	^branch
 ]
 
 { #category : #'inline cacheing' }
@@ -6361,39 +6725,44 @@ CogRiscV64Compiler >> returnFromCallCFunctionInSmalltalkStack: anObject [
 ]
 
 { #category : #'inline cacheing' }
-CogRiscV64Compiler >> rewriteCPICJumpAt: jumpReturnAddress target: jumpTargetAddress [
+CogRiscV64Compiler >> rewriteBTypeBranchAtAddress: mcpc target: newTarget withCondition: condition [
+	| newOffset oldInstruction newInstruction srcReg1 srcReg2 |
+	"Format target"
+	newOffset := newTarget - mcpc.
+	"Extract comparison registers from old instruction"
+	oldInstruction := objectMemory uint32AtPointer: mcpc.
+	srcReg1 := (oldInstruction bitAnd: (16r1F << 15)) >> 15.
+	srcReg2 := (oldInstruction bitAnd: (16r1F << 20)) >> 20.
+	
+	"Generate new instruction"
+	newInstruction := self branchTo: newOffset ifCondition: condition betweenRegister: srcReg1 andRegister: srcReg2.
+	
+	objectMemory uint32AtPointer: mcpc put: newInstruction.
+]
 
+{ #category : #'inline cacheing' }
+CogRiscV64Compiler >> rewriteCPICJumpAt: addressFollowingJump target: jumpTargetAddr [
 	"Rewrite a jump instruction to call a different target.  This variant is used to reset the 
 	jumps in the prototype CPIC to suit each use,.   
 	Answer the extent of the code change which is used to compute the range of the icache to flush."
+	<var: #addressFollowingJump type: #usqInt>
+	<var: #jumpTargetAddr type: #usqInt>
+	self flag: #DONE.
+	"self CmpR: ClassReg R: TempReg.
+	^self JumpNonZero: 0"
+	
+	"bne s5, s3, +156
+	 .... <-- addressFollowingJump"
+ 	self assert: (self instructionIsB: (self instructionBeforeAddress: addressFollowingJump) withCondition: NE).
+	"cogit disassembleFrom: addressFollowingJump - 8 to: addressFollowingJump."
+	
+	self rewriteBTypeBranchAtAddress: addressFollowingJump - 4 target: jumpTargetAddr withCondition: NE.
+	
+	self assert: (self instructionIsB: (self instructionBeforeAddress: addressFollowingJump) withCondition: NE).
+	self assert: (self extractOffsetFromConditionalBranch: (self instructionBeforeAddress: addressFollowingJump)) = (jumpTargetAddr - addressFollowingJump + 4).
+	"cogit disassembleFrom: addressFollowingJump - 4 to: addressFollowingJump."
 
-	<var: #jumpReturnAddress type: #usqInt>
-	<var: #jumpTargetAddress type: #usqInt>
-	| jumpDistance instr |
-	self flag: #TODO.
-	"1halt."
-	jumpTargetAddress >= cogit minCallAddress ifFalse: [ 
-		self error: 'linking callsite to invalid address' ].
-
-	jumpDistance := jumpTargetAddress - (jumpReturnAddress - 12). "return offset"
-	self assert: (self isInLongJumpCallRange: jumpDistance). 
-
-	instr := self instructionBeforeAddress: jumpReturnAddress.
-	self assert: (self instructionIsConditionalBranch: instr).
-	self assert: (self instructionIsConditionalZeroBranch: instr).
-
-	objectMemory
-		long32At: (self instructionAddressBefore: jumpReturnAddress)
-		put: (self
-				 zeroConditionalBranch:
-				 (self extractConditionFromZeroConditionalBranch: instr)
-				 withOffset: jumpDistance).
-
-	self assert: (self extractOffsetFromConditionalBranch: (self
-				  zeroConditionalBranch:
-				  (self extractConditionFromZeroConditionalBranch: instr)
-				  withOffset: jumpDistance)) = jumpDistance.
-	^ 4
+	^4
 ]
 
 { #category : #'inline cacheing' }
@@ -6462,6 +6831,7 @@ CogRiscV64Compiler >> rewriteConditionalJumpLongAt: callSiteReturnAddress target
 	jumps in the prototype CPIC to suit each use,.   
 	Answer the extent of the code change which is used to compute the range of the icache to flush."
 	self flag: #TODO.
+	1halt.
 ]
 
 { #category : #'inline cacheing' }
@@ -6495,11 +6865,10 @@ CogRiscV64Compiler >> rewriteJumpFullAt: jumpFullReturnAddress target: jumpFullT
 		
 	<inline: true>
 	self flag: #TODO.
-	"1halt."
 	^ self
 		rewriteFullTransferAt: jumpFullReturnAddress 
 		target: jumpFullTargetAddress
-		expectedInstruction: 16r00028067 
+		expectedInstruction: 16r00028067 "16r00028067 riscv64Disassembled -> nil:	jr	t0 "
 
 ]
 
@@ -6529,16 +6898,26 @@ CogRiscV64Compiler >> rewriteJumpLongAt: jumpReturnAddress target: jumpTargetAdd
 
 	"auipc"
 	objectMemory
-		long32At: (self instructionAddressBefore: jumpReturnAddress - 4)
+		uint32AtPointer: (self instructionAddressBefore: jumpReturnAddress - 4)
 		put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
 	"jalr"
 	objectMemory
-		long32At: (self instructionAddressBefore: jumpReturnAddress)
+		uint32AtPointer: (self instructionAddressBefore: jumpReturnAddress)
 		put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
 
 	self assert: (self jumpLongTargetBeforeFollowingAddress: jumpReturnAddress) = jumpTargetAddress.
 	
 	^8
+]
+
+{ #category : #'concretization helpers' }
+CogRiscV64Compiler >> rewriteOpcode: anOpcode with: left with: right [
+	<inline: true>
+	opcode := anOpcode.
+	operands
+		"0 is target"
+		at: 1 put: left;
+		at: 2 put: right
 ]
 
 { #category : #'machine code instruction' }

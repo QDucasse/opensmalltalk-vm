@@ -642,41 +642,6 @@ Cogit class >> doInlining [
 ]
 
 { #category : #'in-image compilation' }
-Cogit class >> genAndDis: methodOrDoitString [
-	^self genAndDis: methodOrDoitString options: #()
-]
-
-{ #category : #'in-image compilation' }
-Cogit class >> genAndDis: compiledBlock numCopied: numCopied options: optionsDictionaryOrArray [
-	| tuple |
-	tuple := self cog: compiledBlock selectorOrNumCopied: numCopied options: optionsDictionaryOrArray.
-	tuple second disassembleMethod: tuple last.
-	^tuple
-]
-
-{ #category : #'in-image compilation' }
-Cogit class >> genAndDis: methodOrDoitString options: optionsDictionaryOrArray [
-	| tuple |
-	methodOrDoitString isCompiledCode ifFalse:
-		[^self
-			genAndDis: (Compiler new
-							compiledMethodFor: methodOrDoitString
-							in: nil
-							to: nil
-							notifying: nil
-							ifFail: nil
-							logged: false)
-			 options: optionsDictionaryOrArray].
-	tuple := self cog: methodOrDoitString
-				selectorOrNumCopied: (methodOrDoitString isCompiledBlock
-											ifTrue: [methodOrDoitString numCopiedValues]
-											ifFalse: [methodOrDoitString selector])
-				options: optionsDictionaryOrArray.
-	tuple second disassembleMethod: tuple last.
-	^tuple
-]
-
-{ #category : #'in-image compilation' }
 Cogit class >> genAndDisPICoptions: optionsDictionaryOrArray [
 	"StackToRegisterMappingCogit genAndDisPICoptions: #(ISA ARMv5 CogCompilerClass CogOutOfLineLiteralsARMCompiler)"
 	| cogit |
@@ -1583,51 +1548,6 @@ Cogit class >> tableInitializerFor: aTable in: aCCodeGenerator [
 		s cr; nextPut: $}]
 ]
 
-{ #category : #tests }
-Cogit class >> testPCMappingFor: aCompiledMethod [
-	^self testPCMappingFor: aCompiledMethod options: #()
-]
-
-{ #category : #tests }
-Cogit class >> testPCMappingFor: aCompiledMethod options: optionsDictionaryOrArray [
-	| tuple |
-	tuple := self cog: aCompiledMethod selectorOrNumCopied: aCompiledMethod selector options: optionsDictionaryOrArray.
-	tuple second testPCMappingForCompiledMethod: aCompiledMethod cogMethod: tuple last
-]
-
-{ #category : #tests }
-Cogit class >> testPCMappingSelect: aBlock [
-	"Test pc mapping both ways using the methods in the current image"
-	self testPCMappingSelect: aBlock options: #()
-]
-
-{ #category : #tests }
-Cogit class >> testPCMappingSelect: aBlock options: optionsDictionaryOrArray [
-	"Test pc mapping both ways using a selection of the methods in the current image."
-	| cogit coInterpreter n |
-	cogit := self initializedInstanceForTests: optionsDictionaryOrArray.
-	coInterpreter := cogit coInterpreter.
-	n := -1.
-	SystemNavigation new allSelect:
-		[:m| | cm |
-		(m isQuick not
-		 and: [aBlock value: m]) ifTrue:
-			[(n := n + 1) \\ 10 = 0 ifTrue: [Transcript nextPut: $.; flush].
-			 cm := cogit
-						cog: (coInterpreter oopForObject: m)
-						selector: (coInterpreter oopForObject: m selector).
-			  cm ifNil:
-				[cogit methodZone clearCogCompiledCode.
-				 coInterpreter initializeObjectMap.
-				 cm := cogit
-							cog: (coInterpreter oopForObject: m)
-							selector: (coInterpreter oopForObject: m selector).
-				cm ifNil: [Transcript show: 'After 1 Cog compiled code compaction, still not able to generate the cog method...' ] ].
-			  cm ifNotNil:
-				[cogit testPCMappingForCompiledMethod: m cogMethod: cm]].
-		 false]
-]
-
 { #category : #documentation }
 Cogit class >> trampolines [
 	"Trampolines are called from machine-code for a number of tasks (e.g. doing an unlinked send,
@@ -1777,6 +1697,16 @@ Cogit >> AddcR: reg1 R: reg2 [
 	<inline: true>
 	<returnTypeC: #'AbstractInstruction *'>
 	^self gen: AddcRR operand: reg1 operand: reg2
+]
+
+{ #category : #'abstract instructions' }
+Cogit >> AlignedSt1S: aSize Vr: aVectorRegister R: aMemoryRegister Mw: anOffset [ 
+	^ self
+		  gen: AlignedSt1VrRMw
+		  operand: aSize 
+		  operand: aVectorRegister
+		  operand: aMemoryRegister 
+		  operand: anOffset 
 ]
 
 { #category : #'abstract instructions' }
@@ -2058,10 +1988,40 @@ Cogit >> DivRs: dpreg1 Rs: dpreg2 [
 ]
 
 { #category : #'abstract instructions' }
+Cogit >> DupS: aSize R: aGeneralRegister Vr: aVectorRegister [
+
+	^ self
+		  gen: DupRVr
+		  operand: aSize
+		  operand: aGeneralRegister
+		  operand: aVectorRegister
+]
+
+{ #category : #'abstract instructions' }
+Cogit >> FaddS: aSize Rv: vectorRegister1 Rv: vectorRegister2 Rv: vectorRegisterSum [ 
+	^ self
+		  gen: FaddSRvRvRv
+		  operand: aSize 
+		  operand: vectorRegister1
+		  operand: vectorRegister2 
+		  operand: vectorRegisterSum
+]
+
+{ #category : #'abstract instructions' }
 Cogit >> Fill32: value [
 	<inline: true>
 	<returnTypeC: #'AbstractInstruction *'>
 	^self gen: Fill32 operand: value
+]
+
+{ #category : #'abstract instructions' }
+Cogit >> FsubS: aSize Rv: minuendVectorRegister Rv: subtrahendVectorRegister Rv: vectorRegisterSum [ 
+	^ self
+		  gen: FsubSRvRvRv
+		  operand: aSize 
+		  operand: minuendVectorRegister
+		  operand: subtrahendVectorRegister 
+		  operand: vectorRegisterSum
 ]
 
 { #category : #'abstract instructions' }
@@ -2119,7 +2079,7 @@ Cogit >> JumpFPEqual: jumpTarget [
 	<returnTypeC: #'AbstractInstruction *'>
 	<var: #jumpTarget type: #'void *'>
 	<inline: false>
-	^backEnd genJumpFPEqual: jumpTarget
+	^ self genConditionalBranch: JumpFPEqual operand: jumpTarget asInteger
 ]
 
 { #category : #'abstract instructions' }
@@ -2129,7 +2089,7 @@ Cogit >> JumpFPGreater: jumpTarget [
 	<returnTypeC: #'AbstractInstruction *'>
 	<var: #jumpTarget type: #'void *'>
 	<inline: false>
-	^backEnd genJumpFPGreater: jumpTarget
+	^self genConditionalBranch: JumpFPGreater operand: jumpTarget asInteger
 ]
 
 { #category : #'abstract instructions' }
@@ -2139,7 +2099,7 @@ Cogit >> JumpFPGreaterOrEqual: jumpTarget [
 	<returnTypeC: #'AbstractInstruction *'>
 	<var: #jumpTarget type: #'void *'>
 	<inline: false>
-	^backEnd genJumpFPGreaterOrEqual: jumpTarget
+	^self genConditionalBranch: JumpFPGreaterOrEqual operand: jumpTarget asInteger
 ]
 
 { #category : #'abstract instructions' }
@@ -2149,7 +2109,7 @@ Cogit >> JumpFPLess: jumpTarget [
 	<returnTypeC: #'AbstractInstruction *'>
 	<var: #jumpTarget type: #'void *'>
 	<inline: false>
-	^backEnd genJumpFPLess: jumpTarget
+	^self genConditionalBranch: JumpFPLess operand: jumpTarget asInteger
 ]
 
 { #category : #'abstract instructions' }
@@ -2159,7 +2119,7 @@ Cogit >> JumpFPLessOrEqual: jumpTarget [
 	<returnTypeC: #'AbstractInstruction *'>
 	<var: #jumpTarget type: #'void *'>
 	<inline: false>
-	^backEnd genJumpFPLessOrEqual: jumpTarget
+	^self genConditionalBranch: JumpFPLessOrEqual operand: jumpTarget asInteger
 ]
 
 { #category : #'abstract instructions' }
@@ -2169,7 +2129,7 @@ Cogit >> JumpFPNotEqual: jumpTarget [
 	<returnTypeC: #'AbstractInstruction *'>
 	<var: #jumpTarget type: #'void *'>
 	<inline: false>
-	^backEnd genJumpFPNotEqual: jumpTarget
+	^self genConditionalBranch: JumpFPNotEqual operand: jumpTarget asInteger
 ]
 
 { #category : #'abstract instructions' }
@@ -2321,6 +2281,16 @@ Cogit >> Label [
 	<inline: true>
 	<returnTypeC: #'AbstractInstruction *'>
 	^self gen: Label operand: (labelCounter := labelCounter + 1) operand: bytecodePC
+]
+
+{ #category : #'abstract instructions' }
+Cogit >> Ld1S: aSize Vr: aVectorRegister R: aMemoryRegister Mw: anOffset [ 
+	^ self
+		  gen: Ld1VrRMw
+		  operand: aSize 
+		  operand: aVectorRegister
+		  operand: aMemoryRegister 
+		  operand: anOffset 
 ]
 
 { #category : #'abstract instructions' }
@@ -2908,6 +2878,16 @@ Cogit >> SqrtRs: dpreg [
 	<inline: true>
 	<returnTypeC: #'AbstractInstruction *'>
 	^self gen: SqrtRs operand: dpreg
+]
+
+{ #category : #'abstract instructions' }
+Cogit >> St1S: aSize Vr: aVectorRegister R: aMemoryRegister Mw: anOffset [ 
+	^ self
+		  gen: St1VrRMw
+		  operand: aSize 
+		  operand: aVectorRegister
+		  operand: aMemoryRegister 
+		  operand: anOffset 
 ]
 
 { #category : #'abstract instructions' }
@@ -4138,6 +4118,12 @@ Cogit >> ceReturnToInterpreterPC [
 	<cmacro: '() ((usqInt)ceReturnToInterpreterTrampoline)'>
 	<returnTypeC: #usqInt> "for Slang"
 	^ceReturnToInterpreterTrampoline
+]
+
+{ #category : #accessing }
+Cogit >> ceReturnToInterpreterTrampoline: anInteger [ 
+	<doNotGenerate>
+	ceReturnToInterpreterTrampoline := anInteger
 ]
 
 { #category : #'in-line cacheing' }
@@ -6107,14 +6093,6 @@ Cogit >> disassemble: targetmcpc from: startpc to: endpc arg: aStream [
 ]
 
 { #category : #disassembly }
-Cogit >> disassembleCodeAt: pc [
-	<doNotGenerate>
-	(pc between: (trampolineAddresses at: 1) and: methodZoneBase - 1) ifTrue:
-		[^self disassembleTrampolineFor: pc].
-	self disassembleMethodFor: pc
-]
-
-{ #category : #disassembly }
 Cogit >> disassembleFrom: startAddress to: endAddress [
 	<doNotGenerate>
 	self disassembleFrom: startAddress to: endAddress labels: Dictionary new on: coInterpreter transcript
@@ -6141,109 +6119,6 @@ Cogit >> disassembleFrom: startAddress to: endAddress labels: labelDictionary on
 				printTempNames: previousTVP;
 				setReceiverResultReg: nil].
 	aStream flush
-]
-
-{ #category : #disassembly }
-Cogit >> disassembleMethod: surrogateOrAddress [
-	<doNotGenerate>
-	self disassembleMethod: surrogateOrAddress on: coInterpreter transcript
-]
-
-{ #category : #disassembly }
-Cogit >> disassembleMethod: surrogateOrAddress on: aStream [
-	<doNotGenerate>
-	| cogMethod mapEntries codeRanges |
-	cogMethod := surrogateOrAddress isInteger
-								ifTrue: [self cogMethodSurrogateAt: surrogateOrAddress]
-								ifFalse: [surrogateOrAddress].
-	cogMethod cmType = CMBlock ifTrue:
-		[^self disassembleMethod: cogMethod cmHomeMethod on: aStream].
-	(disassemblingMethod isNil
-	 and: [self class initializationOptions at: #relativeAddressDisassembly ifAbsent: [false]]) ifTrue:
-		[^[disassemblingMethod := cogMethod.
-		    self disassembleMethod: surrogateOrAddress on: aStream] ensure:
-			[disassemblingMethod := nil]].
-	self printMethodHeader: cogMethod on: aStream.
-
-	mapEntries := Dictionary new.
-	(cogMethod cmType = CMMethod and: [cogMethod cmIsFullBlock]) ifFalse:
-		[mapEntries at: cogMethod asInteger + cmEntryOffset put: 'entry'].
-	
-	cogMethod cmType = CMMethod ifTrue:
-		[cogMethod cmIsFullBlock
-			ifTrue: [mapEntries at: cogMethod asInteger + cbNoSwitchEntryOffset put: 'noSwitchEntry']
-			ifFalse: [mapEntries at: cogMethod asInteger + cmNoCheckEntryOffset put: 'noCheckEntry']].
-
-	cogMethod cmType = CMClosedPIC
-		ifTrue:
-			[mapEntries at: cogMethod asInteger + firstCPICCaseOffset put: 'ClosedPICCase0'.
-			 1 to: MaxCPICCases - 1 do:
-				[:i|
-				mapEntries
-					at: cogMethod asInteger + firstCPICCaseOffset + (i * cPICCaseSize)
-					put: 'ClosedPICCase', i printString]]
-		ifFalse:
-			[self mapFor: cogMethod
-				performUntil: #collectMapEntry:address:into:
-				arg: mapEntries].
-
-	"This would all be far more elegant and simple if we used blocks.
-	 But there are no blocks in C and the basic enumerators here need
-	 to be used in the real VM.  Apologies."
-	(codeRanges := self codeRangesFor: cogMethod) do:
-		[:range|
-		(cogMethod cmType = CMMethod) ifTrue:
-			[mapEntries keysAndValuesDo:
-				[:mcpc :label| | bcpc selectorOrNone |
-				(((range includes: mcpc) or: [range last + 1 = mcpc])
-				 and: [(AnnotationsWithBytecodePCs includes: label)
-				 and: [range cogMethod stackCheckOffset > 0]]) ifTrue:
-					[bcpc := self bytecodePCFor: mcpc startBcpc: range startpc in: range cogMethod.
-					 bcpc ~= 0 ifTrue:
-						[label = #IsSendCall
-							ifTrue:
-								[selectorOrNone := (self selectorForSendAt: mcpc annotation: IsSendCall in: cogMethod methodObject).
-								 (selectorOrNone isInteger and: [objectMemory addressCouldBeOop: selectorOrNone]) ifTrue:
-									[selectorOrNone := objectMemory stringOf: selectorOrNone].
-								selectorOrNone := ' ', selectorOrNone]
-							ifFalse: [selectorOrNone := ''].
-						 mapEntries
-							at: mcpc
-							put: label, selectorOrNone, ' bc ', bcpc printString, '/', (bcpc + 1) printString]]]].
-		(cogMethod picUsage ~= 0
-		 and: [range first = (cogMethod picUsage + cogMethod asInteger)])
-			ifTrue:
-				[aStream nextPutAll: 'blockEntry:'; cr.
-				 self blockDispatchFor: cogMethod
-					perform: #disassemble:from:to:arg:
-					arg: aStream]
-			ifFalse:
-				[range first > (cogMethod address + cmNoCheckEntryOffset) ifTrue:
-					[self printMethodHeader: range cogMethod
-						on: aStream].
-				self maybeNoteStartpcFor: range.
-				self disassembleFrom: range first to: range last labels: mapEntries on: aStream]].
-	aStream nextPutAll: 'startpc: '; print: codeRanges first startpc; cr.
-	(cogMethod cmType = CMMethod
-	 or: [cogMethod cmType = CMOpenPIC]) ifTrue:
-		[[self mapFor: cogMethod
-			performUntil: #printMapEntry:mcpc:args:
-			arg: { aStream. codeRanges. cogMethod }]
-			on: AssertionFailure
-			do: [:ex|
-				ex primitiveChangeClassTo: ResumableVMError basicNew. ":) :) :)"
-				ex resume: nil]].
-	^cogMethod
-]
-
-{ #category : #disassembly }
-Cogit >> disassembleMethodFor: pc [
-	<doNotGenerate>
-	| method |
-	method := methodZone methodFor: pc.
-	(method isNil or: [method isZero]) ifTrue:
-		[self error: 'not a method'].
-	self disassembleMethod: method
 ]
 
 { #category : #disassembly }
@@ -6576,6 +6451,13 @@ Cogit >> fakeVarBaseAddress [
 	"We expect simulatedAddresses to have around 40 entries.  48 is hopefully a good maximum."
 	<doNotGenerate>
 	^self fakeAddressFor: nil index: 48
+]
+
+{ #category : #concretize }
+Cogit >> fillFrom: startMemoryAddr until: endMemoryAddr with: fillReg usingVr: vectorRegister [
+
+	<doNotGenerate>
+	backEnd fillFrom: startMemoryAddr until: endMemoryAddr with: fillReg usingVr: vectorRegister
 ]
 
 { #category : #'generate machine code' }
@@ -8197,46 +8079,72 @@ Cogit >> generateOpenPICPrototype [
 ]
 
 { #category : #initialization }
+Cogit >> generateReturnToInterpreterPCTrampoline [
+
+	ceReturnToInterpreterTrampoline := self
+		                                   genReturnTrampolineFor:
+		                                   #ceReturnToInterpreter:
+		                                   called:
+		                                   'ceReturnToInterpreterTrampoline'
+		                                   arg: ReceiverResultReg
+]
+
+{ #category : #initialization }
 Cogit >> generateRunTimeTrampolines [
+
 	"Generate the run-time entries at the base of the native code zone and update the base."
-	
-	ceSendMustBeBooleanAddFalseTrampoline := self genMustBeBooleanTrampolineFor: objectMemory falseObject
-														called: 'ceSendMustBeBooleanAddFalseTrampoline'.
-	ceSendMustBeBooleanAddTrueTrampoline := self genMustBeBooleanTrampolineFor: objectMemory trueObject
-														called: 'ceSendMustBeBooleanAddTrueTrampoline'.
+
+	ceSendMustBeBooleanAddFalseTrampoline := self
+		                                         genMustBeBooleanTrampolineFor:
+		                                         objectMemory falseObject
+		                                         called:
+		                                         'ceSendMustBeBooleanAddFalseTrampoline'.
+	ceSendMustBeBooleanAddTrueTrampoline := self
+		                                        genMustBeBooleanTrampolineFor:
+		                                        objectMemory trueObject
+		                                        called:
+		                                        'ceSendMustBeBooleanAddTrueTrampoline'.
 	ceNonLocalReturnTrampoline := self genNonLocalReturnTrampoline.
 	ceCheckForInterruptTrampoline := self genCheckForInterruptsTrampoline.
 	"Neither of the context inst var access trampolines save registers.  Their operation could cause
 	 arbitrary update of stack frames, so the assumption is that callers flush the stack before calling
 	 the context inst var access trampolines, and that everything except the result is dead afterwards."
-	ceFetchContextInstVarTrampoline := self genTrampolineFor: #ceContext:instVar:
-											called: 'ceFetchContextInstVarTrampoline'
-											arg: ReceiverResultReg
-											arg: SendNumArgsReg
-											result: SendNumArgsReg.
-	ceStoreContextInstVarTrampoline := self genTrampolineFor: #ceContext:instVar:value:
-											called: 'ceStoreContextInstVarTrampoline'
-											arg: ReceiverResultReg
-											arg: SendNumArgsReg
-											arg: ClassReg
-											result: ReceiverResultReg. "to keep ReceiverResultReg live.".
-	ceCannotResumeTrampoline := self genTrampolineFor: #ceCannotResume
-											called: 'ceCannotResumeTrampoline'.
+	ceFetchContextInstVarTrampoline := self
+		                                   genTrampolineFor:
+		                                   #ceContext:instVar:
+		                                   called:
+		                                   'ceFetchContextInstVarTrampoline'
+		                                   arg: ReceiverResultReg
+		                                   arg: SendNumArgsReg
+		                                   result: SendNumArgsReg.
+	ceStoreContextInstVarTrampoline := self
+		                                   genTrampolineFor:
+		                                   #ceContext:instVar:value:
+		                                   called:
+		                                   'ceStoreContextInstVarTrampoline'
+		                                   arg: ReceiverResultReg
+		                                   arg: SendNumArgsReg
+		                                   arg: ClassReg
+		                                   result: ReceiverResultReg. "to keep ReceiverResultReg live."
+	ceCannotResumeTrampoline := self
+		                            genTrampolineFor: #ceCannotResume
+		                            called: 'ceCannotResumeTrampoline'.
 	"These two are unusual; they are reached by return instructions."
-	ceBaseFrameReturnTrampoline := self genReturnTrampolineFor: #ceBaseFrameReturn:
-											called: 'ceBaseFrameReturnTrampoline'
-											arg: ReceiverResultReg.
-	ceReturnToInterpreterTrampoline := self
-											genReturnTrampolineFor: #ceReturnToInterpreter:
-											called: 'ceReturnToInterpreterTrampoline'
-											arg: ReceiverResultReg.
-	ceMallocTrampoline := self genTrampolineFor: #ceMalloc:
-											called: 'ceMallocTrampoline'
-											arg: ReceiverResultReg
-											result: TempReg.
-	ceFreeTrampoline := self genTrampolineFor: #ceFree:
-											called: 'ceFreeTrampoline'
-											arg: ReceiverResultReg.
+	ceBaseFrameReturnTrampoline := self
+		                               genReturnTrampolineFor:
+		                               #ceBaseFrameReturn:
+		                               called: 'ceBaseFrameReturnTrampoline'
+		                               arg: ReceiverResultReg.
+	self generateReturnToInterpreterPCTrampoline.
+	ceMallocTrampoline := self
+		                      genTrampolineFor: #ceMalloc:
+		                      called: 'ceMallocTrampoline'
+		                      arg: ReceiverResultReg
+		                      result: TempReg.
+	ceFreeTrampoline := self
+		                    genTrampolineFor: #ceFree:
+		                    called: 'ceFreeTrampoline'
+		                    arg: ReceiverResultReg
 ]
 
 { #category : #initialization }
@@ -10618,46 +10526,6 @@ Cogit >> printInstructions: aBoolean [
 ]
 
 { #category : #disassembly }
-Cogit >> printMapEntry: annotation mcpc: mcpc args: tupleOfStreamCodeRangesAndMethod [
-	"Print the Map entry's mcpc, its annotation and the corresponding bytecode pc, if any."
-	<doNotGenerate>
-	| printHex |
-	printHex := disassemblingMethod
-					ifNil: [[:pc| pc hex]]
-					ifNotNil: [[:pc| '.+', (pc - disassemblingMethod asInteger printStringBase: 16 length: 4 padded: true)]].
-	[:aStream :codeRanges :cogMethod|
-	self startMcpcAndCogMethodForMcpc: mcpc in: cogMethod do:
-		[:startmcpc :subMethod| | name codeRange |
-		"Find the start of the block by searching the code ranges."
-		codeRange := codeRanges detect: [:range| range includes: mcpc] ifNone: [codeRanges detect: [:range| range last + 1 = mcpc]].
-		codeRange first = mcpc ifTrue:
-			[aStream nextPutAll: 'startpc: '; print: codeRange startpc; cr].
-		aStream
-			next: 2 put: Character space;
-			nextPutAll: (printHex value: mcpc);  space;
-			nextPutAll: (name := self class annotationConstantNames at: annotation + 1);
-			next: 20 - name size put: Character space;
-			nextPut: $(;
-			nextPutAll: (printHex value: (self findMapLocationForMcpc: mcpc inMethod: cogMethod)).
-		(self isPCMappedAnnotation: annotation) ifTrue:
-			[aStream
-				nextPutAll: ', bc: ';
-				print: (self bytecodePCFor: mcpc startBcpc: codeRange startpc in: subMethod)].
-		(self isSendAnnotation: annotation) ifTrue:
-			[| sel |
-			sel := self selectorForSendAt: mcpc annotation: annotation in: cogMethod methodObject.
-			sel isInteger ifTrue:
-				[sel := self lookupAddress: sel].
-			sel isString ifTrue:
-				[aStream space; nextPutAll: sel]].
-		aStream
-			nextPut: $);
-			cr; flush]]
-		valueWithArguments: tupleOfStreamCodeRangesAndMethod.
-	^0
-]
-
-{ #category : #disassembly }
 Cogit >> printMethodHeader: cogMethod on: aStream [
 	<doNotGenerate>
 	self cCode: ''
@@ -11465,29 +11333,6 @@ Cogit >> scanMethod [
 ]
 
 { #category : #'simulation only' }
-Cogit >> selectorForSendAt: mcpc annotation: annotation in: aCompiledMethod [
-	<doNotGenerate>
-	| entryPoint offset targetMethod selector |
-	entryPoint := backEnd callTargetFromReturnAddress: mcpc asInteger.
-	selector := entryPoint > methodZoneBase
-					ifTrue: "It's a linked send."
-						[self
-							offsetAndSendTableFor: entryPoint
-							annotation: annotation
-							into: [:off :table| offset := off].
-						targetMethod := self cCoerceSimple: entryPoint - offset to: #'CogMethod *'.
-						targetMethod selector]
-					ifFalse:
-						[self inlineCacheTagsAreIndexes
-							ifTrue: [self selectorFromSelectorIndex: (backEnd inlineCacheTagAt: mcpc) signedIntFromLong
-										in: aCompiledMethod]
-							ifFalse: [backEnd inlineCacheTagAt: mcpc]].
-	^(coInterpreter isCurrentImageFacade)
-		ifTrue: [coInterpreter objectForOop: selector]
-		ifFalse: [selector]
-]
-
-{ #category : #'simulation only' }
 Cogit >> selectorForSendBefore: bcpc in: aCompiledMethod [
 	<doNotGenerate>
 	| is sel |
@@ -11566,55 +11411,6 @@ Cogit >> setCStackPointer: aStackPointer [
 		ifFalse: [(objectMemory
 					longAt: coInterpreter inMemoryCStackPointerAddress
 					put: aStackPointer) asVoidPointer]
-]
-
-{ #category : #'simulation only' }
-Cogit >> setClickStepBreakBlock [
-	"Set the break block to present a confirmer, breaking if true, and restoring the previous break block.
-	 If an open debugger on the receiver can be found, proceed it."
-	<doNotGenerate>
-	| previousBreakBlock previousAtEachStepBlock previousBreakPC previousSingleStep previousClickConfirm |
-	(breakBlock isNil or: [breakBlock method ~~ thisContext method]) ifTrue:
-		[previousBreakBlock := breakBlock.
-		 previousAtEachStepBlock := coInterpreter atEachStepBlock.
-		 previousBreakPC := breakPC.
-		 previousSingleStep := singleStep.
-		 previousClickConfirm := clickConfirm.
-		 breakBlock := [:ign|
-						(processor pc ~= previousBreakPC
-						 and: [UIManager confirm: 'step?'])
-							ifTrue: [false]
-							ifFalse: [breakBlock := previousBreakBlock.
-									coInterpreter atEachStepBlock: previousAtEachStepBlock.
-									breakPC := previousBreakPC.
-									singleStep := previousSingleStep.
-									clickConfirm := previousClickConfirm.
-									true]].
-		 coInterpreter atEachStepBlock:
-								[previousAtEachStepBlock value.
-								 (coInterpreter localIP ~= previousBreakPC
-								  and: [UIManager confirm: 'step?']) ifFalse:
-									[breakBlock := previousBreakBlock.
-									coInterpreter atEachStepBlock: previousAtEachStepBlock.
-									breakPC := previousBreakPC.
-									singleStep := previousSingleStep.
-									clickConfirm := previousClickConfirm.
-									self halt]].
-		 singleStep := breakPC := clickConfirm := true].
-	(World submorphs
-		detect:
-			[:m|
-			 m model class == Debugger
-			 and: [(m model interruptedProcess suspendedContext findContextSuchThat:
-					[:ctxt|
-					(ctxt receiver == self
-					 and: [ctxt selector == #simulateCogCodeAt:])
-					or: [ctxt receiver == coInterpreter
-					 and: [ctxt selector == #interpret]]]) notNil]]
-		ifNone: []) ifNotNil:
-			[:debuggerWindow|
-			 WorldState addDeferredUIMessage:
-				[debuggerWindow model proceed]]
 ]
 
 { #category : #initialization }
@@ -11787,7 +11583,6 @@ Cogit >> simulateEnilopmart: enilopmartAddress numArgs: n [
 	self assert: (coInterpreter isOnRumpCStack: processor sp).
 	self assert: ((coInterpreter stackValue: n) between: guardPageSize and: methodZone freeStart - 1).
 	"As a convenience for stack printing, nil localFP so we know we're in machine code."
-	coInterpreter nilLocalFP.
 	(printInstructions or: [printRegisters]) ifTrue:
 		[coInterpreter printExternalHeadFrame].
 	processor
@@ -12088,68 +11883,6 @@ Cogit >> testBcToMcPcMappingForCogMethod: cogMethod [
 										in: subCogMethod].
 				 self assert: absMcpc >= (subCogMethod asInteger + subCogMethod stackCheckOffset).
 				 self assert: (self bytecodePCFor: absMcpc startBcpc: startBcpc in: subCogMethod) = mappedBcpc]]]
-]
-
-{ #category : #'tests-method map' }
-Cogit >> testMcToBcPcMappingForCompiledMethod: aCompiledMethod cogMethod: cogMethod [
-	<doNotGenerate>
-	| bcMethod subMethods prevMcpc |
-	"self disassembleMethod: cogMethod"
-	"coInterpreter symbolicMethod: cogMethod methodObject"
-	"coInterpreter printOop: cogMethod methodObject"
-	"self printPCMapPairsFor: cogMethod on: Transcript"
-	cogMethod stackCheckOffset = 0 ifTrue: "frameless"
-		[^self].
-	bcMethod := coInterpreter isCurrentImageFacade
-					ifTrue: [coInterpreter objectForOop: cogMethod methodObject]
-					ifFalse: [VMCompiledMethodProxy new
-								for: cogMethod methodObject
-								coInterpreter: coInterpreter
-								objectMemory: objectMemory].
-	subMethods := self subMethodsAsRangesFor: cogMethod.
-	self mapFor: cogMethod do:
-		[:annotation :mcpc| | subMethod subCogMethod bcpc mappedpc |
-		(self isPCMappedAnnotation: annotation) ifTrue:
-			[subMethod := subMethods
-								detect: [:range| range includes: mcpc]
-								ifNone: ["a trailing call ceNonLocalReturnTrampoline's following
-										 pc is the start of a following block or the end of the map"
-										subMethods detect: [:range| range includes: mcpc - 1]].
-			mcpc > subMethod first ifTrue:
-				[bcpc := self
-							bytecodePCFor: mcpc
-							startBcpc: subMethod startpc
-							in: (subCogMethod := subMethod cogMethod).
-				self assert: bcpc ~= 0.
-				mappedpc := self mcPCFor: bcpc startBcpc: subMethod startpc in: subCogMethod.
-				subCogMethod stackCheckOffset = 0
-					ifTrue: [self assert: mappedpc > (subCogMethod address + self noCheckEntryOffset)]
-					ifFalse: [self assert: mappedpc >= (subCogMethod address + subCogMethod stackCheckOffset)].
-				"mcpc = mappedpc is obviously what we want and expect.  prevMcpc = mappedpc hacks
-				 around frame building accessors where the first bytecode is mapped twice, once for the
-				 stack check and once for the context inst var access.  The bytecode pc can only map
-				 back to a single mcpc, the first, so the second map entry will fail without this hack."
-				self assert: (mcpc = mappedpc or: [prevMcpc = mappedpc]).
-				(self isSendAnnotation: annotation) ifTrue:
-					[| mcSelector bcSelector |
-					mcSelector := self selectorForSendAt: mcpc annotation: annotation in: aCompiledMethod.
-					"sends map to the following pc.  need to find the selector for the previous pc"
-					bcSelector := self selectorForSendBefore: bcpc in: bcMethod.
-					self assert: (mcSelector = bcSelector
-								or: [mcSelector = (self resolveToOopOrNil: bcSelector)])]].
-			 prevMcpc := mcpc].
-		 false "keep scanning"]
-]
-
-{ #category : #'tests-method map' }
-Cogit >> testPCMappingForCompiledMethod: aCompiledMethod cogMethod: cm [
-	<doNotGenerate>
-	methodObj := methodHeader := nil.
-	cm isInteger ifTrue: "If testing in a simulation..."
-		[^self testPCMappingForCompiledMethod: aCompiledMethod cogMethod: (self cogMethodSurrogateAt: cm)].
-	self
-		testMcToBcPcMappingForCompiledMethod: aCompiledMethod cogMethod: cm;
-		testBcToMcPcMappingForCogMethod: cm
 ]
 
 { #category : #debugging }

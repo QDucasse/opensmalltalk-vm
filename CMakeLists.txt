@@ -61,12 +61,12 @@ set(user_file "${CMAKE_SOURCE_DIR}/CMakeSettings.json" )
 set(template_file "${CMAKE_SOURCE_DIR}/CMakeSettings.json.template" )
 
 if(EXISTS "${user_file}")
-    # Get uuid from 'user_file' 
+    # Get uuid from 'user_file'
     file(READ "${user_file}" user_settings )
     string(REGEX MATCH ".*template-uuid[^a-zA-Z0-9]*([a-zA-Z0-9-]*).*" _ ${user_settings})
     set(user_uuid ${CMAKE_MATCH_1})
 
-    # Get uuid from 'template_file' 
+    # Get uuid from 'template_file'
     file(READ "${template_file}" template_settings )
     string(REGEX MATCH ".*template-uuid[^a-zA-Z0-9]*([a-zA-Z0-9-]*).*" _ ${template_settings})
     set(template_uuid ${CMAKE_MATCH_1})
@@ -105,7 +105,7 @@ if ((CMAKE_HOST_UNIX) AND (${CMAKE_HOST_SYSTEM_NAME} MATCHES "CYGWIN*"))
 
   # specify the cross compiler
   set(CMAKE_TOOLCHAIN_PREFIX x86_64-w64-mingw32)
-  
+
   SET(CMAKE_C_COMPILER   ${CMAKE_TOOLCHAIN_PREFIX}-clang)
   SET(CMAKE_CXX_COMPILER ${CMAKE_TOOLCHAIN_PREFIX}-clang++)
   SET(CMAKE_RC_COMPILER ${CMAKE_TOOLCHAIN_PREFIX}-windres)
@@ -183,7 +183,7 @@ if (${FEATURE_COMPILE_INLINE_MEMORY_ACCESSORS})
     add_compile_definitions(USE_INLINE_MEMORY_ACCESSORS=1)
 endif()
 
-set(PLUGIN_GENERATED_FILES 
+set(PLUGIN_GENERATED_FILES
   	${GENERATED_SOURCE_DIR}/generated/plugins/src/FilePlugin/FilePlugin.c)
 
 
@@ -209,12 +209,12 @@ if(MSVC)
     get_platform_name(VM_TARGET_OS)
     message(STATUS "Building for ${VM_TARGET_OS}")
     set(CMAKE_CURRENT_SOURCE_DIR_TO_OUT ${CMAKE_CURRENT_SOURCE_DIR})
-    
+
     # Define WIN32_LEAN_AND_MEAN to exclude APIs such as Cryptography, DDE, RPC, Shell, and Windows Sockets
     # They can be included if needed
     # https://docs.microsoft.com/en-us/windows/win32/winprog/using-the-windows-headers
     add_compile_definitions(WIN32_LEAN_AND_MEAN)
-    
+
 elseif(WIN)
     message(STATUS "Building for WINDOWS")
 
@@ -240,7 +240,7 @@ elseif(WIN)
 
 
 #    if(NOT MSVC)
-        set(COMMON_FLAGS "-fwrapv -fdeclspec -msse2 -ggdb2 -m64 -mno-rtd -mms-bitfields -O2 -momit-leaf-frame-pointer -funroll-loops -D_MT -fno-builtin-printf -fno-builtin-putchar -fno-builtin-fprintf -Wall -Wno-unused-variable -fno-optimize-sibling-calls")
+        set(COMMON_FLAGS "-fwrapv -fdeclspec -msse2 -ggdb2 -m64 -mno-rtd -mms-bitfields -O0 -momit-leaf-frame-pointer -funroll-loops -D_MT -fno-builtin-printf -fno-builtin-putchar -fno-builtin-fprintf -Wall -Wno-unused-variable -fno-optimize-sibling-calls")
 #    endif()
 
     set(OS_TYPE "Win32")
@@ -261,7 +261,7 @@ elseif(UNIX)
     set(CMAKE_CURRENT_SOURCE_DIR_TO_OUT ${CMAKE_CURRENT_SOURCE_DIR})
     set(CMAKE_CURRENT_BINARY_DIR_TO_OUT ${CMAKE_CURRENT_BINARY_DIR})
 
-    set(COMMON_FLAGS "-O2 -Wall -Werror=implicit-function-declaration")
+    set(COMMON_FLAGS "-O0 -Wall -Werror=implicit-function-declaration")
 
     add_compile_definitions(LSB_FIRST=1)
 
@@ -288,8 +288,8 @@ message(STATUS "Full Platform name: ${FULL_PLATFORM_NAME}")
 
 set(OPTIMIZATION_FLAGS "")
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g ${COMMON_FLAGS} ${OPTIMIZATION_FLAGS} -DNDEBUG -DDEBUGVM=0")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g ${COMMON_FLAGS} ${OPTIMIZATION_FLAGS} -DNDEBUG -DDEBUGVM=0")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g ${COMMON_FLAGS} ${OPTIMIZATION_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g ${COMMON_FLAGS} ${OPTIMIZATION_FLAGS}")
 
 add_compile_definitions(IMMUTABILITY=1)
 add_compile_definitions(COGMTVM=0)
@@ -401,7 +401,7 @@ include(cmake/${CMAKE_SYSTEM_NAME}.cmake)
 
 set(GENERATED_SOURCES ${VMSOURCEFILES})
 
-list(APPEND SUPPORT_SOURCES	
+list(APPEND SUPPORT_SOURCES
 	${CMAKE_CURRENT_SOURCE_DIR}/src/debug.c
 	${CMAKE_CURRENT_SOURCE_DIR}/src/utils.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/errorCode.c
@@ -412,7 +412,7 @@ list(APPEND SUPPORT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/fileDialogCommon.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/stringUtilities.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/imageAccess.c
-    
+
     ${CMAKE_CURRENT_SOURCE_DIR}/src/parameters/parameterVector.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/parameters/parameters.c
 
@@ -432,7 +432,7 @@ if(${FEATURE_FFI})
 
         # Single-threaded callout support
         ${CMAKE_CURRENT_SOURCE_DIR}/ffi/src/sameThread/sameThread.c
-    
+
         # Callback support
         ${CMAKE_CURRENT_SOURCE_DIR}/ffi/src/callbacks/callbackPrimitives.c
         ${CMAKE_CURRENT_SOURCE_DIR}/ffi/src/callbacks/callbacks.c
@@ -482,7 +482,7 @@ add_platform_headers()
 if (${FEATURE_FFI})
     target_include_directories(${VM_LIBRARY_NAME}
         PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ffi/include)
-    target_compile_definitions(${VM_LIBRARY_NAME} 
+    target_compile_definitions(${VM_LIBRARY_NAME}
         PRIVATE FEATURE_FFI=1)
 
     if(${FEATURE_THREADED_FFI})
@@ -492,7 +492,7 @@ endif()
 
 
 if(${FEATURE_MESSAGE_COUNT})
-    target_compile_definitions(${VM_LIBRARY_NAME} 
+    target_compile_definitions(${VM_LIBRARY_NAME}
         PRIVATE FEATURE_MESSAGE_COUNT=1)
 endif()
 

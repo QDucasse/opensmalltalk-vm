@@ -13,8 +13,7 @@ CogOutOfLineLiteralsRiscV64Compiler class >> literalsManagerClass [
 CogOutOfLineLiteralsRiscV64Compiler >> cmpC32RTempByteSize [
 	
 	self flag: #TODO.
-	"1halt."
-	^ 40
+	^ 8
 ]
 
 { #category : #concretization }
@@ -84,7 +83,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> inlineCacheTagAt: callSiteReturnAddress [
 
 	<inline: true>
 	self flag: #TODO.
-	^objectMemory longAt: (self pcRelativeAddressAt: 
+	^objectMemory unsignedLongAt: (self pcRelativeAddressAt: 
 		"Need to go before the call and at the start of the literal load"
 		(callSiteReturnAddress - self callInstructionByteSize - self loadLiteralByteSize) asUnsignedInteger)
 ]
@@ -123,7 +122,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> literalBeforeFollowingAddress: followingA
 	^objectMemory long64At: (self pcRelativeAddressAt: 
 		((self instructionIsLD: (self instructionBeforeAddress: followingAddress))
 			ifTrue: [self instructionAddressBefore: followingAddress - 4] "need to go before auipc + ld"
-			ifFalse: [ self instructionAddressBefore: followingAddress + 4 - self cmpC32RTempByteSize ])) "need to go in the load at the beginning of the cmp"
+			ifFalse: [ self instructionAddressBefore: followingAddress + 4 ])) "need to go in the load at the beginning of the cmp"
 ]
 
 { #category : #'concretization helpers' }
@@ -363,10 +362,10 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[AddCqR]	   -> [^ (self value: (operands at: 0) isContainedIn: 12) not]. 
 		[AndCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
 		[AndCqRR]		-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
-		[CmpCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 11) not]. "11 because uses loadImmediate:"
+		[CmpCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 11) not]. "uses load immediate"
 		[CmpC32R]		-> [^ true]. 
 		[OrCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
-		[SubCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 11) not]. "11 because uses loadImmediate:"
+		[SubCqR]	   -> [^ (self value: (operands at: 0) isContainedIn: 12) not]. 
 		[TstCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
 		[XorCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
 		[LoadEffectiveAddressMwrR] -> [^ (self value: (operands at: 0) isContainedIn: 12) not]. 
