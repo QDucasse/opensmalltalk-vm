@@ -1209,7 +1209,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ SubCqR ] -> [ ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck
 			   + self bytesForArithmeticFlagUpdateWithMov + 4  ]). "DONE"
 			([ LoadEffectiveAddressMwrR ]
-			 -> [ ^ self bytesForLoadEffectiveAddress ]). "DONE"
+			 -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4 ]).
 
 			"Arithmetic with an ensured literal load"
 			([ AddCwR ] -> [ ^ self literalLoadInstructionBytes + 4 ]). "DONE"
@@ -1246,24 +1246,14 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ NegateR ] -> [ ^ 4 ]). "DONE"
 
 			"Bit shifts"
-			([ LogicalShiftLeftCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
-			([ LogicalShiftRightCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
-			([ ArithmeticShiftRightCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
-
-			([ LogicalShiftLeftRR ] -> [ ^ self bytesForLogicFlagUpdate + 4 ]). "DONE"
-			([ LogicalShiftRightRR ] -> [ ^ self bytesForLogicFlagUpdate + 4 ]). "DONE"
-			([ ArithmeticShiftRightRR ]
-			 -> [ ^ self bytesForLogicFlagUpdate + 4 ]). "DONE"
-
-			"Rotates"
-			([ RotateLeftCqR ] -> [ 
-			 ^ self
-				   bytesForLogicCqOperationOfSize: 16
-				   andImmediateOperationSize: 12 ]). "DONE"
-			([ RotateRightCqR ] -> [ 
-			 ^ self
-				   bytesForLogicCqOperationOfSize: 16
-				   andImmediateOperationSize: 12 ]). "DONE"
+			([ LogicalShiftLeftCqR ]     -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4 ]).
+			([ LogicalShiftRightCqR ]    -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4 ]).
+			([ ArithmeticShiftRightCqR ] -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4 ]).
+			([ LogicalShiftLeftRR ]      -> [ ^ 4 ]).
+			([ LogicalShiftRightRR ]     -> [ ^ 4 ]).
+			([ ArithmeticShiftRightRR ]  -> [ ^ 4 ]).
+			([ RotateLeftCqR ]  -> [ dependent ifNil: [ ^ 12 ]. ^ self literalLoadInstructionBytes + 16 ]).
+			([ RotateRightCqR ] -> [ dependent ifNil: [ ^ 12 ]. ^ self literalLoadInstructionBytes + 16 ]).
 
 			"Floating point operations"
 			([ AddRdRd ] -> [ ^ 4 ]). "DONE"
@@ -1709,25 +1699,10 @@ CogRiscV64Compiler >> concretizeAndRR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeArithmeticShiftRightCqR [
 
-	"Perform an arithmetic shift right between the value of register and the value of the operand.
-	
-	 If the operand is not a literal:
-		srai reg, reg, cq
-
-	 Otherwise load the value in a register:
-		li ConcreteIPReg, cq 
-		sra reg, reg, ConcreteIPReg 
-
-	 If it is a literal:
-	   auipc ConcreteIPReg, 0
-	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		sra reg, reg, ConcreteIPReg 
-		"
-
+	"Perform an arithmetic shift right between the value of register and the value of the operand"
 	<var: #cq type: #sqInt>
 	<inline: true>
-	| cq destReg sourceReg loadOffset flagOffset |
-	self flag: #DONE.
+	| cq destReg sourceReg loadOffset |
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
 	dependent ifNil: [ 
@@ -1737,37 +1712,28 @@ CogRiscV64Compiler >> concretizeArithmeticShiftRightCqR [
 				 arithmeticShiftRightValueInRegister: sourceReg
 				 byShiftAmount: cq
 				 intoRegister: destReg).
-		flagOffset := self
-			              updateFlagsLogicForResultReg: destReg
-			              startingAtIndex: 4.
-		^ machineCodeSize := flagOffset + 4 ].
+		^ machineCodeSize := 4 ].
 	"Otherwise use the provided literal"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
-	"Perform the ASR operation"
 	self machineCodeAt: loadOffset put: (self
 			 arithmeticShiftRightValueInRegister: sourceReg
 			 byShiftAmountInRegister: ConcreteIPReg
 			 intoRegister: destReg).
-	"Update the flags"
-	flagOffset := self
-		              updateFlagsLogicForResultReg: destReg
-		              startingAtIndex: loadOffset + 4.
-	^ machineCodeSize := loadOffset + flagOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeArithmeticShiftRightRR [
 
 	<inline:true>
-	| srcReg shiftReg destReg flagOffset |
-	self flag: #TODO.
+	| srcReg shiftReg destReg |
 	shiftReg := operands at: 0.
 	destReg := srcReg := operands at: 1.
-	"Perform ASR operation"
-	self machineCodeAt: 0 put: (self arithmeticShiftRightValueInRegister: srcReg byShiftAmountInRegister: shiftReg intoRegister: destReg).
-	"Update the flags"
-	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
-	^ machineCodeSize := flagOffset + 4
+	self machineCodeAt: 0 put: (self 
+		arithmeticShiftRightValueInRegister: srcReg 
+		byShiftAmountInRegister: shiftReg 
+		intoRegister: destReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
@@ -2551,7 +2517,6 @@ CogRiscV64Compiler >> concretizeLoadEffectiveAddressMwrR [
 		
 	<inline: true>
 	| offset destReg sourceReg loadOffset |
-	self flag: #TODO.
 	offset := operands at: 0.
 	sourceReg := operands at: 1.
 	destReg := operands at: 2.
@@ -2574,25 +2539,10 @@ CogRiscV64Compiler >> concretizeLoadEffectiveAddressMwrR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeLogicalShiftLeftCqR [
 
-	"Perform a logical shift left operation between the value of register and the value of the operand.
-	
-	 If the operand is not a literal:
-		slli reg, reg, cq
-
-	 Otherwise load the value in a register:
-		li ConcreteIPReg, cq 
-		sll reg, reg, ConcreteIPReg 	
-			
-	 If it is a literal:
-	   auipc ConcreteIPReg, 0
-	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		sll reg, reg, ConcreteIPReg 
-		"
-
+	"Perform a logical shift left operation between the value of register and the value of the operand."
 	<inline: true>
 	<var: #cq type: #sqInt>
-	| cq destReg sourceReg loadOffset flagOffset |
-	self flag: #DONE.
+	| cq destReg sourceReg loadOffset |
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
 	dependent ifNil: [ 
@@ -2602,62 +2552,37 @@ CogRiscV64Compiler >> concretizeLogicalShiftLeftCqR [
 				 shiftLeftValueInRegister: sourceReg
 				 byShiftAmount: cq
 				 intoRegister: destReg).
-		"Update the flags"
-		flagOffset := self
-			              updateFlagsLogicForResultReg: destReg
-			              startingAtIndex: 4.
-		^ machineCodeSize := flagOffset + 4 ].
+		^ machineCodeSize :=  4 ].
 	"Otherwise use the provided literal"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
-	"Perform the SL operation"
 	self machineCodeAt: loadOffset put: (self
 			 shiftLeftValueInRegister: sourceReg
 			 byShiftAmountInRegister: ConcreteIPReg
 			 intoRegister: destReg).
-	"Update the flags"
-	flagOffset := self
-		              updateFlagsLogicForResultReg: destReg
-		              startingAtIndex: loadOffset + 4.
-	^ machineCodeSize := loadOffset + flagOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeLogicalShiftLeftRR [
 	
 	<inline: true>
-	| shiftReg srcReg destReg flagOffset |
-	self flag: #TODO.
+	| shiftReg srcReg destReg |
 	shiftReg := operands at: 0.
 	srcReg := destReg := operands at: 1.
-	"Perform the SLR operation"
-	self machineCodeAt: 0 put: (self shiftLeftValueInRegister: srcReg byShiftAmountInRegister: shiftReg intoRegister: destReg).
-	"Update the flags"
-	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
-	^ machineCodeSize := flagOffset + 4
+	self machineCodeAt: 0 put: (self 
+		shiftLeftValueInRegister: srcReg 
+		byShiftAmountInRegister: shiftReg 
+		intoRegister: destReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeLogicalShiftRightCqR [
 
-	"Perform a logical shift right operation between the value of register and the value of the operand.
-	
-	 If the operand is not a literal:
-		srli reg, reg, cq
-
-	 Otherwise load the value in a register:
-		li ConcreteIPReg, cq 
-		srl reg, reg, ConcreteIPReg 	
-			
-	 If it is a literal:
-	   auipc ConcreteIPReg, 0
-	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		srl reg, reg, ConcreteIPReg 
-		"
-
+	"Perform a logical shift right operation between the value of register and the value of the operand"
 	<inline: true>
 	<var: #cq type: #sqInt>
-	| cq destReg sourceReg instrOffset flagOffset |
-	self flag: #DONE.
+	| cq destReg sourceReg loadOffset |
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
 	dependent ifNil: [ 
@@ -2667,37 +2592,29 @@ CogRiscV64Compiler >> concretizeLogicalShiftRightCqR [
 				 shiftRightValueInRegister: sourceReg
 				 byShiftAmount: cq
 				 intoRegister: destReg).
-		flagOffset := self
-			              updateFlagsLogicForResultReg: destReg
-			              startingAtIndex: 4.
-		^ machineCodeSize := flagOffset + 4 ].
+		^ machineCodeSize :=  4 ].
 	"Otherwise use the provided literal"
-	instrOffset := self loadLiteralInRegister: ConcreteIPReg.
-	"Perform the SR operation"
-	self machineCodeAt: instrOffset put: (self
+	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
+	self machineCodeAt: loadOffset put: (self
 			 shiftRightValueInRegister: sourceReg
 			 byShiftAmountInRegister: ConcreteIPReg
 			 intoRegister: destReg).
-	"Update the flags"
-	flagOffset := self
-		              updateFlagsLogicForResultReg: destReg
-		              startingAtIndex: instrOffset + 4.
-	^ machineCodeSize := instrOffset + flagOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeLogicalShiftRightRR [
 	
 	<inline: true>
-	| srcReg shiftReg destReg flagOffset |
-	self flag: #TODO.
+	| srcReg shiftReg destReg |
 	shiftReg := operands at: 0.
 	srcReg := destReg := operands at: 1.
 	"Perform the SRR operation"
-	self machineCodeAt: 0 put: (self shiftRightValueInRegister: srcReg byShiftAmountInRegister: shiftReg intoRegister: destReg).
-	"Update the flags"
-	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
-	^ machineCodeSize := flagOffset + 4
+	self machineCodeAt: 0 put: (self
+		shiftRightValueInRegister: srcReg 
+		byShiftAmountInRegister: shiftReg 
+		intoRegister: destReg).
+	^ machineCodeSize :=  4
 ]
 
 { #category : #concretization }
@@ -3840,25 +3757,10 @@ CogRiscV64Compiler >> concretizeRetN [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeRotateLeftCqR [
 
-	"Perform a rotate left between the value of register and the value of the operand.
-	
-	 If the operand is not a literal:
-		roli reg, reg, cq
-
-	 Otherwise load the value in a register:
-		li ConcreteIPReg, cq 
-		rol reg, reg, ConcreteIPReg 
-
-	 If it is a literal:
-	   auipc ConcreteIPReg, 0
-	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		rol reg, reg, ConcreteIPReg 
-		"
-
+	"Perform a rotate left between the value of register and the value of the operand."
 	<var: #cq type: #sqInt>
 	<inline: true>
-	| cq destReg srcReg loadOffset rotateOffset flagOffset |
-	self flag: #TODO.
+	| cq destReg srcReg loadOffset rotateOffset |
 	cq := operands at: 0.
 	srcReg := destReg := operands at: 1.
 	dependent ifNil: [ 
@@ -3869,48 +3771,24 @@ CogRiscV64Compiler >> concretizeRotateLeftCqR [
 			                byShiftAmount: cq
 			                inRegister: destReg
 			                startingAtIndex: 0.
-		"Update the flags"
-		flagOffset := self
-			              updateFlagsLogicForResultReg: destReg
-			              startingAtIndex: rotateOffset.
-		^ machineCodeSize := rotateOffset + flagOffset ].
+		^ machineCodeSize := rotateOffset ].
 	"Otherwise use the provided literal"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
-	"Perform the different ROT operations"
 	rotateOffset := self
 		                rotateLeftValueInRegister: srcReg
 		                byShiftAmountInRegister: ConcreteIPReg
 		                inRegister: destReg
 		                startingAtIndex: loadOffset.
-	"Update the flags"
-	flagOffset := self
-		              updateFlagsLogicForResultReg: destReg
-		              startingAtIndex: loadOffset + rotateOffset.
-	^ machineCodeSize := loadOffset + rotateOffset + flagOffset
+	^ machineCodeSize := loadOffset + rotateOffset
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeRotateRightCqR [
 
-	"Perform a rotate right between the value of register and the value of the operand.
-	
-	 If the operand is not a literal:
-		rori reg, reg, cq
-
-	 Otherwise load the value in a register:
-		li ConcreteIPReg, cq 
-		ror reg, reg, ConcreteIPReg 
-
-	 If it is a literal:
-	   auipc ConcreteIPReg, 0
-	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		ror reg, reg, ConcreteIPReg 
-		"
-
+	"Perform a rotate right between the value of register and the value of the operand."
 	<var: #cq type: #sqInt>
 	<inline: true>
-	| cq destReg srcReg loadOffset rotateOffset flagOffset |
-	self flag: #TODO.
+	| cq destReg srcReg loadOffset rotateOffset |
 	cq := operands at: 0.
 	srcReg := destReg := operands at: 1.
 	dependent ifNil: [ 
@@ -3921,11 +3799,7 @@ CogRiscV64Compiler >> concretizeRotateRightCqR [
 			                byShiftAmount: cq
 			                inRegister: destReg
 			                startingAtIndex: 0.
-		"Update the flags"
-		flagOffset := self
-			              updateFlagsLogicForResultReg: destReg
-			              startingAtIndex: rotateOffset.
-		^ machineCodeSize := rotateOffset + flagOffset ].
+		^ machineCodeSize := rotateOffset ].
 	"Otherwise use the provided literal"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
 	"Perform the different ROT operations"
@@ -3934,11 +3808,7 @@ CogRiscV64Compiler >> concretizeRotateRightCqR [
 		                byShiftAmountInRegister: ConcreteIPReg
 		                inRegister: destReg
 		                startingAtIndex: loadOffset.
-	"Update the flags"
-	flagOffset := self
-		              updateFlagsLogicForResultReg: destReg
-		              startingAtIndex: loadOffset + rotateOffset.
-	^ machineCodeSize := loadOffset + rotateOffset + flagOffset
+	^ machineCodeSize := loadOffset + rotateOffset
 ]
 
 { #category : #concretization }
@@ -6629,11 +6499,9 @@ CogRiscV64Compiler >> rotateRightValueInRegister: srcReg byShiftAmount: shamt in
 	Note only the lowest 6 bits of the shamt are taken in consideration.
 	Note ConcreteIPReg2 is used because the concretization uses ConcreteIPReg to load the immediate/literal if needed.
 	"
-	| negatedShamt |
 	"https://stackoverflow.com/questions/55394123/how-do-i-write-rotation-operation-for-the-risc-vassembly-language-do-we-have-a"
 	self assert: shamt > 0.
 	self assertValue: shamt isContainedIn: 6. "6 bits for RV64, 5 or RV32"
-	self flag: #TODO.
 	self machineCodeAt: 0 put: (self shiftRightValueInRegister: srcReg byShiftAmount: shamt intoRegister: ConcreteIPReg2).
 	self machineCodeAt: 4 put: (self shiftLeftValueInRegister: srcReg byShiftAmount: (shamt negated bitAnd: 16r3f) intoRegister: destReg).
 	self machineCodeAt: 8 put: (self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg).
@@ -6652,8 +6520,6 @@ CogRiscV64Compiler >> rotateRightValueInRegister: srcReg byShiftAmountInRegister
 	Note only the lowest 6 bits of the shamt are taken in consideration.
 	Note ConcreteIPReg2 is used because the concretization uses ConcreteIPReg to load the immediate/literal if needed.
 	"
-	
-	self flag: #TODO.
 	self machineCodeAt: 0 put: (self shiftRightValueInRegister: srcReg byShiftAmountInRegister: shamtReg intoRegister: ConcreteIPReg2).
 	self machineCodeAt: 4 put: (self negateValueInRegister: shamtReg intoRegister: destReg).
 	self machineCodeAt: 8 put: (self shiftLeftValueInRegister: srcReg byShiftAmount: destReg intoRegister: destReg).
