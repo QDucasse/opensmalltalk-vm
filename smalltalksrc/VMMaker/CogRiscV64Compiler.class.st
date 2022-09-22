@@ -4688,10 +4688,7 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[JumpFPUnordered]			-> [ ^ self concretizeUnimplemented ].
 		[RetN]	 -> [ ^ self concretizeRetN ].
 		[Stop]	 -> [ ^ self concretizeStop ].
-		
-		"Branches"
-		[ BrEqualRR ] -> [ ^ self concretizeBrEqualRR  ].
-							
+				
 		"Logic"						
 		[AndCqR]		-> [ ^ self concretizeAndCqR ].
 		[AndCqRR]		-> [ ^ self concretizeAndCqRR ].
