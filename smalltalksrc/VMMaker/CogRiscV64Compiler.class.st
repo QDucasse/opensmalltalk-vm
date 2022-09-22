@@ -4563,7 +4563,7 @@ CogRiscV64Compiler >> concretizeXorCwR [
 	<inline: true>
 	| destReg sourceReg loadOffset flagOffset |
 	self flag: #TODO.		
-	self assert: dependent isNotNil.
+	"self assert: dependent isNotNil."
 	sourceReg := destReg := operands at: 1.
    "Literal -> compute the distance, load the actual value then xor between the 2 registers"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.

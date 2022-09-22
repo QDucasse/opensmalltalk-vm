@@ -6524,7 +6524,6 @@ Cogit >> fillInMethodHeader: method size: size selector: selector [
 	method stackCheckOffset: (needsFrame
 								ifTrue: [stackCheckLabel address - method asInteger]
 								ifFalse: [0]).
-	"1halt."
 	self assert: (backEnd callTargetFromReturnAddress: method asInteger + missOffset)
 				= (self methodAbortTrampolineFor: method cmNumArgs).
 	self assert: size = (methodZone roundUpLength: size).

@@ -50,7 +50,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> concretizeMovePatcheableC32R [
 	| literalAddress distance |
 	
 	self flag: #TODO.
-	self assert: dependent isNotNil.
+	"self assert: dependent isNotNil."
 	literalAddress := (cogit cCoerceSimple: dependent to: #'AbstractInstruction *') address.
 	distance := literalAddress - address.
 	self machineCodeAt: 0 put: (self addUpperImmediateToPC: 0 toRegister: ConcreteIPReg).
