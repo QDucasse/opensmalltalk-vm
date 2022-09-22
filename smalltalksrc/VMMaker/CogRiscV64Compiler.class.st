@@ -2135,8 +2135,9 @@ CogRiscV64Compiler >> concretizeCallFull [
 CogRiscV64Compiler >> concretizeCmpC32R [
 
 	<inline: true>
-	self flag: #TODO.
-	^ self concretizeCmpCwR.
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
@@ -2144,7 +2145,7 @@ CogRiscV64Compiler >> concretizeCmpCqR [
 
 	<var: #cq type: #sqInt>
 	<inline: true>
-	| srcReg cq loadOffset flagOffset overflowOffset |
+	| srcReg cq loadOffset |
 	self flag: #TODO.
 	cq := operands at: 0.
 	srcReg := operands at: 1.
@@ -2166,93 +2167,28 @@ CogRiscV64Compiler >> concretizeCmpCqR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeCmpCwR [
 
-	"Perform a cmp operation (sub discarding the result) and between the value of register and the value of the operand.
-	 The result is discarded. The instruction is used with a Jump next to it, for example: CmpCqR JumpEquals(label) .
-	 No immediate possibility because no subi instruction exists.
-	
-	 As no immediate can be provided (no subi), all cmp use the instruction sequence:
-	   auipc ConcreteIPReg, 0
-	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		sub  ConcreteFlagReg, ConcreteIPReg, reg 
-		
-		(beq ConcreteFlagReg, ConcreteIPReg, label)"
-
 	<inline: true>
-	| loadOffset srcReg flagOffset overflowOffset |
-	self flag: #TODO.
-	self assert: dependent notNil.
-	srcReg := operands at: 1. "operands at 0 is the Cw"
-	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
-	"Perform the subtraction"
-	self machineCodeAt: loadOffset put: (self
-			 subtractRegister: ConcreteIPReg
-			 fromRegister: srcReg
-			 intoRegister: ConcreteZeroReg).
-
-	"Check for overflow"
-	overflowOffset := self
-		                  checkSUBOverflowWithSourceReg1: srcReg
-		                  sourceReg2: ConcreteIPReg
-		                  andResultReg: ConcreteZeroReg
-		                  startingAtIndex: loadOffset + 4.
-
-	"Update flag registers"
-	flagOffset := self
-		              updateFlagsCMPForSourceReg: srcReg
-		              resultReg: ConcreteZeroReg
-		              startingAtIndex: loadOffset + overflowOffset + 4.
-
-	^ machineCodeSize := loadOffset + overflowOffset + flagOffset + 4
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeCmpRR [
 
-	"CMP is a SUB operation where the result is discarded (here saved in the zero flag register)
-	 CMP o1 o2 means o2-o1"
-
 	<inline: true>
-	| srcReg1 srcReg2 flagOffset overflowOffset |
-	self flag: #DONE.
-	srcReg1 := operands at: 0.
-	srcReg2 := operands at: 1.
-	"Perform the SUB operation"
-	self machineCodeAt: 0 put: (self
-			 subtractRegister: srcReg1
-			 fromRegister: srcReg2
-			 intoRegister: ConcreteZeroReg).
-	"Check for overflow"
-	overflowOffset := self
-		                  checkSUBOverflowWithSourceReg1: srcReg2
-		                  sourceReg2: srcReg1
-		                  andResultReg: ConcreteZeroReg
-		                  startingAtIndex: 4.
-
-	"Update flag registers"
-	flagOffset := self
-		              updateFlagsCMPForSourceReg: srcReg2
-		              resultReg: ConcreteZeroReg
-		              startingAtIndex: overflowOffset + 4.
-	^ machineCodeSize := flagOffset + overflowOffset + 4
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeCmpRdRd [
 	
-	"For floating points, we only need to change the ZF and CF flags by comparing them
-	 The jumps then process along the table in
-	https://stackoverflow.com/questions/7057501/x86-assembler-floating-point-compare
-	"
 	<inline: true>
-	| srcReg1 srcReg2 flagOffset |
-	self flag: #TODO.
-	srcReg1 := operands at: 0.
-	srcReg2 := operands at: 1.
-	"1. Zero Flag: Test Equality (note that 0 will be put if any of the two is NaN)"	
-	self machineCodeAt: 0 put: (self fSetOneIn: ConcreteZeroReg  ifRegisterValue: srcReg2 isEqualToRegisterValue: srcReg1).
-	"2. Carry flag: Carry in FP is a simple comparison (note that 0 will be put if any of the two is NaN)"		
-	self machineCodeAt: 4 put: (self fSetOneIn: ConcreteCarryReg  ifRegisterValue: srcReg2 isLessThanRegisterValue: srcReg1).
-	^ machineCodeSize := 8
+	"Should be rewritten by noteFollowingConditionalBranch:"
+	self unreachable.
+	^0
 ]
 
 { #category : #concretization }
