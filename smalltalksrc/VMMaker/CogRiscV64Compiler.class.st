@@ -944,60 +944,6 @@ CogRiscV64Compiler >> bytesForFloatingPointSUBOverflowCheck [
 ]
 
 { #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForLoadEffectiveAddress [
-	
-	| cq |
-	self flag: #TODO.	
-	cq := operands at: 0.
-	dependent ifNil: [   
-			self assertValue: cq isContainedIn: 12.
-			^ 4 ] .
-	^ self literalLoadInstructionBytes + 4
-]
-
-{ #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForLogicCqOperation [
-
-	"Use 4 as the default size"
-	self flag: #TODO.
-	^ self bytesForLogicCqOperationOfSize: 4
-]
-
-{ #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForLogicCqOperationOfSize: operationSize [
-
-	"Immediate and register operations have the same size"
-	self flag: #TODO.
-	^ self bytesForLogicCqOperationOfSize: operationSize andImmediateOperationSize: operationSize
-]
-
-{ #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForLogicCqOperationOfSize: operationSize andImmediateOperationSize: immOperationSize [
-	
-	"This method is used in the case of an operation where the OPRI and OPRR have different lengths 
-	 example: ROT"
-	self flag: #TODO.
-	dependent
-		ifNil: [ | cq |
-			cq := operands at: 0.
-			self assertValue: cq isContainedIn: 12.
-			"Immediate that can be encoded in andi" 
-			^ self bytesForLogicFlagUpdate + immOperationSize ].
-	^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate + operationSize 
-]
-
-{ #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForLogicFlagUpdate [ 
-	"Return the number of bytes needed to update the flags, 
-     overflow set to 0
-     + carry set to 0
-     + sign flag setting
-     + zero flag setting"
-	self flag: #TODO.
-	^ 16
-]
-
-{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> bytesForSUBOverflowCheck [ 
 
 	self flag: #TODO.
@@ -1355,14 +1301,12 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ MoveRXwrR ] -> [ ^ 12 ]). "DONE"
 
 			"Pop/Push"
-			([ PopR ] -> [ ^ 8 ]). "DONE"
-			([ PushR ] -> [ ^ 8 ]). "DONE"
-			([ PushCw ] -> [ ^ self literalLoadInstructionBytes + 8 ]). "DONE"
-			([ PushCq ] -> [ 
-			 dependent
+			([ PopR ]   -> [ ^ 8 ]).
+			([ PushR ]  -> [ ^ 8 ]).
+			([ PushCw ] -> [ ^ self literalLoadInstructionBytes + 8 ]).
+			([ PushCq ] -> [ dependent
 				 ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 0)) + 8 ]
-				 ifNotNil: [ "literal load" 
-				 ^ self literalLoadInstructionBytes + 8 ] ]). "DONE"
+				 ifNotNil: [ ^ self literalLoadInstructionBytes + 8 ] ]).
 
 			"Conversion"
 			([ ConvertRdRs ] -> [ ^ 4 ]). "DONE"
@@ -3439,17 +3383,10 @@ CogRiscV64Compiler >> concretizeMulRdRd [
 CogRiscV64Compiler >> concretizeNegateR [
 
 	<inline: true>
-	| srcReg destReg flagOffset |
-	self flag: #TODO.
+	| srcReg destReg |
 	srcReg := destReg := operands at: 0.
 	"Perform a SUB operation with X0"
 	self machineCodeAt: 0 put: (self negateValueInRegister: srcReg intoRegister: destReg).
-	"Update flags"
-	"flagOffset := self machineCodeWriteInstructions: (self
-			updateFlagsArithmeticForSourceReg1: srcReg 
-			sourceReg2: X0 
-			andResultReg: destReg
-		) startingAtIndex: 4."
 	^ machineCodeSize := 4
 ]
 
@@ -3457,7 +3394,6 @@ CogRiscV64Compiler >> concretizeNegateR [
 CogRiscV64Compiler >> concretizeNop [
 
 	<inline: true>
-	self flag: #DONE.
 	self machineCodeAt: 0 put: self nop.
 	^ machineCodeSize := 4
 ]
@@ -3520,14 +3456,9 @@ CogRiscV64Compiler >> concretizeOrRR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizePopR [
 	
-	"Load the content of the stack pointer in the given register then decrease (+8 because downwards) the stack pointer.
-	   ld destReg, 0(sp)
-	   addi sp, sp, 8
-	"
-
+	"Load the content of the stack pointer in the given register then decrease (+8 because downwards) the stack pointer."
 	<inline: true>
 	| destReg offset |
-	self flag: #TODO.
 	destReg := operands at: 0.
 	offset := self computeSignedValueOf: 8 ofSize: 12.
 	self machineCodeAt: 0 put: (self loadDoubleWordFromAddressInRegister: SPReg withOffset: 0 toRegister: destReg).	
@@ -3540,7 +3471,6 @@ CogRiscV64Compiler >> concretizePrefetchAw [
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
-	self flag: #TODO.
 	"No prefetch routine at the point of writing"
 	^ machineCodeSize := 0.
 	
@@ -3564,7 +3494,6 @@ CogRiscV64Compiler >> concretizePushCq [
 	<var: #cq type: #sqInt>
 	<inline: true>
 	| cq instrOffset offset |
-	self flag: #DONE.
 	cq := operands at: 0.
 	dependent
 		ifNil: [ 
@@ -3573,23 +3502,18 @@ CogRiscV64Compiler >> concretizePushCq [
 		ifNotNil: [ 
 			"Literal -> Compute the distance from the current address and add auipc then ld instructions"
 			instrOffset := self loadLiteralInRegister: ConcreteIPReg ].
-	
-	"Push the loaded value to the stack"
 	offset := self computeSignedValueOf: -8 ofSize: 12.
 	self machineCodeAt: instrOffset put: (self addImmediate: offset toRegister: SPReg inRegister: SPReg).
    self machineCodeAt: instrOffset + 4 put: (self storeDoubleWordFromRegister: ConcreteIPReg toAddressInRegister: SPReg withOffset: 0).
-
 	^ machineCodeSize := instrOffset + 8 
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizePushCw [
-
-	"Will get inlined into concretizeAt: switch."
-
+	
+	"Push (store) a double word at the position of the stack pointer by first loading the value in a register then pushing it"
 	<inline: true>
 	| word instrOffset offset |
-	self flag: #TODO.
 	word := operands at: 0.
 	instrOffset := self loadCwInto: ConcreteIPReg.
 	offset := self computeSignedValueOf: -8 ofSize: 12.
@@ -3602,13 +3526,9 @@ CogRiscV64Compiler >> concretizePushCw [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizePushR [
 
-	"Store the content of a register at the position of the stack pointer	  
-		addi sp, sp, -8
-		sd   srcReg, 0(sp)"
-		
+	"Push (store) a double word in a register at the position of the stack pointer"
 	<inline: true>
 	| srcReg offset |
-	self flag: #DONE.	
 	srcReg := operands at: 0.
 	offset := self computeSignedValueOf: -8 ofSize: 12.
 	self machineCodeAt: 0 put: (self addImmediate: offset toRegister: SPReg inRegister: SPReg).
@@ -3644,17 +3564,12 @@ CogRiscV64Compiler >> concretizeRemRR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeRetN [
 
-	"Jumps to the address stored in the Link Register + a given offset.
-	(ret)  jalr, x0, 0(x1)
-	"
+	"Jumps to the address stored in the Link Register + a given offset. (ret)  jalr, x0, 0(x1)"
 	<var: #offset type: #sqInt>
 	<inline: true>
 	| offset |
-	self flag: #DONE.
 	offset := operands at: 0.
-	offset = 0
-	   ifTrue: [ self machineCodeAt: 0 put: self ret.
-		          ^ machineCodeSize := 4 ].
+	offset = 0 ifTrue: [ self machineCodeAt: 0 put: self ret. ^ machineCodeSize := 4 ].
 	self machineCodeAt: 0 put: (self addImmediate: offset toRegister: SPReg inRegister: SPReg).
 	self machineCodeAt: 4 put: self ret.
 	^ machineCodeSize := 8
@@ -3733,10 +3648,8 @@ CogRiscV64Compiler >> concretizeSqrtRd [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeStop [
 	
-	"Makes a request to the debugger by generating an ebreak instruction"
-	
+	"Generates an ebreak instruction"
 	<inline: true>
-	self flag: #DONE.
 	self machineCodeAt: 0 put: self stop.
 	^ machineCodeSize := 4
 ]
