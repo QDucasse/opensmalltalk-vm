@@ -528,7 +528,6 @@ CogRiscV64Compiler >> arithmeticShiftRightValueInRegister: sourceReg1 byShiftAmo
 CogRiscV64Compiler >> assertValue: aValue isContainedIn: aSize [ 
 
 	"Checks that the given value is contained in a certain number of bits"
-	self flag: #TODO.
 	self assert: (self value: aValue isContainedIn: aSize)
 ]
 
@@ -880,27 +879,6 @@ CogRiscV64Compiler >> byteReadsZeroExtend [
 ]
 
 { #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForADDCq [
-	
-	self flag: #TODO.
-	dependent
-		ifNil: [ | cq |
-			cq := operands at: 0.
-			self assertValue: cq isContainedIn: 12.
-			"Immediate that can be encoded in andi" 
-			^ self bytesForArithmeticFlagUpdateWithImmediate + self bytesForADDOverflowCheck + 4 ]
-		ifNotNil: [ "Literal load" 
-			^ self literalLoadInstructionBytes + self bytesForArithmeticFlagUpdateWithMov + self bytesForADDOverflowCheck + 4 ]	
-]
-
-{ #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForADDOverflowCheck [ 
-
-	self flag: #TODO.
-	^ 12
-]
-
-{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> bytesForArithmeticFlagUpdate [ 
 	"Return the number of bytes needed to update the flags, 
      zero flag setting 
@@ -908,17 +886,6 @@ CogRiscV64Compiler >> bytesForArithmeticFlagUpdate [
      sign flag setting"
 	self flag: #TODO.
 	^ 12
-]
-
-{ #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForArithmeticFlagUpdateWithImmediate [
-	"Return the number of bytes needed to update the flags, 
-	  load immediate,
-     zero flag setting 
-     carry flag setting 
-     sign flag setting"
-	self flag: #TODO.
-	^ 16
 ]
 
 { #category : #'concretization helpers - mc size' }
@@ -1054,16 +1021,6 @@ CogRiscV64Compiler >> bytesForLogicFlagUpdate [
 ]
 
 { #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForSUBCq [
-	
-	"Used for SUB as there is no SUBI"
-	| loadOffset | 
-	self flag: #TODO.
-	^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdateWithMov + 4
-	
-]
-
-{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> bytesForSUBOverflowCheck [ 
 
 	self flag: #TODO.
@@ -1095,15 +1052,14 @@ CogRiscV64Compiler >> cStackPointer [
 { #category : #accessing }
 CogRiscV64Compiler >> callInstructionByteSize [
 
-	self flag: #TODO.
 	^ 8
 ]
 
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> callTargetFromReturnAddress: callSiteReturnAddress [
+	
 	"Answer the address that the call immediately preceding callSiteReturnAddress will jump to."
 	| callAddress callInstruction callDistance |
-	self flag: #TODO.
 	callAddress := self instructionAddressBefore: callSiteReturnAddress.
 	callInstruction := objectMemory long32At: callAddress.
 	self assert: (self instructionIsJALR: callInstruction).
@@ -1470,15 +1426,13 @@ CogRiscV64Compiler >> computeMaximumSize [
 { #category : #'machine code instruction' }
 CogRiscV64Compiler >> computeSignedValue64Bits: aValue [ 
 
-	self flag: #TODO.
 	^ self computeSignedValueOf: aValue ofSize: 64
 ]
 
 { #category : #'helpers - size sign' }
 CogRiscV64Compiler >> computeSignedValueOf: aValue ofSize: aSize [
 
-	"If the number is negative, returns two's complement, otherwise return the value"
-	self flag: #DONE.
+	"If the number is negative, returns two's complement in given size, otherwise return the value"
 	aValue < 0
 		ifTrue: [ | mask |
 			mask := (1 << aSize) - 1.
@@ -4482,7 +4436,6 @@ CogRiscV64Compiler >> dispatchConcretize [
 	 to get around the branch size limits in the SqueakV3 (blue book derived)
 	 bytecode set."
 	<returnTypeC: #void>
-	self flag: #TODO.
 	opcode caseOf: {
 		"Noops & Pseudo Ops"
 		[Label]			 -> [ ^ self concretizeLabel ].
