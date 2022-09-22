@@ -1190,13 +1190,12 @@ CogRiscV64Compiler >> computeMaximumSize [
 	 N.B.  The ^N forms are to get around the bytecode compiler's long branch
 	 limits which are exceeded when each case jumps around the otherwise."
 
-	self flag: #TODO.
 	opcode caseOf: { 
-			([ Label ] -> [ ^ 0 ]).
-			([ Literal ] -> [ ^ 8 ]).
+			([ Label ]         -> [ ^ 0 ]).
+			([ Literal ]       -> [ ^ 8 ]).
 			([ AlignmentNops ] -> [ ^ (operands at: 0) - 4 ]).
-			([ Fill32 ] -> [ ^ 4 ]). "DONE"
-			([ Nop ] -> [ ^ 4 ]). "DONE"
+			([ Fill32 ]        -> [ ^ 4 ]).
+			([ Nop ]           -> [ ^ 4 ]). 
 			"Branches"
 			([ BrEqualRR ]                 -> [ ^ 4 ]).
 			([ BrNotEqualRR ]              -> [ ^ 4 ]).
@@ -1222,38 +1221,38 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ SubCheckOverflowCqR ]      -> [ ^ 16 ]).
 			([ MulCheckOverflowRR ]       -> [ ^ 16 ]).	
 			"Control"
-			([ Call ] -> [ ^ self callInstructionByteSize ]). "TODO"
-			([ CallFull ] -> [ ^ self literalLoadInstructionBytes + 4 ]). "TODO"
-			([ JumpR ] -> [ ^ 4 ]). "DONE"
-			([ Jump ] -> [ ^ 4 ]). "DONE"
-			([ JumpFull ] -> [ ^ self literalLoadInstructionBytes + 4 ]). "TODO"
-			([ JumpLong ] -> [ ^ self jumpLongByteSize ]). "TODO"
-			([ JumpZero ] -> [ ^ 4 ]). "DONE"
-			([ JumpNonZero ] -> [ ^ 4 ]). "DONE"
-			([ JumpNegative ] -> [ ^ 4 ]). "DONE"
-			([ JumpNonNegative ] -> [ ^ 4 ]). "DONE"
-			([ JumpOverflow ] -> [ ^ 4 ]). "DONE"
-			([ JumpNoOverflow ] -> [ ^ 4 ]). "DONE"
-			([ JumpCarry ] -> [ ^ 4 ]). "DONE"
-			([ JumpNoCarry ] -> [ ^ 4 ]). "DONE"
-			([ JumpLess ] -> [ ^ 4 ]). "DONE"
-			([ JumpGreaterOrEqual ] -> [ ^ 4 ]). "DONE"
-			([ JumpGreater ] -> [ ^ 12 ]). "DONE"
-			([ JumpLessOrEqual ] -> [ ^ 12 ]). "DONE"
-			([ JumpBelow ] -> [ ^ 4 ]). "DONE"
-			([ JumpAboveOrEqual ] -> [ ^ 4 ]). "DONE"
-			([ JumpAbove ] -> [ ^ 8 ]). "DONE"
-			([ JumpBelowOrEqual ] -> [ ^ 8 ]). "DONE"
-			([ JumpLongZero ] -> [ ^ self jumpLongConditionalByteSize ]). "TODO"
-			([ JumpLongNonZero ] -> [ ^ self jumpLongConditionalByteSize ]). "TODO"
-			([ JumpFPEqual ] -> [ ^ 4 ]). "DONE"
-			([ JumpFPNotEqual ] -> [ ^ 4 ]). "DONE"
-			([ JumpFPLess ] -> [ ^ 4 ]). "DONE"
-			([ JumpFPGreaterOrEqual ] -> [ ^ 4 ]). "DONE"
-			([ JumpFPGreater ] -> [ ^ 8 ]). "DONE"
-			([ JumpFPLessOrEqual ] -> [ ^ 8 ]). "TODO"
-			([ JumpFPOrdered ] -> [ ^ self notYetImplemented ]). "TODO"
-			([ JumpFPUnordered ] -> [ ^ self notYetImplemented ]). "TODO"
+			([ Call ]                 -> [ ^ self callInstructionByteSize ]).
+			([ CallFull ]             -> [ ^ self literalLoadInstructionBytes + 4 ]).
+			([ JumpR ]                -> [ ^ 4 ]).
+			([ Jump ]                 -> [ ^ 4 ]).
+			([ JumpFull ]             -> [ ^ self literalLoadInstructionBytes + 4 ]).
+			([ JumpLong ]             -> [ ^ self jumpLongByteSize ]).
+			([ JumpZero ]             -> [ ^ 4 ]).
+			([ JumpNonZero ]          -> [ ^ 4 ]).
+			([ JumpNegative ]         -> [ ^ 4 ]).
+			([ JumpNonNegative ]      -> [ ^ 4 ]).
+			([ JumpOverflow ]         -> [ ^ 4 ]).
+			([ JumpNoOverflow ]       -> [ ^ 4 ]).
+			([ JumpCarry ]            -> [ ^ 4 ]).
+			([ JumpNoCarry ]          -> [ ^ 4 ]).
+			([ JumpLess ]             -> [ ^ 4 ]).
+			([ JumpGreaterOrEqual ]   -> [ ^ 4 ]).
+			([ JumpGreater ]          -> [ ^ 12 ]).
+			([ JumpLessOrEqual ]      -> [ ^ 12 ]).
+			([ JumpBelow ]            -> [ ^ 4 ]).
+			([ JumpAboveOrEqual ]     -> [ ^ 4 ]).
+			([ JumpAbove ]            -> [ ^ 8 ]).
+			([ JumpBelowOrEqual ]     -> [ ^ 8 ]).
+			([ JumpLongZero ]         -> [ ^ self jumpLongConditionalByteSize ]).
+			([ JumpLongNonZero ]      -> [ ^ self jumpLongConditionalByteSize ]).
+			([ JumpFPEqual ]          -> [ ^ 4 ]).
+			([ JumpFPNotEqual ]       -> [ ^ 4 ]).
+			([ JumpFPLess ]           -> [ ^ 4 ]).
+			([ JumpFPGreaterOrEqual ] -> [ ^ 4 ]).
+			([ JumpFPGreater ]        -> [ ^ 8 ]).
+			([ JumpFPLessOrEqual ]    -> [ ^ 8 ]).
+			([ JumpFPOrdered ]        -> [ ^ self notYetImplemented ]).
+			([ JumpFPUnordered ]      -> [ ^ self notYetImplemented ]).
 			([ RetN ] -> [ 
 			 ^ (operands at: 0) = 0
 				   ifTrue: [ 4 ]
@@ -1854,7 +1853,6 @@ CogRiscV64Compiler >> concretizeBrEqualRR [
 
 	<inline: true>
 	| offset left right |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
 	left := operands at: 1.
 	right := operands at: 2.
@@ -1868,7 +1866,6 @@ CogRiscV64Compiler >> concretizeBrFPEqualRR [
 
 	<inline: true>
 	| offset left right |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 4.
 	left := operands at: 1.
 	right := operands at: 2.
@@ -1890,7 +1887,6 @@ CogRiscV64Compiler >> concretizeBrFPGreaterEqualRR [
 
 	<inline: true>
 	| offset left right |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 4.
 	left := operands at: 1.
 	right := operands at: 2.
@@ -1913,7 +1909,6 @@ CogRiscV64Compiler >> concretizeBrFPGreaterRR [
 
 	<inline: true>
 	| offset left right |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 4.
 	left := operands at: 1.
 	right := operands at: 2.
@@ -1936,7 +1931,6 @@ CogRiscV64Compiler >> concretizeBrFPLessEqualRR [
 
 	<inline: true>
 	| offset left right |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 4.
 	left := operands at: 1.
 	right := operands at: 2.
@@ -1958,7 +1952,6 @@ CogRiscV64Compiler >> concretizeBrFPLessRR [
 
 	<inline: true>
 	| offset left right |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 4.
 	left := operands at: 1.
 	right := operands at: 2.
@@ -1980,7 +1973,6 @@ CogRiscV64Compiler >> concretizeBrFPNotEqualRR [
 
 	<inline: true>
 	| offset left right |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 4.
 	left := operands at: 1.
 	right := operands at: 2.
@@ -2000,12 +1992,6 @@ CogRiscV64Compiler >> concretizeBrFPNotEqualRR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeBrLongEqualRR [
 	| offset offsetHigh offsetLow leftReg rightReg |
-	self flag: #TODO.
-	"<var: #jumpTargetInstruction type: #'AbstractInstruction *'>
-	jumpTargetInstruction := self longJumpTargetAddress.
-	self flag: #todo. ""Check not crossing 256MB block.""
-	jumpTargetAddr := jumpTargetInstruction asUnsignedInteger bitAnd: 16rFFFFFFF."
-	
 	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4. 
 	self assert: (self isInLongJumpCallRange: offset).
 	
@@ -2030,12 +2016,6 @@ CogRiscV64Compiler >> concretizeBrLongEqualRR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeBrLongNotEqualRR [
 	| offset offsetHigh offsetLow leftReg rightReg |
-	self flag: #TODO.
-	"<var: #jumpTargetInstruction type: #'AbstractInstruction *'>
-	jumpTargetInstruction := self longJumpTargetAddress.
-	self flag: #todo. ""Check not crossing 256MB block.""
-	jumpTargetAddr := jumpTargetInstruction asUnsignedInteger bitAnd: 16rFFFFFFF."
-	
 	offset := (operands at: 0) signedIntFromLong - address signedIntFromLong - 4. 
 	self assert: (self isInLongJumpCallRange: offset).
 	
@@ -2062,7 +2042,6 @@ CogRiscV64Compiler >> concretizeBrNotEqualRR [
 
 	<inline: true>
 	| offset left right |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
 	left := operands at: 1.
 	right := operands at: 2.
@@ -2076,7 +2055,6 @@ CogRiscV64Compiler >> concretizeBrSignedGreaterEqualRR [
 
 	<inline: true>
 	| offset left right |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
 	left := operands at: 1.
 	right := operands at: 2.
@@ -2090,7 +2068,6 @@ CogRiscV64Compiler >> concretizeBrSignedGreaterRR [
 
 	<inline: true>
 	| offset left right |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
 	left := operands at: 1.
 	right := operands at: 2.
@@ -2104,7 +2081,6 @@ CogRiscV64Compiler >> concretizeBrSignedLessEqualRR [
 
 	<inline: true>
 	| offset left right |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
 	left := operands at: 1.
 	right := operands at: 2.
@@ -2118,7 +2094,6 @@ CogRiscV64Compiler >> concretizeBrSignedLessRR [
 
 	<inline: true>
 	| offset left right |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
 	left := operands at: 1.
 	right := operands at: 2.
@@ -2132,7 +2107,6 @@ CogRiscV64Compiler >> concretizeBrUnsignedGreaterEqualRR [
 
 	<inline: true>
 	| offset left right |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
 	left := operands at: 1.
 	right := operands at: 2.
@@ -2146,7 +2120,6 @@ CogRiscV64Compiler >> concretizeBrUnsignedGreaterRR [
 
 	<inline: true>
 	| offset left right |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
 	left := operands at: 1.
 	right := operands at: 2.
@@ -2160,7 +2133,6 @@ CogRiscV64Compiler >> concretizeBrUnsignedLessEqualRR [
 
 	<inline: true>
 	| offset left right |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
 	left := operands at: 1.
 	right := operands at: 2.
@@ -2174,7 +2146,6 @@ CogRiscV64Compiler >> concretizeBrUnsignedLessRR [
 
 	<inline: true>
 	| offset left right |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
 	left := operands at: 1.
 	right := operands at: 2.
@@ -2191,7 +2162,7 @@ CogRiscV64Compiler >> concretizeCall [
 	
 	<inline: true>
 	| offset offsetHigh offsetLow |
-	self flag: #TODO.
+	self flag: #callsize. "This call can go up to 32 bits!"
 	self assert: (operands at: 0) ~= 0.
 	self assert: (operands at: 0) \\ 4 = 0.
 	"Compute the offset from the PC"
@@ -2222,7 +2193,7 @@ CogRiscV64Compiler >> concretizeCallFull [
 	<inline: true>
 	<var: #jumpTarget type: #'AbstractInstruction *'>
 	| jumpTarget instrOffset |
-	self flag: #TODO.
+	self flag: #callsize. "This call can go up to 64 bits"
 	jumpTarget := self longJumpTargetAddress.
 	instrOffset := self loadLiteralInRegister: ConcreteIPReg.
 	self machineCodeAt: instrOffset put: (self jumpTo: ConcreteIPReg withOffset: 0 andStorePreviousPCPlus4in: LR). 
@@ -2449,7 +2420,6 @@ CogRiscV64Compiler >> concretizeDivRdRd [
 CogRiscV64Compiler >> concretizeFill32 [
 	"fill with operand 0 according to the processor's endianness, here little-endian"
 
-	self flag: #DONE.
 	self machineCodeAt: 0 put: (operands at: 0).
 	^ machineCodeSize := 4
 ]
@@ -2459,7 +2429,6 @@ CogRiscV64Compiler >> concretizeJump [
 
 	<inline: true>
 	| offset |
-	self flag: #TODO.
 	offset := self computeJumpTargetOffsetPlus: 0.
  	self assert: (self isInImmediateJumpRange: offset).
 	self machineCodeAt: 0 put: (self jumpToOffset: offset).
@@ -2568,7 +2537,7 @@ CogRiscV64Compiler >> concretizeJumpFull [
 	<inline: true>
 	<var: #jumpTarget type: #'AbstractInstruction *'>
 	| loadOffset jumpTarget |
-	self flag: #TODO.	
+	self flag: #jumpsize. "This jump can go up to 64 bits"	
 	jumpTarget := self longJumpTargetAddress.
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
 	self machineCodeAt: loadOffset put: (self jumpToRegisterValue: ConcreteIPReg).
@@ -2617,7 +2586,7 @@ CogRiscV64Compiler >> concretizeJumpLong [
 	"JumpLong works the same way as a Call buts does not store the return address"
 	<inline: true>
 	| offset offsetHigh offsetLow |
-	self flag: #TODO.
+	self flag: #jumpsize. "This jump can go up to 32 bits"
 	self assert: (operands at: 0) ~= 0.
 	self assert: (operands at: 0) \\ 4 = 0.
 	"Compute the offset from the address of the first instruction (auipc)"
@@ -2703,7 +2672,6 @@ CogRiscV64Compiler >> concretizeJumpR [
 
 	<inline: true>
 	| reg|
-	self flag: #TODO.
 	reg := operands at: 0.
 	self machineCodeAt: 0 put: (self jumpToRegisterValue: reg).
 	^ machineCodeSize := 4
@@ -4522,6 +4490,7 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[AlignmentNops]	 -> [ ^ self concretizeAlignmentNops ].
 		[Fill32]			 -> [ ^ self concretizeFill32 ].
 		[Nop]				 -> [ ^ self concretizeNop ].
+		
 		"Branches"
 		[ BrEqualRR ]                -> [ ^ self concretizeBrEqualRR ].
 		[ BrNotEqualRR ]             -> [ ^ self concretizeBrNotEqualRR ].
@@ -4541,18 +4510,20 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[ BrFPLessEqualRR ]          -> [ ^ self concretizeBrFPLessEqualRR ].	   
 		[ BrFPGreaterRR ]            -> [ ^ self concretizeBrFPGreaterRR ].
 		[ BrFPGreaterEqualRR ]       -> [ ^ self concretizeBrFPGreaterEqualRR ].
+		
 		"Overflow"
 		[ AddCheckOverflowRR ]       -> [ ^ self concretizeAddCheckOverflowRR ].
       [ AddCheckOverflowCqR ]      -> [ ^ self concretizeAddCheckOverflowCqR ].
 		[ SubCheckOverflowRR ]       -> [ ^ self concretizeSubCheckOverflowRR ].
       [ SubCheckOverflowCqR ]      -> [ ^ self concretizeSubCheckOverflowCqR ].
       [ MulCheckOverflowRR ]       -> [ ^ self concretizeMulCheckOverflowRR ].
+		
 		"Control"
-		[Call]					-> [ ^ self concretizeCall ]. "call code within code space"
+		[Call]					-> [ ^ self concretizeCall ].     "call code within code space"
 		[CallFull]			-> [ ^ self concretizeCallFull ]. "call code anywhere in address space"
 		[JumpR]				-> [ ^ self concretizeJumpR ].
-		[JumpFull]			-> [ ^ self concretizeJumpFull ]."jump within address space"
-		[JumpLong]			-> [ ^ self concretizeJumpLong ]."jumps witihn code space"
+		[JumpFull]			-> [ ^ self concretizeJumpFull ]. "jump within address space"
+		[JumpLong]			-> [ ^ self concretizeJumpLong ]. "jumps witihn code space"
 		[JumpLongZero]	   -> [ ^ self concretizeJumpLongZero ].
 		[JumpLongNonZero]	-> [ ^ self concretizeJumpLongNonZero ].
 		[Jump]				   -> [ ^ self concretizeJump ].
@@ -4572,6 +4543,8 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[JumpAboveOrEqual]		-> [ ^ self concretizeJumpAboveOrEqual ]. "unsigned greater or equal"
 		[JumpAbove]				-> [ ^ self concretizeJumpAbove ].
 		[JumpBelowOrEqual]		-> [ ^ self concretizeJumpBelowOrEqual ].
+		
+		"FP Control"
 		[JumpFPEqual]			-> [ ^ self concretizeJumpFPEqual ].
 		[JumpFPNotEqual]		-> [ ^ self concretizeJumpFPNotEqual ].
 		[JumpFPLess]				-> [ ^ self concretizeJumpFPLess ].
@@ -4598,12 +4571,12 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[LoadEffectiveAddressMwrR]	-> [ ^ self concretizeLoadEffectiveAddressMwrR ].
 
 		"Arithmetic with an ensured literal load"
-		[AddCwR]	-> [^self concretizeAddCwR ].
-		[AndCwR]	-> [^self concretizeAndCwR ].
-		[CmpCwR]	-> [^self concretizeCmpCwR ].
-		[OrCwR]	-> [^self concretizeOrCwR ].
-		[SubCwR]	-> [^self concretizeSubCwR ].
-		[XorCwR]	-> [^self concretizeXorCwR].
+		[AddCwR]	-> [ ^ self concretizeAddCwR ].
+		[AndCwR]	-> [ ^ self concretizeAndCwR ].
+		[CmpCwR]	-> [ ^ self concretizeCmpCwR ].
+		[OrCwR]	-> [ ^ self concretizeOrCwR ].
+		[SubCwR]	-> [ ^ self concretizeSubCwR ].
+		[XorCwR]	-> [ ^ self concretizeXorCwR].
 		
 		"Arithmetic Register-only"
 		[AddRR]	 -> [ ^ self concretizeAddRR ].
@@ -4639,10 +4612,10 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[XorRdRd]	 -> [ ^ self concretizeXorRdRd ].
 
 		"Data Movement - basic"
-		[MoveCqR]			-> [^self concretizeMoveCqR].
-		[MoveCwR]			-> [^self concretizeMoveCwR].
-		[MoveC32R]		-> [^self concretizeMoveC32R].
-		[MoveRR]			-> [^self concretizeMoveRR].
+		[MoveCqR]			-> [ ^ self concretizeMoveCqR ].
+		[MoveCwR]			-> [ ^ self concretizeMoveCwR ].
+		[MoveC32R]		-> [ ^ self concretizeMoveC32R ].
+		[MoveRR]			-> [ ^ self concretizeMoveRR ].
 		
 		"Data Movement - Absolute addresses"
 		[MoveAwR]			-> [ ^ self concretizeMoveAwR ].
