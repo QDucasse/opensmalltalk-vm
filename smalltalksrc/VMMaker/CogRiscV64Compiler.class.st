@@ -4876,28 +4876,30 @@ CogRiscV64Compiler >> extractOffsetFromConditionalBranch: instruction [
 
 	"Branch instruction encode the offset from bits 31->25 as 12|10:5 -> offset2
 	                                  and from bits 11->7  as 4:1|11  -> offset1"
-	| offset1 offset2 |
+	| mangledOffset1 mangledOffset2 demangledOffset |
 	self flag: #TODO.
-	offset1 := instruction >> 7 bitAnd: 16r1F.
-	offset2 := instruction >> 25 bitAnd: 16r7F.
-	^ ((((offset2 >> 6 bitAnd: 16r1) << 12) "12"
-	  bitOr: ((offset1 bitAnd: 16r1) << 11)) "11"
-	  bitOr: ((offset2 bitAnd: 16r3F) << 5)) "10:5"
-	  bitOr: ((offset1 >> 1 bitAnd: 16rF) << 1) "4:1"
-	  
+	mangledOffset1 := instruction >> 7 bitAnd: 16r1F.
+	mangledOffset2 := instruction >> 25 bitAnd: 16r7F.
+	demangledOffset := ((((mangledOffset2 >> 6 bitAnd: 16r1) << 12) "12"
+	  bitOr: ((mangledOffset1 bitAnd: 16r1) << 11)) "11"
+	  bitOr: ((mangledOffset2 bitAnd: 16r3F) << 5)) "10:5"
+	  bitOr: ((mangledOffset1 >> 1 bitAnd: 16rF) << 1). "4:1"
+	^  self signExtendValue: demangledOffset forSize: 13 
+	
 ]
 
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> extractOffsetFromJAL: instruction [ 
 
-	| offset |
+	| mangledOffset demangledOffset |
 	self flag: #TODO.
 	"JAL encodes the offset from bits 31 to 12 as: offset[20|10:1|11|19:12]"
-	offset := instruction >> 12.
-	^ (((((offset >> 19 bitAnd: 16r1) << 20) "20"
-	  bitOr: ((offset >> 9 bitAnd: 16r3FF) << 1)) "10:1"
-	  bitOr: ((offset >> 8 bitAnd: 16r1) << 11)) "11"
-	  bitOr: ((offset bitAnd: 16rFF) << 12)) "19:12"
+	mangledOffset := instruction >> 12.
+	demangledOffset := (((((mangledOffset >> 19 bitAnd: 16r1) << 20) "20"
+	  bitOr: ((mangledOffset >> 9 bitAnd: 16r3FF) << 1)) "10:1"
+	  bitOr: ((mangledOffset >> 8 bitAnd: 16r1) << 11)) "11"
+	  bitOr: ((mangledOffset bitAnd: 16rFF) << 12)). "19:12"
+	^ self signExtendValue: demangledOffset forSize: 21 
 ]
 
 { #category : #'inline cacheing' }
@@ -4917,7 +4919,7 @@ CogRiscV64Compiler >> extractOffsetFromLongJump: jumpAddress [
 	"LUI"
 	instLUI := objectMemory long32At: jumpAddress - 8.
 	self assert: (self instructionIsLUI: instLUI).
-	offsetLUI := self signExtendValue: (instLUI >> 12 bitAnd: 16rfffff) << 12 forSize: 32. "20 upper bits"
+	offsetLUI := self signExtendValue: (instLUI >> 12 bitAnd: 16rfffff) << 12 forSize: 20. "20 upper bits"
 	"ADDIW"
 	instADDIW := objectMemory long32At: jumpAddress - 4.
 	self assert: (self instructionIsADDI: instADDIW).
@@ -7175,14 +7177,12 @@ CogRiscV64Compiler >> shiftRightValueInRegister: sourceReg1 byShiftAmountInRegis
 
 { #category : #'machine code instruction' }
 CogRiscV64Compiler >> signExtendValue: value forSize: size [
-	
-	| mask |
-	self flag: #TODO.
+
+	| mask bitMask signMask |
 	"Reverse two's complement"
-	mask := (1 << size) - 1. "check sign bit"
-	^ (value allMask: (1 << (size - 1)))
-		ifTrue: [ (mask - value + 1) negated ] "invert add 1 and return negated value"
-		ifFalse: [ value ]
+	signMask := 1 << (size - 1).
+	mask := 1 << size - 1.
+	^ ((value bitAnd: mask) bitXor: signMask) - signMask
 ]
 
 { #category : #accessing }
