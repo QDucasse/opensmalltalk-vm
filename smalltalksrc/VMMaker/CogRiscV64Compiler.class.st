@@ -5828,8 +5828,8 @@ CogRiscV64Compiler >> isInLongJumpCallRange: offset [
 
 { #category : #'machine code instruction' }
 CogRiscV64Compiler >> isJump [
-	^super isJump or: [{
-		BrEqualRR. BrNotEqualRR. 
+	^super isJump or: [opcode between: BrEqualRR and: BrFPGreaterEqualRR]
+		"{ BrEqualRR. BrNotEqualRR. 
 		BrSignedGreaterRR. BrSignedGreaterEqualRR. 
 		BrSignedLessRR. BrSignedLessEqualRR.
 		BrUnsignedLessRR. BrUnsignedLessEqualRR. 
@@ -5837,7 +5837,7 @@ CogRiscV64Compiler >> isJump [
 		BrLongEqualRR. BrLongNotEqualRR.
 		BrFPEqualRR. BrFPNotEqualRR.
 		BrFPLessRR. BrFPLessEqualRR.
-		BrFPGreaterRR. BrFPGreaterEqualRR } includes: opcode]
+		BrFPGreaterRR. BrFPGreaterEqualRR } includes: opcode]"
 ]
 
 { #category : #testing }
