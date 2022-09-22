@@ -4663,17 +4663,9 @@ CogRiscV64Compiler >> divideRegisterValueUnsigned: srcReg1 byRegisterValueUnsign
 
 ]
 
-{ #category : #'instruction extraction' }
-CogRiscV64Compiler >> extractConditionFromZeroConditionalBranch: instruction [ 
-
-	self flag: #TODO.
-	^ instruction >> 12 bitAnd: 16r7
-]
-
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> extractOffsetFromAUIPC: instruction [ 
 
-	self flag: #TODO.
 	^ self signExtendValue: ((instruction >> 12) bitAnd: 16rFFFFF) << 12 forSize: 32
 ]
 
@@ -4681,16 +4673,15 @@ CogRiscV64Compiler >> extractOffsetFromAUIPC: instruction [
 CogRiscV64Compiler >> extractOffsetFromCall: callAddress [ 
 
 	| instAUIPC offsetAUIPC instJALR offsetJALR |
-	"A call consists of auipc + jalr"
-	self flag: #TODO.	
+	"A call consists of auipc (20 upper bits) + jalr (12 lower bits) both sign extended before added"
 	"AUIPC"
 	instAUIPC := objectMemory long32At: callAddress - 4.
 	self assert: (self instructionIsAUIPC: instAUIPC).
-	offsetAUIPC := self extractOffsetFromAUIPC: instAUIPC.
+	offsetAUIPC := self signExtendValue: ((instAUIPC >> 12) bitAnd: 16rFFFFF) << 12 forSize: 32.
 	"JALR"
 	instJALR := objectMemory long32At: callAddress.
 	self assert: (self instructionIsJALR: instJALR).
-	offsetJALR := self extractOffsetFromJALR: instJALR.
+	offsetJALR := self signExtendValue: ((instJALR >> 20) bitAnd: 16rFFF) forSize: 12.
 	
 	^ offsetAUIPC + offsetJALR
 ]
@@ -4701,7 +4692,6 @@ CogRiscV64Compiler >> extractOffsetFromConditionalBranch: instruction [
 	"Branch instruction encode the offset from bits 31->25 as 12|10:5 -> offset2
 	                                  and from bits 11->7  as 4:1|11  -> offset1"
 	| mangledOffset1 mangledOffset2 demangledOffset |
-	self flag: #TODO.
 	mangledOffset1 := instruction >> 7 bitAnd: 16r1F.
 	mangledOffset2 := instruction >> 25 bitAnd: 16r7F.
 	demangledOffset := ((((mangledOffset2 >> 6 bitAnd: 16r1) << 12) "12"
@@ -4712,34 +4702,12 @@ CogRiscV64Compiler >> extractOffsetFromConditionalBranch: instruction [
 	
 ]
 
-{ #category : #'inline cacheing' }
-CogRiscV64Compiler >> extractOffsetFromJAL: instruction [ 
-
-	| mangledOffset demangledOffset |
-	self flag: #TODO.
-	"JAL encodes the offset from bits 31 to 12 as: offset[20|10:1|11|19:12]"
-	mangledOffset := instruction >> 12.
-	demangledOffset := (((((mangledOffset >> 19 bitAnd: 16r1) << 20) "20"
-	  bitOr: ((mangledOffset >> 9 bitAnd: 16r3FF) << 1)) "10:1"
-	  bitOr: ((mangledOffset >> 8 bitAnd: 16r1) << 11)) "11"
-	  bitOr: ((mangledOffset bitAnd: 16rFF) << 12)). "19:12"
-	^ self signExtendValue: demangledOffset forSize: 21 
-]
-
-{ #category : #'inline cacheing' }
-CogRiscV64Compiler >> extractOffsetFromJALR: instruction [ 
-
-	self flag: #TODO.
-	^ self signExtendValue: ((instruction >> 20) bitAnd: 16rFFF) forSize: 12
-]
-
 { #category : #'instruction extraction' }
 CogRiscV64Compiler >> extractOffsetFromLongJump: jumpAddress [ 
 
 	| instLUI offsetLUI instADDIW offsetADDIW |
 	"A long jump expands to offset loading + jump register 
 	 and the offset loading expands to lui + addiw (we need to go other the jump to reach those"
-	self flag: #TODO.	
 	"LUI"
 	instLUI := objectMemory long32At: jumpAddress - 8.
 	self assert: (self instructionIsLUI: instLUI).
