@@ -2079,7 +2079,7 @@ Cogit >> JumpFPEqual: jumpTarget [
 	<returnTypeC: #'AbstractInstruction *'>
 	<var: #jumpTarget type: #'void *'>
 	<inline: false>
-	^backEnd genJumpFPEqual: jumpTarget
+	^ self genConditionalBranch: JumpFPEqual operand: jumpTarget asInteger
 ]
 
 { #category : #'abstract instructions' }
@@ -2089,7 +2089,7 @@ Cogit >> JumpFPGreater: jumpTarget [
 	<returnTypeC: #'AbstractInstruction *'>
 	<var: #jumpTarget type: #'void *'>
 	<inline: false>
-	^backEnd genJumpFPGreater: jumpTarget
+	^self genConditionalBranch: JumpFPGreater operand: jumpTarget asInteger
 ]
 
 { #category : #'abstract instructions' }
@@ -2099,7 +2099,7 @@ Cogit >> JumpFPGreaterOrEqual: jumpTarget [
 	<returnTypeC: #'AbstractInstruction *'>
 	<var: #jumpTarget type: #'void *'>
 	<inline: false>
-	^backEnd genJumpFPGreaterOrEqual: jumpTarget
+	^self genConditionalBranch: JumpFPGreaterOrEqual operand: jumpTarget asInteger
 ]
 
 { #category : #'abstract instructions' }
@@ -2109,7 +2109,7 @@ Cogit >> JumpFPLess: jumpTarget [
 	<returnTypeC: #'AbstractInstruction *'>
 	<var: #jumpTarget type: #'void *'>
 	<inline: false>
-	^backEnd genJumpFPLess: jumpTarget
+	^self genConditionalBranch: JumpFPLess operand: jumpTarget asInteger
 ]
 
 { #category : #'abstract instructions' }
@@ -2119,7 +2119,7 @@ Cogit >> JumpFPLessOrEqual: jumpTarget [
 	<returnTypeC: #'AbstractInstruction *'>
 	<var: #jumpTarget type: #'void *'>
 	<inline: false>
-	^backEnd genJumpFPLessOrEqual: jumpTarget
+	^self genConditionalBranch: JumpFPLessOrEqual operand: jumpTarget asInteger
 ]
 
 { #category : #'abstract instructions' }
@@ -2129,7 +2129,7 @@ Cogit >> JumpFPNotEqual: jumpTarget [
 	<returnTypeC: #'AbstractInstruction *'>
 	<var: #jumpTarget type: #'void *'>
 	<inline: false>
-	^backEnd genJumpFPNotEqual: jumpTarget
+	^self genConditionalBranch: JumpFPNotEqual operand: jumpTarget asInteger
 ]
 
 { #category : #'abstract instructions' }
