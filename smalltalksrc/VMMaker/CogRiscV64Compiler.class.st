@@ -4952,14 +4952,14 @@ CogRiscV64Compiler >> extractOffsetFromCall: callAddress [
 { #category : #'instruction extraction' }
 CogRiscV64Compiler >> extractOffsetFromConditionalBranch: instruction [ 
 
-	"Branch instruction encode the offset from bits 31->25 as 12|10:5 
-	                                  and from bits 11->7  as 4:1|11"
+	"Branch instruction encode the offset from bits 31->25 as 12|10:5 -> offset2
+	                                  and from bits 11->7  as 4:1|11  -> offset1"
 	| offset1 offset2 |
 	self flag: #TODO.
 	offset1 := instruction >> 7 bitAnd: 16r1F.
 	offset2 := instruction >> 25 bitAnd: 16r7F.
-	^ ((((offset1 >> 6 bitAnd: 16r1) << 12) "12"
-	  bitOr: ((offset2 bitAnd: 16r1) << 11)) "11"
+	^ ((((offset2 >> 6 bitAnd: 16r1) << 12) "12"
+	  bitOr: ((offset1 bitAnd: 16r1) << 11)) "11"
 	  bitOr: ((offset2 bitAnd: 16r3F) << 5)) "10:5"
 	  bitOr: ((offset1 >> 1 bitAnd: 16rF) << 1) "4:1"
 	  
@@ -5734,7 +5734,7 @@ CogRiscV64Compiler >> instructionBeforeAddress: followingAddress [
 	"Answer the instruction immediately preceding followingAddress."
 	<inline: true>
 	<returnTypeC: #'uint32_t'>
-	^objectMemory long32At: (self instructionAddressBefore: followingAddress)
+	^objectMemory uint32AtPointer: (self instructionAddressBefore: followingAddress)
 ]
 
 { #category : #'instruction detection' }
@@ -5758,6 +5758,15 @@ CogRiscV64Compiler >> instructionIsAUIPC: instruction [
 
 	self flag: #DONE.
 	^ (instruction bitAnd: 16r7F) = 2r0010111.
+
+]
+
+{ #category : #'instruction detection' }
+CogRiscV64Compiler >> instructionIsB: instruction withCondition: condition [
+
+	self flag: #DONE.
+	"Check bits 12 to 14 to the correct condition"
+	^ ((instruction >> 12 bitAnd: 16r7) = condition) and: [(instruction bitAnd: 16r7F) = 2r1100011].
 
 ]
 
@@ -6748,39 +6757,44 @@ CogRiscV64Compiler >> returnFromCallCFunctionInSmalltalkStack: anObject [
 ]
 
 { #category : #'inline cacheing' }
-CogRiscV64Compiler >> rewriteCPICJumpAt: jumpReturnAddress target: jumpTargetAddress [
+CogRiscV64Compiler >> rewriteBTypeBranchAtAddress: mcpc target: newTarget withCondition: condition [
+	| newOffset oldInstruction newInstruction srcReg1 srcReg2 |
+	"Format target"
+	newOffset := newTarget - mcpc.
+	"Extract comparison registers from old instruction"
+	oldInstruction := objectMemory uint32AtPointer: mcpc.
+	srcReg1 := (oldInstruction bitAnd: (16r1F << 15)) >> 15.
+	srcReg2 := (oldInstruction bitAnd: (16r1F << 20)) >> 20.
+	
+	"Generate new instruction"
+	newInstruction := self branchTo: newOffset ifCondition: condition betweenRegister: srcReg1 andRegister: srcReg2.
+	
+	objectMemory uint32AtPointer: mcpc put: newInstruction.
+]
 
+{ #category : #'inline cacheing' }
+CogRiscV64Compiler >> rewriteCPICJumpAt: addressFollowingJump target: jumpTargetAddr [
 	"Rewrite a jump instruction to call a different target.  This variant is used to reset the 
 	jumps in the prototype CPIC to suit each use,.   
 	Answer the extent of the code change which is used to compute the range of the icache to flush."
+	<var: #addressFollowingJump type: #usqInt>
+	<var: #jumpTargetAddr type: #usqInt>
+	self flag: #DONE.
+	"self CmpR: ClassReg R: TempReg.
+	^self JumpNonZero: 0"
+	
+	"bne s5, s3, +156
+	 .... <-- addressFollowingJump"
+ 	self assert: (self instructionIsB: (self instructionBeforeAddress: addressFollowingJump) withCondition: NE).
+	"cogit disassembleFrom: addressFollowingJump - 8 to: addressFollowingJump."
+	
+	self rewriteBTypeBranchAtAddress: addressFollowingJump - 4 target: jumpTargetAddr withCondition: NE.
+	
+	self assert: (self instructionIsB: (self instructionBeforeAddress: addressFollowingJump) withCondition: NE).
+	self assert: (self extractOffsetFromConditionalBranch: (self instructionBeforeAddress: addressFollowingJump)) = (jumpTargetAddr - addressFollowingJump + 4).
+	"cogit disassembleFrom: addressFollowingJump - 4 to: addressFollowingJump."
 
-	<var: #jumpReturnAddress type: #usqInt>
-	<var: #jumpTargetAddress type: #usqInt>
-	| jumpDistance instr |
-	self flag: #TODO.
-	"1halt."
-	jumpTargetAddress >= cogit minCallAddress ifFalse: [ 
-		self error: 'linking callsite to invalid address' ].
-
-	jumpDistance := jumpTargetAddress - (jumpReturnAddress - 12). "return offset"
-	self assert: (self isInLongJumpCallRange: jumpDistance). 
-
-	instr := self instructionBeforeAddress: jumpReturnAddress.
-	self assert: (self instructionIsConditionalBranch: instr).
-	self assert: (self instructionIsConditionalZeroBranch: instr).
-
-	objectMemory
-		long32At: (self instructionAddressBefore: jumpReturnAddress)
-		put: (self
-				 zeroConditionalBranch:
-				 (self extractConditionFromZeroConditionalBranch: instr)
-				 withOffset: jumpDistance).
-
-	self assert: (self extractOffsetFromConditionalBranch: (self
-				  zeroConditionalBranch:
-				  (self extractConditionFromZeroConditionalBranch: instr)
-				  withOffset: jumpDistance)) = jumpDistance.
-	^ 4
+	^4
 ]
 
 { #category : #'inline cacheing' }
@@ -6849,6 +6863,7 @@ CogRiscV64Compiler >> rewriteConditionalJumpLongAt: callSiteReturnAddress target
 	jumps in the prototype CPIC to suit each use,.   
 	Answer the extent of the code change which is used to compute the range of the icache to flush."
 	self flag: #TODO.
+	1halt.
 ]
 
 { #category : #'inline cacheing' }
@@ -6916,11 +6931,11 @@ CogRiscV64Compiler >> rewriteJumpLongAt: jumpReturnAddress target: jumpTargetAdd
 
 	"auipc"
 	objectMemory
-		long32At: (self instructionAddressBefore: jumpReturnAddress - 4)
+		uint32AtPointer: (self instructionAddressBefore: jumpReturnAddress - 4)
 		put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
 	"jalr"
 	objectMemory
-		long32At: (self instructionAddressBefore: jumpReturnAddress)
+		uint32AtPointer: (self instructionAddressBefore: jumpReturnAddress)
 		put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
 
 	self assert: (self jumpLongTargetBeforeFollowingAddress: jumpReturnAddress) = jumpTargetAddress.
