@@ -937,29 +937,6 @@ CogRiscV64Compiler >> bytesForDataStoreOperationOfSize: operationSize andImmedia
 ]
 
 { #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForFloatingPointADDOverflowCheck [ 
-
-	self flag: #TODO.
-	^ 20
-]
-
-{ #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForFloatingPointArithmeticFlagUpdate [ 
-	"Return the number of bytes needed to update the flags, 
-     zero flag setting 
-     carry flag setting "
-	self flag: #TODO.
-	^ 8
-]
-
-{ #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForFloatingPointOverflowCheck [ 
-
-	self flag: #TODO.
-	^ 20
-]
-
-{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> bytesForFloatingPointSUBOverflowCheck [ 
 
 	self flag: #TODO.
@@ -2285,7 +2262,6 @@ CogRiscV64Compiler >> concretizeConvertRRd [
 
 	<inline: true>
 	| srcReg destReg |
-	self flag: #TODO.
 	srcReg := operands at:0.
 	destReg := operands at: 1.
 	self machineCodeAt: 0 put: (self
@@ -2301,7 +2277,6 @@ CogRiscV64Compiler >> concretizeConvertRdRs [
 
 	<inline: true>
 	| srcReg destReg |
-	self flag: #TODO.
 	srcReg := operands at:0.
 	destReg := operands at: 1.
 	self machineCodeAt: 0 put: (self
@@ -2317,7 +2292,6 @@ CogRiscV64Compiler >> concretizeConvertRsRd [
 
 	<inline: true>
 	| srcReg destReg |
-	self flag: #TODO.
 	srcReg := operands at:0.
 	destReg := operands at: 1.
 	self machineCodeAt: 0 put: (self
@@ -2331,7 +2305,6 @@ CogRiscV64Compiler >> concretizeDivRR [
 
 	<inline: true>
 	| regNumerator regDenominator regDestination |
-	self flag: #TODO.
 	regNumerator := operands at: 0.
 	regDenominator := operands at: 1.
 	regDestination := operands at: 2. 
@@ -2340,12 +2313,6 @@ CogRiscV64Compiler >> concretizeDivRR [
 		divideRegisterValue: regNumerator 
 		byRegisterValue: regDenominator  
 		intoRegister: regDestination).
-
-	"flagOffset := self machineCodeWriteInstructions: (self
-			updateFlagsArithmeticForSourceReg1: regNumerator 
-			sourceReg2: regDenominator 
-			andResultReg: regDestination
-		) startingAtIndex: 4."
 	^ machineCodeSize := 4
 ]
 
@@ -2355,19 +2322,11 @@ CogRiscV64Compiler >> concretizeDivRdRd [
 	"FP divide regLHS by regRHS and stick result in regLHS"
 
 	<inline: true>
-	| srcReg1 srcReg2 destReg flagOffset |
-	self flag: #TODO.
+	| srcReg1 srcReg2 destReg |
 	srcReg1 := operands at: 0.
 	srcReg2 := destReg := operands at: 1.
-	"Carry flag: Carry in FP is a simple comparison (note that 0 will be put if any of the two is NaN)"		
-	self machineCodeAt: 0 put: (self 
-		fSetOneIn: ConcreteCarryReg  
-		ifRegisterValue: srcReg2 
-		isLessThanRegisterValue: srcReg1
-	).	
-	"Perform DIV operation"
-	self machineCodeAt: 4 put: (self fDivideRegister: srcReg2 byRegister: srcReg1 intoRegister: destReg).
-	^ machineCodeSize := 8
+	self machineCodeAt: 0 put: (self fDivideRegister: srcReg2 byRegister: srcReg1 intoRegister: destReg).
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
