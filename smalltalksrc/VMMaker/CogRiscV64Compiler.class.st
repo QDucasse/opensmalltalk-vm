@@ -1402,8 +1402,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 				   andImmediateOperationSize: 12 ]). "DONE"
 
 			"Floating point operations"
-			([ AddRdRd ]
-			 -> [ ^ self bytesForFloatingPointADDOverflowCheck + 12 ]). "DONE"
+			([ AddRdRd ] -> [ ^ 4 ]). "DONE"
 			([ SubRdRd ]
 			 -> [ ^ self bytesForFloatingPointSUBOverflowCheck + 12 ]). "DONE"
 			([ CmpRdRd ] -> [ ^ 8 ]). "DONE"
@@ -1567,7 +1566,6 @@ CogRiscV64Compiler >> concretizeAddCheckOverflowCqR [
                                           || (src >= 0) && (src + imm < t0)   case 0 1 (overflow) "
 	<inline: true>
 	| cq srcReg destReg |
-	self flag: #DONE.
 	cq := operands at: 0.
 	srcReg := destReg := operands at: 1.
 	self assertValue: cq isContainedIn: 12.
@@ -1603,7 +1601,6 @@ CogRiscV64Compiler >> concretizeAddCheckOverflowRR [
                                           || (src2 >= 0) && (src1 + src2 < res)  case 0 1 (overflow)"
 	<inline: true>
 	| srcReg1 srcReg2 destReg |
-	self flag: #DONE.
 	srcReg1 := operands at: 0.
 	srcReg2 := destReg := operands at: 1.
 	"Perform the ADD operation"
@@ -1644,7 +1641,6 @@ CogRiscV64Compiler >> concretizeAddCqR [
 	<var: #cq type: #sqInt>
 	<inline: true>
 	| cq destReg sourceReg loadOffset |
-	self flag: #DONE.
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
 	"Load cq if needed in a register (whether big immediate or literal) 
@@ -1673,8 +1669,7 @@ CogRiscV64Compiler >> concretizeAddCqR [
 CogRiscV64Compiler >> concretizeAddCwR [
 
 	<inline: true>
-	| sourceReg destReg loadOffset flagOffset overflowOffset |
-	self flag: #DONE.
+	| sourceReg destReg loadOffset |
 	self assert: dependent notNil.
 	sourceReg := destReg := operands at: 1.
 	"Load Cw in register then perform the add"
@@ -1693,8 +1688,7 @@ CogRiscV64Compiler >> concretizeAddCwR [
 CogRiscV64Compiler >> concretizeAddRR [
 
 	<inline: true>
-	| srcReg1 srcReg2 destReg flagOffset overflowOffset |
-	self flag: #DONE.
+	| srcReg1 srcReg2 destReg |
 	srcReg1 := operands at: 0.
 	srcReg2 := destReg := operands at: 1.
 	"Perform the ADD operation"
@@ -1710,39 +1704,12 @@ CogRiscV64Compiler >> concretizeAddRR [
 CogRiscV64Compiler >> concretizeAddRdRd [
 
 	<inline: true>
-	| srcReg1 srcReg2 destReg overflowOffset |
-	self flag: #TODO.
+	| srcReg1 srcReg2 destReg |
 	srcReg1 := operands at: 0.
 	srcReg2 := destReg := operands at: 1.
-	
-	"Carry flag: Carry in FP is a simple comparison (note that 0 will be put if any of the two is NaN)"		
-	self machineCodeAt: 0 put: (self 
-		fSetOneIn: ConcreteCarryReg  
-		ifRegisterValue: srcReg2 
-		isLessThanRegisterValue: srcReg1
-	).	
+	self machineCodeAt: 0 put: (self fAddRegister: srcReg1 toRegister: srcReg2 intoRegister: destReg).
 
-	"Perform the ADD operation"
-	self machineCodeAt: 4 put: (self
-		fAddRegister: srcReg1 
-		toRegister: srcReg2 
-		intoRegister: ConcreteIPFPReg2
-	).
-	
-	"Check for overflow"
-	overflowOffset := self
-		checkADDFloatingPointOverflowWithSourceReg1: srcReg1 
-		sourceReg2: srcReg2
-		andResultReg: ConcreteIPFPReg2
-		startingAtIndex: 8.
-
-	"Move result to destination"
-	self machineCodeAt: overflowOffset + 8 put: (self 
-		fMoveDoubleWordInFRegister: ConcreteIPFPReg2 
-		toFRegister: destReg		 
-	).
-	
-	^ machineCodeSize := overflowOffset + 12
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
@@ -1750,7 +1717,6 @@ CogRiscV64Compiler >> concretizeAlignmentNops [
 
 	"Fill any empty slots with NOPs"
 	<inline: true>
-	self flag: #DONE.
 	self assert: machineCodeSize \\ 4 = 0.
 	0 to: machineCodeSize - 1 by: 4 do: [ :p | self machineCodeAt: p put: self nop ]
 ]
