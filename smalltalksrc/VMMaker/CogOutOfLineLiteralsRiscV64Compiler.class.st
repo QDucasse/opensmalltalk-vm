@@ -349,25 +349,24 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 	 to work for the opcodes created with gen:literal:operand: et al.
 	
 	 Note that it will provide the 'dependent' in concretization"
-
-	| offset |
 	
 	<var: #offset type: 'sqInt'>
-	self flag: #TODO.
 	opcode
 		caseOf: {
 		[CallFull]		   -> [^true].
 		[JumpFull]		   -> [^true].
 		"CqR operations try to constant in an immediate, otherwise fallback in load literal (like Cw)"
-		[AddCqR]	   -> [^ (self value: (operands at: 0) isContainedIn: 12) not]. 
-		[AndCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
-		[AndCqRR]		-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
-		[CmpCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 11) not]. "uses load immediate"
-		[CmpC32R]		-> [^ true]. 
-		[OrCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
-		[SubCqR]	   -> [^ (self value: (operands at: 0) isContainedIn: 12) not]. 
-		[TstCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
-		[XorCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[AddCqR]               -> [^ (self value: (operands at: 0) isContainedIn: 12) not]. 
+		[AddCheckOverflowCqR ] -> [^ (self value: (operands at: 0) isContainedIn: 12) not]. 
+		[AndCqR]               -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[AndCqRR]              -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[CmpCqR]               -> [^ (self value: (operands at: 0) isContainedIn: 11) not]. "uses load immediate"
+		[CmpC32R]              -> [^ true]. 
+		[OrCqR]                -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[SubCqR]               -> [^ (self value: (operands at: 0) negated isContainedIn: 12) not]. 
+	   [SubCheckOverflowCqR ] -> [^ (self value: (operands at: 0) negated isContainedIn: 12) not]. 
+		[TstCqR]               -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[XorCqR]               -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
 		[LoadEffectiveAddressMwrR] -> [^ (self value: (operands at: 0) isContainedIn: 12) not]. 
 		"CwR operations use a word size value and need a full literal load"
 		[AddCwR]		-> [^true].
