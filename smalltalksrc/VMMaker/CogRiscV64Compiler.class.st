@@ -1197,9 +1197,11 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ OrCqR ]   -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4 ]).
 			([ OrCwR ]   -> [ ^ self literalLoadInstructionBytes + 4 ]).
 			([ OrRR ]    -> [ ^ 4 ]).
-		
-			([ TstCqR ] -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4  ]). 
-			([ XorCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
+			([ TstCqR ]  -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4  ]). 
+			([ XorCqR ]  -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4  ]).
+			([ XorCwR ]  -> [  ^ self literalLoadInstructionBytes + 4 ]).
+			([ XorRR ]   -> [ ^ 4 ]).
+			([ XorRdRd ] -> [ ^ 4 ]).
 
 			"Arithmetic"
 			([ AddCqR ] -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4 ]). "DONE"
@@ -1220,10 +1222,6 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ CmpCwR ] -> [ 
 			 ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck
 			   + self bytesForArithmeticFlagUpdate + 4 ]). "DONE"
-			
-			([ XorCwR ] -> [ 
-			 ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate
-			   + 4 ]). "DONE"
 
 			"Arithmetic Register-Only"
 			([ AddRR ] -> [ ^ 4 ]). "DONE"
@@ -1233,7 +1231,6 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ CmpRR ] -> [ 
 			 ^ self bytesForSUBOverflowCheck
 			   + self bytesForArithmeticFlagUpdate + 4 ]). "DONE"
-			([ XorRR ]   -> [ ^ self bytesForLogicFlagUpdate + 4 ]). "DONE"
 			([ MulRR ]   -> [ ^ 28 ]). "TODO"
 			([ DivRR ]   -> [ ^ 4 ]).
 			([ RemRR ]   -> [ ^ 4 ]).
@@ -1257,7 +1254,6 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ MulRdRd ] -> [ ^ 8 ]). "DONE"
 			([ DivRdRd ] -> [ ^ 8 ]). "DONE"
 			([ SqrtRd ] -> [ ^ 4 ]). "DONE"
-			([ XorRdRd ] -> [ ^ 4 ]). "DONE"
 
 			"Data Movement - Basic"
 			([ MoveCqR ] -> [ 
@@ -3962,26 +3958,10 @@ CogRiscV64Compiler >> concretizeSubRdRd [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeTstCqR [
 
-	"Perform a cmp operation (sub discarding the result) and between the value of register and the value of the operand.
-	 The result is discarded. The instruction is used with a Jump next to it, for example: TstCqR JumpEquals(label) .
-	 No immediate possibility because no subi instruction exists.
-
-	 If the operand fits in 12 bits:
-		andi ConcreteFlagReg, reg, cq
-
-		(beq ConcreteFlagReg, ConcreteIPReg, label)
-	
-	 Else load the provided literal:
-	   auipc ConcreteIPReg, 0
-	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		and  ConcreteFlagReg, ConcreteIPReg, reg 
-		
-		(beq ConcreteFlagReg, ConcreteIPReg, label)"
-
+	"Perform a tst operation (and discarding the result) and between the value of register and the value of the operand."
 	<var: #cq type: #sqInt>
 	<inline: true>
-	| srcReg cq loadOffset flagOffset |
-	self flag: #TODO.
+	| srcReg cq loadOffset |
 	cq := operands at: 0.
 	srcReg := operands at: 1.
 	dependent ifNil: [ "If the cq fits in 12 bits, encode it directly"
@@ -4010,20 +3990,10 @@ CogRiscV64Compiler >> concretizeUnimplemented [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeXorCqR [
 
-	"Perform a xor operation between the value of register and the value of the operand.
-	
-	 If the operands fits in 12 bits:
-		xori reg, reg, cq
-			
-	 Else load the provided literal:
-	   auipc ConcreteIPReg, 0
-	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		xor reg, reg, ConcreteIPReg"
-
+	"Perform a xor operation between the value of register and the value of the operand."
 	<var: #cq type: #sqInt>
 	<inline: true>
-	| cq destReg sourceReg loadOffset flagOffset |
-	self flag: #DONE.
+	| cq destReg sourceReg loadOffset |
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
 	dependent ifNil: [ 
@@ -4033,58 +4003,41 @@ CogRiscV64Compiler >> concretizeXorCqR [
 				 bitwiseXorBetweenRegister: sourceReg
 				 andImmediate: cq
 				 intoRegister: destReg).
-		flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
-		^ machineCodeSize := flagOffset + 4 ].
-
+		^ machineCodeSize :=  4 ].
 	"Literal -> compute the distance, load the actual value then XOR between the 2 registers"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
-
-	"Perform the XOR operation"
 	self machineCodeAt: loadOffset put: (self
 			 bitwiseXorBetweenRegister: sourceReg
 			 andRegister: ConcreteIPReg
 			 intoRegister: destReg).
-	"Update the affected flags"
-	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + 4.
-	^ machineCodeSize := loadOffset + flagOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeXorCwR [
 
 	"XOR operation after loading the value in a register"
-
-		
 	<inline: true>
-	| destReg sourceReg loadOffset flagOffset |
-	self flag: #TODO.		
-	"self assert: dependent isNotNil."
+	| destReg sourceReg loadOffset |
 	sourceReg := destReg := operands at: 1.
    "Literal -> compute the distance, load the actual value then xor between the 2 registers"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
-	"Perform the XOR operation"
 	self machineCodeAt: loadOffset put: (self
 					bitwiseXorBetweenRegister: sourceReg  
 					andRegister: ConcreteIPReg 
 					intoRegister: destReg).
-	"Update the flags"
-	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + 4.
-	^ machineCodeSize := loadOffset + flagOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeXorRR [ 
 	
 	<inline: true>
-	| srcReg1 srcReg2 destReg flagOffset |
-	self flag: #TODO.
+	| srcReg1 srcReg2 destReg |
 	srcReg1 := operands at: 0.
 	srcReg2 := destReg := operands at: 1.
-	"Perform the XOR operation"
 	self machineCodeAt: 0 put: (self bitwiseXorBetweenRegister: srcReg1 andRegister: srcReg2 intoRegister: destReg).
-	"Update the flags"
-	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
-	^ machineCodeSize := flagOffset + 4
+	^ machineCodeSize := 4
 	
 ]
 
@@ -4095,7 +4048,6 @@ CogRiscV64Compiler >> concretizeXorRdRd [
 	 Rather than using this, we will convert X0 (hardwired 0) to the corresponding register"
 	<inline: true>
 	| srcReg1 srcReg2 |
-	self flag: #TODO.
 	srcReg1 := operands at: 0.
 	srcReg2 := operands at: 1.
 	self assert: (srcReg1 = srcReg2).
