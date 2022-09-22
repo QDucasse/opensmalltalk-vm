@@ -6897,11 +6897,10 @@ CogRiscV64Compiler >> rewriteJumpFullAt: jumpFullReturnAddress target: jumpFullT
 		
 	<inline: true>
 	self flag: #TODO.
-	"1halt."
 	^ self
 		rewriteFullTransferAt: jumpFullReturnAddress 
 		target: jumpFullTargetAddress
-		expectedInstruction: 16r00028067 
+		expectedInstruction: 16r00028067 "16r00028067 riscv64Disassembled -> nil:	jr	t0 "
 
 ]
 
