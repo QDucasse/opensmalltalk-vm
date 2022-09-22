@@ -1186,18 +1186,19 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ JumpFPLessOrEqual ]    -> [ ^ 8 ]).
 			([ JumpFPOrdered ]        -> [ ^ self notYetImplemented ]).
 			([ JumpFPUnordered ]      -> [ ^ self notYetImplemented ]).
-			([ RetN ] -> [ 
-			 ^ (operands at: 0) = 0
-				   ifTrue: [ 4 ]
-				   ifFalse: [ 8 ] ]). "DONE"
-			([ Stop ] -> [ ^ 4 ]). "DONE"
+			([ RetN ] -> [ ^ (operands at: 0) = 0 ifTrue: [ 4 ] ifFalse: [ 8 ] ]).
+			([ Stop ] -> [ ^ 4 ]).
 
 			"Logic"
-			([ AndCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
-			([ AndCqRR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
-			([ OrCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
-			([ TstCqR ] -> [ dependent ifNil: [ ^ 4 ].
-				^ self literalLoadInstructionBytes + 4  ]). "DONE"
+			([ AndCqR ]  -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4 ]). 
+			([ AndCqRR ] -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4 ]).
+			([ AndCwR ]  -> [ ^ self literalLoadInstructionBytes + 4 ]).
+			([ AndRR ]   -> [ ^ 4 ]).
+			([ OrCqR ]   -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4 ]).
+			([ OrCwR ]   -> [ ^ self literalLoadInstructionBytes + 4 ]).
+			([ OrRR ]    -> [ ^ 4 ]).
+		
+			([ TstCqR ] -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4  ]). 
 			([ XorCqR ] -> [ ^ self bytesForLogicCqOperation ]). "DONE"
 
 			"Arithmetic"
@@ -1219,12 +1220,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ CmpCwR ] -> [ 
 			 ^ self literalLoadInstructionBytes + self bytesForSUBOverflowCheck
 			   + self bytesForArithmeticFlagUpdate + 4 ]). "DONE"
-			([ AndCwR ] -> [ 
-			 ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate
-			   + 4 ]). "DONE"
-			([ OrCwR ] -> [ 
-			 ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate
-			   + 4 ]). "DONE"
+			
 			([ XorCwR ] -> [ 
 			 ^ self literalLoadInstructionBytes + self bytesForLogicFlagUpdate
 			   + 4 ]). "DONE"
@@ -1237,13 +1233,11 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ CmpRR ] -> [ 
 			 ^ self bytesForSUBOverflowCheck
 			   + self bytesForArithmeticFlagUpdate + 4 ]). "DONE"
-			([ AndRR ] -> [ ^ self bytesForLogicFlagUpdate + 4 ]). "DONE"
-			([ OrRR ] -> [ ^ self bytesForLogicFlagUpdate + 4 ]). "DONE"
-			([ XorRR ] -> [ ^ self bytesForLogicFlagUpdate + 4 ]). "DONE"
-			([ MulRR ] -> [ ^ 28 ]). "TODO"
-			([ DivRR ] -> [ ^ 4 ]). "TODO"
-			([ RemRR ] -> [ ^ 4 ]). "TODO"
-			([ NegateR ] -> [ ^ 4 ]). "DONE"
+			([ XorRR ]   -> [ ^ self bytesForLogicFlagUpdate + 4 ]). "DONE"
+			([ MulRR ]   -> [ ^ 28 ]). "TODO"
+			([ DivRR ]   -> [ ^ 4 ]).
+			([ RemRR ]   -> [ ^ 4 ]).
+			([ NegateR ] -> [ ^ 4 ]).
 
 			"Bit shifts"
 			([ LogicalShiftLeftCqR ]     -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4 ]).
@@ -1479,24 +1473,12 @@ CogRiscV64Compiler >> concretizeAddCheckOverflowRR [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeAddCqR [
 
-	"Perform an add operation between the value of register and the value of the operand.
-	
-	 If the operand is smaller than 12 bits:
-		addi reg, reg, cq
-
-	 Else, use the provided literal:
-	   auipc ConcreteIPReg, 0
-	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		add reg, reg, ConcreteIPReg 
-		"
-
+	"Perform an add operation between the value of register and the value of the operand."
 	<var: #cq type: #sqInt>
 	<inline: true>
 	| cq destReg sourceReg loadOffset |
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
-	"Load cq if needed in a register (whether big immediate or literal) 
-	 or use the immediate instruction if it is a small immediate"
 	dependent ifNil: [ 
 		self assertValue: cq isContainedIn: 12.
 		"Use the provided immediate instruction"
@@ -1505,15 +1487,12 @@ CogRiscV64Compiler >> concretizeAddCqR [
 			toRegister: sourceReg
 			inRegister: destReg).
 		^ machineCodeSize := 4 ].
-
 	"Otherwise, use the provided literal"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
-	"Perform the actual ADD operation"
 	self machineCodeAt: loadOffset put: (self
 			 addRegister: sourceReg
 			 toRegister: ConcreteIPReg
 			 inRegister: destReg).
-		
 	^ machineCodeSize := loadOffset + 4
 ]
 
@@ -1526,13 +1505,10 @@ CogRiscV64Compiler >> concretizeAddCwR [
 	sourceReg := destReg := operands at: 1.
 	"Load Cw in register then perform the add"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
-
-	"Perform the actual ADD operation"
 	self machineCodeAt: loadOffset put: (self
 			 addRegister: sourceReg
 			 toRegister: ConcreteIPReg
 			 inRegister: destReg).
-
 	^ machineCodeSize := loadOffset + 4
 ]
 
@@ -1560,7 +1536,6 @@ CogRiscV64Compiler >> concretizeAddRdRd [
 	srcReg1 := operands at: 0.
 	srcReg2 := destReg := operands at: 1.
 	self machineCodeAt: 0 put: (self fAddRegister: srcReg1 toRegister: srcReg2 intoRegister: destReg).
-
 	^ machineCodeSize := 4
 ]
 
@@ -1576,21 +1551,10 @@ CogRiscV64Compiler >> concretizeAlignmentNops [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeAndCqR [
 
-	"Perform a bitwise and between the value of register and the value of the operand.
-	
-	 If the operand is smaller than 12 bits:
-		andi reg, reg, cq
-
-	 Else, use the provided literal:
-	   auipc ConcreteIPReg, 0
-	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		and reg, reg, ConcreteIPReg 
-		"
-
+	"Perform a bitwise and between the value of register and the value of the operand."
 	<var: #cq type: #sqInt>
 	<inline: true>
-	| cq destReg sourceReg loadOffset flagOffset |
-	self flag: #TODO.
+	| cq destReg sourceReg loadOffset |
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
 	"Use immediate with quick or literal load"
@@ -1601,9 +1565,7 @@ CogRiscV64Compiler >> concretizeAndCqR [
 				 bitwiseAndBetweenRegister: sourceReg
 				 andImmediate: cq
 				 toRegister: destReg).
-		flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
-		^ machineCodeSize := flagOffset + 4 ].
-
+		^ machineCodeSize :=  4 ].
 	"If the value is a literal, load it in a given register"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
 	"Perform the AND operation"
@@ -1611,33 +1573,19 @@ CogRiscV64Compiler >> concretizeAndCqR [
 			 bitwiseAndBetweenRegister: sourceReg
 			 andRegister: ConcreteIPReg
 			 toRegister: destReg).
-	"Update the flag registers"
-	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + 4.
-	^ machineCodeSize := loadOffset + flagOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeAndCqRR [
 
-	"Perform a bitwise and between the value of register and the value of the operand.
-	
-	 If the operand is smaller than 12 bits:
-		andi reg, reg, cq
-
-	 Else, use the provided literal:
-	   auipc ConcreteIPReg, 0
-	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		and reg, reg, ConcreteIPReg 
-		"
-
+	"Perform a bitwise and between the value of register and the value of the operand."
 	<var: #cq type: #sqInt>
 	<inline: true>
-	| cq destReg sourceReg loadOffset flagOffset |
-	self flag: #TODO.
+	| cq destReg sourceReg loadOffset |
 	cq := operands at: 0.
 	sourceReg := operands at: 1.
 	destReg := operands at: 2.
-	"Use immediate with quick or literal load"
 	dependent ifNil: [ 
 		self assertValue: cq isContainedIn: 12.
 		"Use the provided immediate instruction"
@@ -1645,39 +1593,30 @@ CogRiscV64Compiler >> concretizeAndCqRR [
 				 bitwiseAndBetweenRegister: sourceReg
 				 andImmediate: cq
 				 toRegister: destReg).
-		flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
-		^ machineCodeSize := flagOffset + 4 ].
-
-	"If the value is a literal, load it in a given register"
+		^ machineCodeSize := 4 ].
+	"Otherwise, use the literal"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
-	"Perform the AND operation"
 	self machineCodeAt: loadOffset put: (self
 			 bitwiseAndBetweenRegister: sourceReg
 			 andRegister: ConcreteIPReg
 			 toRegister: destReg).
-	"Update the flag registers"
-	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + 4.
-	^ machineCodeSize := loadOffset + flagOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeAndCwR [
 	
 	<inline: true>
-	| sourceReg destReg loadOffset flagOffset |
-	self flag: #TODO.
+	| sourceReg destReg loadOffset |
 	self assert: dependent notNil.
 	sourceReg := destReg := operands at: 1.	
-	"Load Cw in register then perform the add"
+	"Load Cw in register then perform the AND"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
-	"Perform the AND operation"
 	self machineCodeAt: loadOffset put: (self
 	      	 bitwiseAndBetweenRegister: sourceReg
 			 andRegister: ConcreteIPReg
 			 toRegister: destReg).
-	"Update flags"
-	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + 4.
-	^ machineCodeSize := loadOffset + flagOffset + 4
+	^ machineCodeSize := loadOffset + 4
 			
 ]
 
@@ -1685,15 +1624,11 @@ CogRiscV64Compiler >> concretizeAndCwR [
 CogRiscV64Compiler >> concretizeAndRR [
 
 	<inline: true>
-	| srcReg1 srcReg2 destReg flagOffset |
-	self flag: #TODO.
+	| srcReg1 srcReg2 destReg |
 	srcReg1 := operands at: 0.
 	destReg := srcReg2 := operands at: 1.
-	"Perform the ADD operation"
 	self machineCodeAt: 0 put: (self bitwiseAndBetweenRegister: srcReg1 andRegister: srcReg2 toRegister: destReg).	
-	"Update the flags"
-	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
-	^ machineCodeSize := flagOffset + 4
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
@@ -3534,21 +3469,10 @@ CogRiscV64Compiler >> concretizeNop [
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeOrCqR [
 
-	"Perform a bitwise or between the value of register and the value of the operand.
-	
-	 If the operand fits in under 12 bits:
-		ori reg, reg, cq
-		
-	 Else load the provided literal:
-	   auipc ConcreteIPReg, 0
-	   ld ConcreteIPReg, cqdistance(ConcreteIPReg)
-		or reg, reg, ConcreteIPReg 
-		"
-
+	"Perform a bitwise or between the value of register and the value of the operand."
 	<var: #cq type: #sqInt>
 	<inline: true>
-	| cq destReg sourceReg loadOffset flagOffset |
-	self flag: #TODO.
+	| cq destReg sourceReg loadOffset |
 	cq := operands at: 0.
 	sourceReg := destReg := operands at: 1.
 	dependent ifNil: [ 
@@ -3558,41 +3482,30 @@ CogRiscV64Compiler >> concretizeOrCqR [
 				 bitwiseOrBetweenRegister: sourceReg
 				 andImmediate: cq
 				 toRegister: destReg).
-		"Update flags"
-		flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
-		^ machineCodeSize := flagOffset + 4 ].
-
-
+		^ machineCodeSize := 4 ].
 	"Literal -> compute the distance, load the actual value then and between the 2 registers"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
-	"Perform the OR operation"
 	self machineCodeAt: loadOffset put: (self
 			 bitwiseOrBetweenRegister: sourceReg
 			 andRegister: ConcreteIPReg
 			 toRegister: destReg).
-	"Update the flags according to a logic operation"
-	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + 4.
-	^ machineCodeSize := loadOffset + flagOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
 CogRiscV64Compiler >> concretizeOrCwR [
 	
 	<inline: true>
-	| sourceReg destReg loadOffset flagOffset |
-	self flag: #TODO.
+	| sourceReg destReg loadOffset |
 	self assert: dependent notNil.
 	sourceReg := destReg := operands at: 1.	
-	"Load Cw in register then perform the add"
+	"Load Cw in register then perform the OR"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
-	"Perform the OR operation"
 	self machineCodeAt: loadOffset put: (self
 	      	 bitwiseOrBetweenRegister: sourceReg
 			 andRegister: ConcreteIPReg
 			 toRegister: destReg).
-	"Update the flags"
-	flagOffset :=  self updateFlagsLogicForResultReg: destReg startingAtIndex: loadOffset + 4.
-	^ machineCodeSize := loadOffset + flagOffset + 4	
+	^ machineCodeSize := loadOffset + 4	
 			
 ]
 
@@ -3600,15 +3513,12 @@ CogRiscV64Compiler >> concretizeOrCwR [
 CogRiscV64Compiler >> concretizeOrRR [
 
 	<inline: true>
-	| sourceReg1 sourceReg2 destReg flagOffset |
-	self flag: #DONE.
+	| sourceReg1 sourceReg2 destReg |
 	sourceReg1 := operands at: 0.
 	sourceReg2 := destReg := operands at: 1.
 	"Perform the OR operation"
 	self machineCodeAt: 0 put: (self bitwiseOrBetweenRegister: sourceReg1 andRegister: sourceReg2 toRegister: destReg).
-	"Update the flags"
-	flagOffset := self updateFlagsLogicForResultReg: destReg startingAtIndex: 4.
-	^ machineCodeSize := flagOffset + 4
+	^ machineCodeSize := 4
 ]
 
 { #category : #concretization }
