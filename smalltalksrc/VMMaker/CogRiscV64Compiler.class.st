@@ -6175,7 +6175,7 @@ CogRiscV64Compiler >> loadLiteralInRegister: destReg startingAtIndex: index [
 	- ld    to load relative to the PC"
 	self flag: #DONE.
 	"Several guard are checked"
-	self assert: dependent isNotNil.
+	"self assert: dependent isNotNil."
 	self assert: dependent opcode = Literal.
 	self assert: (cogit addressIsInCurrentCompilation: dependent address).
 	literalAddress := (cogit cCoerceSimple: dependent to: #'AbstractInstruction *') address.
