@@ -2609,14 +2609,6 @@ CogRiscV64Compiler >> concretizeJumpBelowOrEqual [
 ]
 
 { #category : #concretization }
-CogRiscV64Compiler >> concretizeJumpCarry [
-
-	<inline: true>
-	self shouldBeImplemented. "Add case in noteFollowingConditional:"
-	^0
-]
-
-{ #category : #concretization }
 CogRiscV64Compiler >> concretizeJumpFPEqual [
 
 	<inline: true>
@@ -2667,22 +2659,6 @@ CogRiscV64Compiler >> concretizeJumpFPNotEqual [
 	<inline: true>
 	"Should be rewritten by noteFollowingConditionalBranch:"
 	self unreachable.
-	^0
-]
-
-{ #category : #concretization }
-CogRiscV64Compiler >> concretizeJumpFPOrdered [
-
-	<inline: true>
-	self shouldBeImplemented. "Add case in noteFollowingConditional:"
-	^0
-]
-
-{ #category : #concretization }
-CogRiscV64Compiler >> concretizeJumpFPUnordered [
-
-	<inline: true>
-	self shouldBeImplemented. "Add case in noteFollowingConditional:"
 	^0
 ]
 
@@ -2807,15 +2783,6 @@ CogRiscV64Compiler >> concretizeJumpNoOverflow [
 	<inline: true>
 	"Should be rewritten by noteFollowingConditionalBranch:"
 	self unreachable.
-	^0
-]
-
-{ #category : #concretization }
-CogRiscV64Compiler >> concretizeJumpNonNegative [
-
-	<inline: true>
-	"Should be rewritten by noteFollowingConditionalBranch:"
-	self shouldBeImplemented.
 	^0
 ]
 
@@ -4544,6 +4511,12 @@ CogRiscV64Compiler >> concretizeTstCqR [
 ]
 
 { #category : #concretization }
+CogRiscV64Compiler >> concretizeUnimplemented [
+	self error: 'Unimplemented RTL instruction'.
+	^0
+]
+
+{ #category : #concretization }
 CogRiscV64Compiler >> concretizeXorCqR [
 
 	"Perform a xor operation between the value of register and the value of the operand.
@@ -4692,10 +4665,10 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[JumpZero]			-> [ ^ self concretizeJumpZero ].
 		[JumpNonZero]		-> [ ^ self concretizeJumpNonZero ].
 		[JumpNegative]		-> [ ^ self concretizeJumpNegative ].
-		[JumpNonNegative]	-> [ ^ self concretizeJumpNonNegative ].
+		[JumpNonNegative]	-> [ ^ self concretizeUnimplemented ].
 		[JumpOverflow]		-> [ ^ self concretizeJumpOverflow ].
 		[JumpNoOverflow]	-> [ ^ self concretizeJumpNoOverflow ].
-		[JumpCarry]			-> [ ^ self concretizeJumpCarry ].
+		[JumpCarry]			-> [ ^ self concretizeUnimplemented ].
 		[JumpNoCarry]		-> [ ^ self concretizeJumpNoCarry ].
 		[JumpLess]			-> [ ^ self concretizeJumpLess ].
 		[JumpGreaterOrEqual]	-> [ ^ self concretizeJumpGreaterOrEqual ].
@@ -4711,8 +4684,8 @@ CogRiscV64Compiler >> dispatchConcretize [
 		[JumpFPGreaterOrEqual]	-> [ ^ self concretizeJumpFPGreaterOrEqual ].
 		[JumpFPGreater]				-> [ ^ self concretizeJumpFPGreater ].
 		[JumpFPLessOrEqual]		-> [ ^ self concretizeJumpFPLessOrEqual ].
-		[JumpFPOrdered]				-> [ ^ self concretizeJumpFPOrdered ].
-		[JumpFPUnordered]			-> [ ^ self concretizeJumpFPUnordered ].
+		[JumpFPOrdered]				-> [ ^ self concretizeUnimplemented ].
+		[JumpFPUnordered]			-> [ ^ self concretizeUnimplemented ].
 		[RetN]	 -> [ ^ self concretizeRetN ].
 		[Stop]	 -> [ ^ self concretizeStop ].
 		

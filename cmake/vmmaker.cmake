@@ -15,9 +15,9 @@
 # TODOs:
 #  - Make the VMFlavours autodescribed? Slang could output a list of generated files that we could use
 
-set(CMAKE_VERBOSE_MAKEFILE TRUE)
+# set(CMAKE_VERBOSE_MAKEFILE TRUE)
 
-#Setting vmmaker directory and image 
+#Setting vmmaker directory and image
 set( VMMAKER_DIR    "${CMAKE_CURRENT_BINARY_DIR_TO_OUT}/build/vmmaker")
 set( VMMAKER_IMAGE  "${VMMAKER_DIR}/image/VMMaker.image")
 
@@ -43,7 +43,7 @@ else()
   endif()
 endif()
 
-set(PLUGIN_GENERATED_FILES 
+set(PLUGIN_GENERATED_FILES
     ${PHARO_CURRENT_GENERATED}/plugins/src/FilePlugin/FilePlugin.c
     ${PHARO_CURRENT_GENERATED}/plugins/src/SurfacePlugin/SurfacePlugin.c
     ${PHARO_CURRENT_GENERATED}/plugins/src/FloatArrayPlugin/FloatArrayPlugin.c)
@@ -51,8 +51,8 @@ set(PLUGIN_GENERATED_FILES
 if(GENERATE_SOURCES)
 
     #Setting platform specific vmmaker virtual machine, with cached download or override
-    if (GENERATE_PHARO_VM) 
-        message("Overriding VM used for code generation")  
+    if (GENERATE_PHARO_VM)
+        message("Overriding VM used for code generation")
         set(VMMAKER_VM ${GENERATE_PHARO_VM})
         # add empty target because is required later when installing vmmaker
         add_custom_target(build_vmmaker_get_vm-build)
@@ -93,10 +93,10 @@ if(GENERATE_SOURCES)
 
             URL ${VM_URL}
             URL_HASH ${VM_URL_HASH}
-            BUILD_COMMAND       echo 
-            UPDATE_COMMAND      echo 
-            CONFIGURE_COMMAND   echo 
-            INSTALL_COMMAND     echo 
+            BUILD_COMMAND       echo
+            UPDATE_COMMAND      echo
+            CONFIGURE_COMMAND   echo
+            INSTALL_COMMAND     echo
 
             PREFIX "${VMMAKER_DIR}"
             SOURCE_DIR "${VMMAKER_DIR}/vm"
@@ -114,7 +114,7 @@ if(GENERATE_SOURCES)
             URL_HASH SHA256=b5428a51fae33dfef5c4be966b7be58cafdee922cfe3621ad01d17a74ddb1a37
             BUILD_COMMAND ${VMMAKER_VM} --headless ${VMMAKER_DIR}/image/Pharo11-SNAPSHOT-64bit-0137cce.image --no-default-preferences save VMMaker
             COMMAND ${VMMAKER_VM} --headless ${VMMAKER_IMAGE} --no-default-preferences --save --quit "${CMAKE_CURRENT_SOURCE_DIR_TO_OUT}/scripts/installVMMaker.st" "${CMAKE_CURRENT_SOURCE_DIR_TO_OUT}" "${ICEBERG_DEFAULT_REMOTE}"
-            UPDATE_COMMAND      echo 
+            UPDATE_COMMAND      echo
             CONFIGURE_COMMAND   echo
             INSTALL_COMMAND     echo
 
@@ -132,7 +132,7 @@ if(GENERATE_SOURCES)
         COMMAND ${VMMAKER_VM} --headless ${VMMAKER_IMAGE} --no-default-preferences eval \"PharoVMMaker generate: \#\'${FLAVOUR}\' outputDirectory: \'${CMAKE_CURRENT_BINARY_DIR_TO_OUT}\'\"
         DEPENDS build_vmmaker_get_image
         COMMENT "Generating VM files for flavour: ${FLAVOUR}")
-    
+
     add_custom_target(vmmaker DEPENDS build_vmmaker_get_image)
     add_custom_target(generate-sources DEPENDS ${VMSOURCEFILES} ${PLUGIN_GENERATED_FILES})
 

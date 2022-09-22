@@ -9,6 +9,8 @@ cmake_minimum_required(VERSION 3.7.2)
 # Use new and simpler escape sequences
 cmake_policy(SET CMP0053 NEW)
 
+add_definitions("-w")
+
 include(macros.cmake)
 
 message(STATUS "CMAKE_GENERATOR=${CMAKE_GENERATOR}")
