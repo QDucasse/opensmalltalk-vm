@@ -4926,15 +4926,12 @@ CogRiscV64Compiler >> instructionIsConditionalZeroBranch: instruction [
 { #category : #'instruction detection' }
 CogRiscV64Compiler >> instructionIsJAL: instruction [
 
-	self flag: #DONE.
 	^ (instruction bitAnd: 16r7F) = 2r1101111.
-
 ]
 
 { #category : #'instruction detection' }
 CogRiscV64Compiler >> instructionIsJALR: instruction [
 
-	self flag: #DONE.
 	"Check bits 12 to 14 null"
 	^ ((instruction >> 12 bitAnd: 16r7) = 0) and: [(instruction bitAnd: 16r7F) = 2r1100111].
 
@@ -4943,21 +4940,18 @@ CogRiscV64Compiler >> instructionIsJALR: instruction [
 { #category : #'instruction detection' }
 CogRiscV64Compiler >> instructionIsLD: instruction [ 
 
-	self flag: #TODO.
 	^ ((instruction >> 12 bitAnd: 2r111) = 2r011) and: [(instruction bitAnd: 2r1111111) = 2r0000011]
 ]
 
 { #category : #'instruction detection' }
 CogRiscV64Compiler >> instructionIsLUI: instruction [
 
-	self flag: #DONE.
 	^ (instruction bitAnd: 16r7F) = 2r0110111.
 ]
 
 { #category : #'instruction detection' }
 CogRiscV64Compiler >> instructionIsNOP: instruction [
 
-	self flag: #DONE.
 	^ ((instruction >> 7 bitAnd: 16rFFFFFF8) = 0) and: [(instruction bitAnd: 16r7F) = 2r0010011].
 
 ]
@@ -4965,14 +4959,12 @@ CogRiscV64Compiler >> instructionIsNOP: instruction [
 { #category : #'instruction detection' }
 CogRiscV64Compiler >> instructionIsSD: instruction [  
 
-	self flag: #DONE.
 	^ ((instruction >> 12 bitAnd: 16r7) = 2r011) and: [(instruction bitAnd: 16r7F) = 2r0100011].
 ]
 
 { #category : #testing }
 CogRiscV64Compiler >> instructionSizeAt: pc [
 	"Answer the instruction size at pc"
-	self flag: #DONE.
 	^4
 ]
 
