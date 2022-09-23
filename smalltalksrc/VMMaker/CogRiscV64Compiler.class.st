@@ -3658,7 +3658,7 @@ CogRiscV64Compiler >> concretizeSubCheckOverflowCqR [
 	"3. Move result to destination register"
 	self machineCodeAt: 12 put: (self 
 		moveRegister: ConcreteOverflowReg toRegister: destReg).
-	^ machineCodeSize := 16
+	^ machineCodeSize := loadOffset + 16
 	
 ]
 
