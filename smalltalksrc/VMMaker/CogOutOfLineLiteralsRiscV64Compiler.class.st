@@ -322,11 +322,10 @@ CogOutOfLineLiteralsRiscV64Compiler >> storeLiteral32: literal beforeFollowingAd
 CogOutOfLineLiteralsRiscV64Compiler >> storeLiteral: literal beforeFollowingAddress: followingAddress [
 	"Rewrite the literal referenced by the instruction immediately preceding followingAddress.
 	 If followingAddress points to an ld instruction, it means it is loading a relative using auipc + ld."
+	self assert: (self instructionIsAUIPC: (self instructionBeforeAddress: followingAddress - 4)).
+	self assert: (self instructionIsLD: (self instructionBeforeAddress: followingAddress)).
 	objectMemory
-		longAt: (self pcRelativeAddressAt:
-					((self instructionIsLD: (self instructionBeforeAddress: followingAddress))
-						ifTrue: [self instructionAddressBefore: followingAddress - 4]
-						ifFalse: [self unreachable.])) 
+		longAt: (self pcRelativeAddressAt: (self instructionAddressBefore: followingAddress - 4))
 		put: literal
 ]
 
