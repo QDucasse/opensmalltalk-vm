@@ -4899,6 +4899,12 @@ CogRiscV64Compiler >> instructionIsAUIPC: instruction [
 ]
 
 { #category : #'instruction detection' }
+CogRiscV64Compiler >> instructionIsB: instruction [
+	^ (instruction bitAnd: 16r7F) = 2r1100011
+
+]
+
+{ #category : #'instruction detection' }
 CogRiscV64Compiler >> instructionIsB: instruction withCondition: condition [
 
 	self flag: #DONE.
@@ -4947,6 +4953,14 @@ CogRiscV64Compiler >> instructionIsLD: instruction [
 CogRiscV64Compiler >> instructionIsLUI: instruction [
 
 	^ (instruction bitAnd: 16r7F) = 2r0110111.
+]
+
+{ #category : #'instruction detection' }
+CogRiscV64Compiler >> instructionIsLinkedJALR: instruction [
+
+	"Check if the destination register is 0"
+	^ ((instruction >> 7 bitAnd: 16r1F) = 0) not
+
 ]
 
 { #category : #'instruction detection' }
@@ -5891,29 +5905,13 @@ CogRiscV64Compiler >> rewriteBTypeBranchAtAddress: mcpc offset: newOffset withCo
 ]
 
 { #category : #'inline cacheing' }
-CogRiscV64Compiler >> rewriteBTypeBranchAtAddress: mcpc target: newTarget withCondition: condition [
-	| newOffset oldInstruction newInstruction srcReg1 srcReg2 |
-	"Format target"
-	newOffset := newTarget - mcpc.
-	"Extract comparison registers from old instruction"
-	oldInstruction := objectMemory uint32AtPointer: mcpc.
-	srcReg1 := (oldInstruction bitAnd: (16r1F << 15)) >> 15.
-	srcReg2 := (oldInstruction bitAnd: (16r1F << 20)) >> 20.
-	
-	"Generate new instruction"
-	newInstruction := self branchTo: newOffset ifCondition: condition betweenRegister: srcReg1 andRegister: srcReg2.
-	
-	objectMemory uint32AtPointer: mcpc put: newInstruction.
-]
-
-{ #category : #'inline cacheing' }
 CogRiscV64Compiler >> rewriteCPICJumpAt: addressFollowingJump target: jumpTargetAddr [
 	"Rewrite a jump instruction to call a different target.  This variant is used to reset the 
 	jumps in the prototype CPIC to suit each use,.   
 	Answer the extent of the code change which is used to compute the range of the icache to flush."
 	<var: #addressFollowingJump type: #usqInt>
 	<var: #jumpTargetAddr type: #usqInt>
-	| callOffset |
+	| callOffset binstr condition |
 	"self CmpR: ClassReg R: TempReg.
 	^self JumpNonZero: 0"
 	
@@ -5924,10 +5922,12 @@ CogRiscV64Compiler >> rewriteCPICJumpAt: addressFollowingJump target: jumpTarget
 	callOffset := jumpTargetAddr - addressFollowingJump + 4.
 	self assertValue: callOffset isContainedIn: 12. 
 	
- 	self assert: (self instructionIsB: (self instructionBeforeAddress: addressFollowingJump) withCondition: NE).
-	self rewriteBTypeBranchAtAddress: addressFollowingJump - 4 offset: callOffset withCondition: NE.
+	binstr :=  self instructionBeforeAddress: addressFollowingJump.
+	condition :=  (binstr >> 12 bitAnd: 16r7).
+ 	self assert: (self instructionIsB: binstr).
+	self rewriteBTypeBranchAtAddress: addressFollowingJump - 4 offset: callOffset withCondition: condition.
 	
-	self assert: (self instructionIsB: (self instructionBeforeAddress: addressFollowingJump) withCondition: NE).
+	self assert: (self instructionIsB: (self instructionBeforeAddress: addressFollowingJump) withCondition: condition).
 	self assert: (self extractOffsetFromConditionalBranch: (self instructionBeforeAddress: addressFollowingJump)) = callOffset.
 
 	^4
@@ -5935,43 +5935,11 @@ CogRiscV64Compiler >> rewriteCPICJumpAt: addressFollowingJump target: jumpTarget
 
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> rewriteCallAt: callSiteReturnAddress target: callTargetAddress [
-	"Rewrite a call/jump instruction to call a different target.  This variant is used to link PICs
-	 in ceSendMiss et al, and to rewrite call/jumps in CPICs. Answer the extent of the code change 
-	 which is used to compute the range of the icache to flush.
-	
-	 auipc offsetHigh 
-	 jalr offsetLow 
-	 ... <-- callSiteReturnAddress"
+	"Rewrite a call instruction to call a different target.  This variant is used to link PICs in ceSendMiss et al,.   
+	 Answer the extent of the code change which is used to compute the range of the icache to flush."
 	<var: #callSiteReturnAddress type: #usqInt>
 	<var: #callTargetAddress type: #usqInt>
-	| callDistance offsetLow offsetHigh |
-	callTargetAddress >= cogit minCallAddress
-		ifFalse: [self error: 'linking callsite to invalid address'].
-
-	callDistance := (callTargetAddress - (callSiteReturnAddress - 8 "return offset")).
-	self assert: (self isInImmediateCallRange: callDistance). "we don't support long call updates, yet"
-
-	self assert: (self instructionIsAUIPC: (self instructionBeforeAddress: callSiteReturnAddress - 4)).
-	self assert: (self instructionIsJALR: (self instructionBeforeAddress: callSiteReturnAddress)).
-	"Need to modify the whole instructions -> auipc + jalr"
-	"This mangling avoid having to bias the 11th bit in case of a negative value
-	 it is also used in loadImmediate:inRegister:"
-	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
-	offsetLow := self computeSignedValue64Bits: (callDistance bitAnd: 16rFFF).
-	offsetHigh := (((self computeSignedValue64Bits: callDistance) + 16r800) >> 12) bitAnd: 16rFFFFF.
-
-	"auipc"
-	objectMemory
-		long32At: (self instructionAddressBefore: callSiteReturnAddress - 4)
-		put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
-	"jalr"
-	objectMemory
-		long32At: (self instructionAddressBefore: callSiteReturnAddress)
-		put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: LR).
-
-	self assert: (self callTargetFromReturnAddress: callSiteReturnAddress) = callTargetAddress.
-
-	^8
+	^self rewriteTransferAt: callSiteReturnAddress target: callTargetAddress
 ]
 
 { #category : #'inline cacheing' }
@@ -6041,39 +6009,11 @@ CogRiscV64Compiler >> rewriteJumpFullAt: jumpFullReturnAddress target: jumpFullT
 
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> rewriteJumpLongAt: jumpReturnAddress target: jumpTargetAddress [
-	"Rewrite a jump instruction to call a different target.  This variant is used to link PICs 
-	 in ceSendMiss et al, and to rewrite jumps in CPICs.
+	"Rewrite a jump instruction to call a different target.  This variant is used to link PICs in ceSendMiss et al, and to rewrite jumps in CPICs.
 	 Answer the extent of the code change which is used to compute the range of the icache to flush."
 	<var: #callSiteReturnAddress type: #usqInt>
 	<var: #callTargetAddress type: #usqInt>
-	| jumpDistance offsetLow offsetHigh instr |
-	jumpTargetAddress >= cogit minCallAddress
-		ifFalse: [self error: 'linking callsite to invalid address'].
-	jumpDistance := (jumpTargetAddress - (jumpReturnAddress - 8 "return offset")).
-	self assert: (self isInLongJumpCallRange: jumpDistance).
-
-	instr := self instructionBeforeAddress: jumpReturnAddress.
-	self assert: (self instructionIsJALR: instr).
-	"Need to modify the whole instructions -> auipc + jalr"
-	
-	"This mangling avoid having to bias the 11th bit in case of a negative value
-	 it is also used in loadImmediate:inRegister:"
-	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
-	offsetLow := self computeSignedValue64Bits: (jumpDistance bitAnd: 16rFFF).
-	offsetHigh := (((self computeSignedValue64Bits: jumpDistance) + 16r800) >> 12) bitAnd: 16rFFFFF.
-
-	"auipc"
-	objectMemory
-		uint32AtPointer: (self instructionAddressBefore: jumpReturnAddress - 4)
-		put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
-	"jalr"
-	objectMemory
-		uint32AtPointer: (self instructionAddressBefore: jumpReturnAddress)
-		put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
-
-	self assert: (self jumpLongTargetBeforeFollowingAddress: jumpReturnAddress) = jumpTargetAddress.
-	
-	^8
+	^self rewriteTransferAt: jumpReturnAddress target: jumpTargetAddress
 ]
 
 { #category : #'concretization helpers' }
@@ -6084,6 +6024,47 @@ CogRiscV64Compiler >> rewriteOpcode: anOpcode with: left with: right [
 		"0 is target"
 		at: 1 put: left;
 		at: 2 put: right
+]
+
+{ #category : #'inline cacheing' }
+CogRiscV64Compiler >> rewriteTransferAt: returnAddress target: targetAddress [
+	"Rewrite a call/jump instruction to call a different target.  This variant is used to link PICs
+	 in ceSendMiss et al, and to rewrite call/jumps in CPICs. Answer the extent of the code change 
+	 which is used to compute the range of the icache to flush.
+	
+	 auipc offsetHigh 
+	 jalr offsetLow 
+	 ... <-- callSiteReturnAddress"
+	<var: #callSiteReturnAddress type: #usqInt>
+	<var: #callTargetAddress type: #usqInt>
+	| callDistance offsetLow offsetHigh destReg |
+	targetAddress >= cogit minCallAddress
+		ifFalse: [self error: 'linking callsite to invalid address'].
+	callDistance := (targetAddress - (returnAddress - 8 "return offset")).
+	self assert: (self isInImmediateCallRange: callDistance). "we don't support long call updates, yet"
+
+	self assert: (self instructionIsAUIPC: (self instructionBeforeAddress: returnAddress - 4)).
+	self assert: (self instructionIsJALR: (self instructionBeforeAddress: returnAddress)).
+	
+	"Need to modify the whole instructions -> auipc + jalr"
+	"This mangling avoid having to bias the 11th bit in case of a negative value
+	 it is also used in loadImmediate:inRegister:"
+	"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
+	offsetLow := self computeSignedValue64Bits: (callDistance bitAnd: 16rFFF).
+	offsetHigh := (((self computeSignedValue64Bits: callDistance) + 16r800) >> 12) bitAnd: 16rFFFFF.
+	destReg := (self instructionIsLinkedJALR: (self instructionBeforeAddress: returnAddress)) ifTrue: [ LR ] ifFalse: [ X0 ].
+	"auipc"
+	objectMemory
+		long32At: (self instructionAddressBefore: returnAddress - 4)
+		put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+	"jalr -> rd will be either ra for a call or x0 for a simple jump (extracted from the previous method)"
+	objectMemory
+		long32At: (self instructionAddressBefore: returnAddress)
+		put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: destReg).
+
+	self assert: (self callTargetFromReturnAddress: returnAddress) = targetAddress.
+
+	^8
 ]
 
 { #category : #'machine code instruction' }
