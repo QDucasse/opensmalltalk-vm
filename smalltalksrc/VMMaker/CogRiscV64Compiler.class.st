@@ -5898,6 +5898,20 @@ CogRiscV64Compiler >> returnFromCallCFunctionInSmalltalkStack: anObject [
 ]
 
 { #category : #'inline cacheing' }
+CogRiscV64Compiler >> rewriteBTypeBranchAtAddress: mcpc offset: newOffset withCondition: condition [
+	| oldInstruction newInstruction srcReg1 srcReg2 |
+	"Extract comparison registers from old instruction"
+	oldInstruction := objectMemory uint32AtPointer: mcpc.
+	srcReg1 := (oldInstruction bitAnd: (16r1F << 15)) >> 15.
+	srcReg2 := (oldInstruction bitAnd: (16r1F << 20)) >> 20.
+	
+	"Generate new instruction"
+	newInstruction := self branchTo: newOffset ifCondition: condition betweenRegister: srcReg1 andRegister: srcReg2.
+	
+	objectMemory uint32AtPointer: mcpc put: newInstruction.
+]
+
+{ #category : #'inline cacheing' }
 CogRiscV64Compiler >> rewriteBTypeBranchAtAddress: mcpc target: newTarget withCondition: condition [
 	| newOffset oldInstruction newInstruction srcReg1 srcReg2 |
 	"Format target"
@@ -5920,20 +5934,20 @@ CogRiscV64Compiler >> rewriteCPICJumpAt: addressFollowingJump target: jumpTarget
 	Answer the extent of the code change which is used to compute the range of the icache to flush."
 	<var: #addressFollowingJump type: #usqInt>
 	<var: #jumpTargetAddr type: #usqInt>
-	self flag: #DONE.
+	| callOffset |
 	"self CmpR: ClassReg R: TempReg.
 	^self JumpNonZero: 0"
 	
-	"bne s5, s3, +156
+	"bne r1, r2, offset
 	 .... <-- addressFollowingJump"
- 	self assert: (self instructionIsB: (self instructionBeforeAddress: addressFollowingJump) withCondition: NE).
-	"cogit disassembleFrom: addressFollowingJump - 8 to: addressFollowingJump."
+	callOffset := jumpTargetAddr - addressFollowingJump + 4.
+	self assertValue: callOffset isContainedIn: 12. 
 	
-	self rewriteBTypeBranchAtAddress: addressFollowingJump - 4 target: jumpTargetAddr withCondition: NE.
+ 	self assert: (self instructionIsB: (self instructionBeforeAddress: addressFollowingJump) withCondition: NE).
+	self rewriteBTypeBranchAtAddress: addressFollowingJump - 4 offset: callOffset withCondition: NE.
 	
 	self assert: (self instructionIsB: (self instructionBeforeAddress: addressFollowingJump) withCondition: NE).
-	self assert: (self extractOffsetFromConditionalBranch: (self instructionBeforeAddress: addressFollowingJump)) = (jumpTargetAddr - addressFollowingJump + 4).
-	"cogit disassembleFrom: addressFollowingJump - 4 to: addressFollowingJump."
+	self assert: (self extractOffsetFromConditionalBranch: (self instructionBeforeAddress: addressFollowingJump)) = callOffset.
 
 	^4
 ]
