@@ -363,8 +363,8 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[CmpCqR]               -> [^ (self value: (operands at: 0) isContainedIn: 11) not]. "uses load immediate"
 		[CmpC32R]              -> [^ true]. 
 		[OrCqR]                -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
-		[SubCqR]               -> [^ (self value: (operands at: 0) negated isContainedIn: 12) not]. 
-	   [SubCheckOverflowCqR ] -> [^ (self value: (operands at: 0) negated isContainedIn: 12) not]. 
+		[SubCqR]               -> [^ (self value: ((operands at: 0) negated) isContainedIn: 12) not]. 
+	   [SubCheckOverflowCqR ] -> [^ (self value: ((operands at: 0) negated) isContainedIn: 12) not]. 
 		[TstCqR]               -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
 		[XorCqR]               -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
 		[LoadEffectiveAddressMwrR] -> [^ (self value: (operands at: 0) isContainedIn: 12) not]. 

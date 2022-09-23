@@ -889,17 +889,6 @@ CogRiscV64Compiler >> bytesForArithmeticFlagUpdate [
 ]
 
 { #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForArithmeticFlagUpdateWithMov [
-	"Return the number of bytes needed to update the flags, 
-     zero flag setting 
-     carry flag setting 
-     sign flag setting
-	  move result to destination"
-	self flag: #TODO.
-	^ 16
-]
-
-{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> bytesForCMPCq [
 	
 	| loadOffset | 
@@ -934,13 +923,6 @@ CogRiscV64Compiler >> bytesForDataStoreOperationOfSize: operationSize andImmedia
 			self assertValue: (operands at: 1) isContainedIn: 12.
 			^ immOperationSize ].
 	^ self literalLoadInstructionBytes + operationSize 
-]
-
-{ #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForFloatingPointSUBOverflowCheck [ 
-
-	self flag: #TODO.
-	^ 16
 ]
 
 { #category : #'concretization helpers - mc size' }
@@ -1098,7 +1080,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ AddCheckOverflowRR ]       -> [ ^ 16 ]).
 			([ AddCheckOverflowCqR ]      -> [ dependent ifNil: [ ^ 16 ]. ^ self literalLoadInstructionBytes + 16 ]).
 			([ SubCheckOverflowRR ]       -> [ ^ 16 ]).
-			([ SubCheckOverflowCqR ]      -> [  dependent ifNil: [ ^ 16 ]. ^ self literalLoadInstructionBytes + 16 ]).
+			([ SubCheckOverflowCqR ]      -> [ dependent ifNil: [ ^ 16 ]. ^ self literalLoadInstructionBytes + 16 ]).
 			([ MulCheckOverflowRR ]       -> [ ^ 16 ]).	
 				
 			"Control"
@@ -3619,6 +3601,7 @@ CogRiscV64Compiler >> concretizeSubCheckOverflowCqR [
 	srcReg := destReg := operands at: 1.
 	"Perform the SUB operation"
 	dependent ifNil: [ 
+		self assertValue: cq negated isContainedIn: 12.
 		self machineCodeAt: 0 put: (self
 			addImmediate: cq negated
 			toRegister:  srcReg
@@ -3637,26 +3620,25 @@ CogRiscV64Compiler >> concretizeSubCheckOverflowCqR [
 		self machineCodeAt: 12 put: (self 
 			moveRegister: ConcreteOverflowReg toRegister: destReg).
 		^ machineCodeSize := 16 ].
-	
 	"Otherwise, use the provided literal"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
 	"Perform the SUB operation"
-	self machineCodeAt: 0 put: (self
+	self machineCodeAt: loadOffset put: (self
 		subtractRegister: ConcreteIPReg
 		fromRegister:  srcReg
 		intoRegister: ConcreteOverflowReg).
 	"1. Check if one operand is negative, OR EQUAL TO ZERO"
-	self machineCodeAt: 4 put: (self 
+	self machineCodeAt: loadOffset + 4 put: (self 
 		setOneIn: ConcreteIPReg2 
 		ifValueIn: ConcreteIPReg
 		isLessThanImmediate: 1). 
 	"2. Check if the sum is smaller than one operand"
-	self machineCodeAt: 8 put: (self 
+	self machineCodeAt: loadOffset + 8 put: (self 
 		setOneIn: ConcreteIPReg3 
 		ifValueIn: ConcreteOverflowReg 
 		isLessThanValueIn: srcReg).
 	"3. Move result to destination register"
-	self machineCodeAt: 12 put: (self 
+	self machineCodeAt: loadOffset + 12 put: (self 
 		moveRegister: ConcreteOverflowReg toRegister: destReg).
 	^ machineCodeSize := loadOffset + 16
 	
