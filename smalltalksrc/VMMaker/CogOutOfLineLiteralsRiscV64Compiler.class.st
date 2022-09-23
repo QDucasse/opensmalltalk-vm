@@ -11,8 +11,6 @@ CogOutOfLineLiteralsRiscV64Compiler class >> literalsManagerClass [
 
 { #category : #accessing }
 CogOutOfLineLiteralsRiscV64Compiler >> cmpC32RTempByteSize [
-	
-	self flag: #TODO.
 	^ 8
 ]
 
@@ -225,7 +223,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> rewriteFullTransferAt: callSiteReturnAddr
 	 Answer the extent of the code change which is used to compute the range of the icache to flush."
 	<var: #callSiteReturnAddress type: #usqInt>
 	<var: #callTargetAddress type: #usqInt>
-	"1halt."
 	self assert: (self instructionBeforeAddress: callSiteReturnAddress) = expectedInstruction.
 	objectMemory longAt: (self pcRelativeAddressAt: callSiteReturnAddress - 12) put: callTargetAddress.
 	"self cCode: ''
@@ -237,13 +234,21 @@ CogOutOfLineLiteralsRiscV64Compiler >> rewriteFullTransferAt: callSiteReturnAddr
 CogOutOfLineLiteralsRiscV64Compiler >> rewriteInlineCacheAt: callSiteReturnAddress tag: cacheTag target: callTargetAddress [
 	"Rewrite an inline cache to call a different target for a new tag.  This variant is used
 	 to link unlinked sends in ceSend:to:numArgs: et al.  Answer the extent of the code
-	 change which is used to compute the range of the icache to flush."
+	 change which is used to compute the range of the icache to flush.
+	
+	 Call:
+	 auipc offsetHigh 
+	 jalr offsetLow 
+	 ... <-- callSiteReturnAddress
+	
+	 Cache:
+	 cacheTag <-- pcRelativeAddress from call"
 	<var: #callSiteReturnAddress type: #usqInt>
 	<var: #callTargetAddress type: #usqInt>
 	| codeChange |
-	"1halt."
-	self flag: #TODO.
+	"Patch call"
 	codeChange := self rewriteCallAt: callSiteReturnAddress target: callTargetAddress.
+	"Patch tag referenced by earlier call"
 	objectMemory
 		longAt: (self pcRelativeAddressAt: callSiteReturnAddress - self callInstructionByteSize - self loadLiteralByteSize) 
 		put: cacheTag signedIntToLong64.
@@ -256,11 +261,10 @@ CogOutOfLineLiteralsRiscV64Compiler >> rewriteInlineCacheAt: callSiteReturnAddre
 
 { #category : #'inline cacheing' }
 CogOutOfLineLiteralsRiscV64Compiler >> rewriteInlineCacheTag: cacheTag at: callSiteReturnAddress [
-	"Rewrite an inline cache with a new tag.  This variant is used
-	 by the garbage collector."
+	"Rewrite an inline cache with a new tag.  This variant is used by the garbage collector."
 	<inline: true>
 	self flag: #TODO.
-	"1halt."
+	1halt.
 	objectMemory longAt: (self pcRelativeAddressAt: callSiteReturnAddress - 8) put: cacheTag
 ]
 
@@ -315,25 +319,19 @@ CogOutOfLineLiteralsRiscV64Compiler >> sizePCDependentInstructionAt: eventualAbs
 
 { #category : #'inline cacheing' }
 CogOutOfLineLiteralsRiscV64Compiler >> storeLiteral32: literal beforeFollowingAddress: followingAddress [
-	"Rewrite the literal in the instruction immediately preceding followingAddress.
-	 On RISC-V, this means rewrite the CMP (4 instructions) that each hold a different offset"
-	| newInstructions |
-	self flag: #TODO.
-	"1halt."
+	"Rewrite the literal in the instruction immediately preceding followingAddress"
 	^ self storeLiteral: literal beforeFollowingAddress: followingAddress
 ]
 
 { #category : #'inline cacheing' }
 CogOutOfLineLiteralsRiscV64Compiler >> storeLiteral: literal beforeFollowingAddress: followingAddress [
 	"Rewrite the literal referenced by the instruction immediately preceding followingAddress.
-	 If followingAddress points to an ld instruction, it means it is loading a relative using auipc + ld.
-	 If not, it is comparing to a given literal and is performing auipc + ld + cmp (expands to several instructions in riscv)"
-	self flag: #TODO.
+	 If followingAddress points to an ld instruction, it means it is loading a relative using auipc + ld."
 	objectMemory
 		longAt: (self pcRelativeAddressAt:
 					((self instructionIsLD: (self instructionBeforeAddress: followingAddress))
 						ifTrue: [self instructionAddressBefore: followingAddress - 4]
-						ifFalse: [self instructionAddressBefore: followingAddress + 4 - self cmpC32RTempByteSize])) 
+						ifFalse: [self unreachable.])) 
 		put: literal
 ]
 

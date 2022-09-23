@@ -5939,7 +5939,9 @@ CogRiscV64Compiler >> rewriteCPICJumpAt: addressFollowingJump target: jumpTarget
 	^self JumpNonZero: 0"
 	
 	"bne r1, r2, offset
-	 .... <-- addressFollowingJump"
+	 .... <-- addressFollowingJump
+	 
+	 ...  <-- jumpTargetAddress"
 	callOffset := jumpTargetAddr - addressFollowingJump + 4.
 	self assertValue: callOffset isContainedIn: 12. 
 	
@@ -5955,22 +5957,23 @@ CogRiscV64Compiler >> rewriteCPICJumpAt: addressFollowingJump target: jumpTarget
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> rewriteCallAt: callSiteReturnAddress target: callTargetAddress [
 	"Rewrite a call/jump instruction to call a different target.  This variant is used to link PICs
-	 in ceSendMiss et al, and to rewrite call/jumps in CPICs.
-	Answer the extent of
-	 the code change which is used to compute the range of the icache to flush."
+	 in ceSendMiss et al, and to rewrite call/jumps in CPICs. Answer the extent of the code change 
+	 which is used to compute the range of the icache to flush.
+	
+	 auipc offsetHigh 
+	 jalr offsetLow 
+	 ... <-- callSiteReturnAddress"
 	<var: #callSiteReturnAddress type: #usqInt>
 	<var: #callTargetAddress type: #usqInt>
-	| callDistance offsetLow offsetHigh instr |
-
-	self flag: #TODO.
+	| callDistance offsetLow offsetHigh |
 	callTargetAddress >= cogit minCallAddress
 		ifFalse: [self error: 'linking callsite to invalid address'].
 
 	callDistance := (callTargetAddress - (callSiteReturnAddress - 8 "return offset")).
 	self assert: (self isInImmediateCallRange: callDistance). "we don't support long call updates, yet"
 
-	instr := self instructionBeforeAddress: callSiteReturnAddress.
-	self assert: (self instructionIsJALR: instr).
+	self assert: (self instructionIsAUIPC: (self instructionBeforeAddress: callSiteReturnAddress - 4)).
+	self assert: (self instructionIsJALR: (self instructionBeforeAddress: callSiteReturnAddress)).
 	"Need to modify the whole instructions -> auipc + jalr"
 	"This mangling avoid having to bias the 11th bit in case of a negative value
 	 it is also used in loadImmediate:inRegister:"
@@ -6002,14 +6005,13 @@ CogRiscV64Compiler >> rewriteCallFullAt: callSiteReturnAddress target: callTarge
 	"This is the assembled instruction jr ip. 
 	 This will break if we change the assignment of registers
 	 It can be obtained with 
-		self jumpTo: ConcreteIPReg withOffset: 0 andStorePreviousPCPlus4in: LR"
+		CogRiscV64Compiler new jumpTo: ConcreteIPReg withOffset: 0 andStorePreviousPCPlus4in: LR"
 
 	<inline: true>
-	self flag: #TODO.
 	^ self
-		rewriteFullTransferAt: callSiteReturnAddress
+		rewriteFullTransferAt: callSiteReturnAddress 
 		target: callTargetAddress
-		expectedInstruction: 16rE12FFF3C
+		expectedInstruction: 16r000280E7 "16r000280E7 riscv64Disassembled -> nil:	jalr t0 "
 ]
 
 { #category : #'inline cacheing' }
@@ -6048,10 +6050,9 @@ CogRiscV64Compiler >> rewriteJumpFullAt: jumpFullReturnAddress target: jumpFullT
 	"This is the assembled instruction jr ip. 
 	 This will break if we change the assignment of registers
 	 It can be obtained with 
-		self jumpToRegisterValue: ConcreteIPReg."
+		CogRiscV64Compiler new jumpToRegisterValue: ConcreteIPReg."
 		
 	<inline: true>
-	self flag: #TODO.
 	^ self
 		rewriteFullTransferAt: jumpFullReturnAddress 
 		target: jumpFullTargetAddress
@@ -6067,7 +6068,6 @@ CogRiscV64Compiler >> rewriteJumpLongAt: jumpReturnAddress target: jumpTargetAdd
 	<var: #callSiteReturnAddress type: #usqInt>
 	<var: #callTargetAddress type: #usqInt>
 	| jumpDistance offsetLow offsetHigh instr |
-	self flag: #TODO.
 	jumpTargetAddress >= cogit minCallAddress
 		ifFalse: [self error: 'linking callsite to invalid address'].
 	jumpDistance := (jumpTargetAddress - (jumpReturnAddress - 8 "return offset")).
