@@ -46,16 +46,13 @@ CogOutOfLineLiteralsRiscV64Compiler >> concretizeLiteral [
 CogOutOfLineLiteralsRiscV64Compiler >> concretizeMovePatcheableC32R [
 	
 	| literalAddress distance |
-	
-	self flag: #TODO.
-	"self assert: dependent isNotNil."
 	literalAddress := (cogit cCoerceSimple: dependent to: #'AbstractInstruction *') address.
 	distance := literalAddress - address.
 	self machineCodeAt: 0 put: (self addUpperImmediateToPC: 0 toRegister: ConcreteIPReg).
 	self machineCodeAt: 4 put: (self
-					 loadDoubleWordFromAddressInRegister: ConcreteIPReg
-					 withOffset: distance
-					 toRegister: (operands at: 1)).
+	  loadDoubleWordFromAddressInRegister: ConcreteIPReg
+	  withOffset: distance
+     toRegister: (operands at: 1)).
 	^ machineCodeSize := 8
 ]
 
@@ -194,20 +191,20 @@ CogOutOfLineLiteralsRiscV64Compiler >> relocateMethodReferenceBeforeAddress: pc 
 	 or a register load.  If a push, then there is a register load, but in the instruction
 	 before."
 	| pcFollowingLoad reference litAddr |
-	self flag: #TODO.
-	"A push expands to addi sp -8 then sd rd 0(sp)"
-	pcFollowingLoad := ((self instructionIsSD: (self instructionBeforeAddress: pc)) and: 
-								[self instructionIsADDI: (self instructionBeforeAddress: pc - 4)])
-							ifTrue: [pc-8]
-							ifFalse: [pc].
+	"PushCw expands to addi sp -8 then sd rd 0(sp)"
+	pcFollowingLoad := ((self instructionIsADDI: (self instructionBeforeAddress: pc - 4)) and: 
+								[ self instructionIsSD: (self instructionBeforeAddress: pc) ])
+							ifTrue:  [ pc-8 ]
+							ifFalse: [ pc ].
 	"If the load is not done via pc-relative addressing we have to relocate."
-	(self isRelativeLiteralLoad: pcFollowingLoad) 
-		ifTrue: "auipc + sd"
+	(self isLiteralLoad: pcFollowingLoad) 
+		ifTrue: "auipc + ld"
 			[litAddr := self pcRelativeAddressAt: pcFollowingLoad - self loadLiteralByteSize.
-		 	reference := objectMemory long64At: litAddr.
-		 	objectMemory long64At: litAddr put: reference + delta - 4]
+		 	 reference := objectMemory long64At: litAddr.
+		    objectMemory long64At: litAddr put: reference + delta - 4]
 		ifFalse: "auipc + addi"
-			[ self assert: (self instructionIsAUIPC: (self instructionBeforeAddress: pcFollowingLoad - 4)). 
+			[ "no need to relocate"
+			  self assert: (self instructionIsAUIPC: (self instructionBeforeAddress: pcFollowingLoad - 4)). 
 		     self assert: (self instructionIsADDI: (self instructionBeforeAddress: pcFollowingLoad)) ]
 	
 
@@ -263,8 +260,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> rewriteInlineCacheAt: callSiteReturnAddre
 CogOutOfLineLiteralsRiscV64Compiler >> rewriteInlineCacheTag: cacheTag at: callSiteReturnAddress [
 	"Rewrite an inline cache with a new tag.  This variant is used by the garbage collector."
 	<inline: true>
-	self flag: #TODO.
-	1halt.
 	objectMemory longAt: (self pcRelativeAddressAt: callSiteReturnAddress - 8) put: cacheTag
 ]
 
@@ -377,7 +372,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[MoveCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 11) not]. "11 because uses loadImmediate:inRegister:"
 		[MoveC32R]  -> [ self shouldBeImplemented ].
 		"Data Movement - Absolute addresses"
-		[MoveCwR]		-> [^(self inCurrentCompilation: (operands at: 0)) not].
+		[MoveCwR]		-> [^ (self inCurrentCompilation: (operands at: 0)) not].
 		[MoveAwR]		-> [^(self isAddressRelativeToVarBase: (operands at: 0)) not].
 		[MoveRAw]		-> [^(self isAddressRelativeToVarBase: (operands at: 1)) not].
 		[MoveAbR]		-> [^(self isAddressRelativeToVarBase: (operands at: 0)) not].
@@ -399,7 +394,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[MoveM32rRs]	-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
 		[MoveM64rRd]	-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
 								
-		[PushCw]		-> [^(self inCurrentCompilation: (operands at: 0)) not].
+		[PushCw]		-> [^ (self inCurrentCompilation: (operands at: 0)) not].
 		[PushCq]		-> [^(self value: (operands at: 0) isContainedIn: 11) not]. "11 because uses loadImmediate:"
 		[PrefetchAw] 	-> [^(self isAddressRelativeToVarBase: (operands at: 0)) not].
 

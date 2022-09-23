@@ -964,10 +964,10 @@ CogRiscV64Compiler >> callInstructionByteSize [
 CogRiscV64Compiler >> callTargetFromReturnAddress: callSiteReturnAddress [
 	
 	"Answer the address that the call immediately preceding callSiteReturnAddress will jump to."
-	| callAddress callInstruction callDistance |
+	| callAddress callDistance |
 	callAddress := self instructionAddressBefore: callSiteReturnAddress.
-	callInstruction := objectMemory long32At: callAddress.
-	self assert: (self instructionIsJALR: callInstruction).
+	self assert: (self instructionIsAUIPC:  (objectMemory long32At: callAddress - 4)).
+	self assert: (self instructionIsJALR:  (objectMemory long32At: callAddress)).
 	callDistance := self extractOffsetFromCall: callAddress.
 	^ callAddress + callDistance - 4
 	
@@ -5050,10 +5050,8 @@ CogRiscV64Compiler >> isJumpAt: pc [
 ]
 
 { #category : #testing }
-CogRiscV64Compiler >> isRelativeLiteralLoad: followingAddress [
-	
-	"Need renaming"
-	self flag: #TODO.	
+CogRiscV64Compiler >> isLiteralLoad: followingAddress [
+	"auipc ld"
 	^ (self instructionIsAUIPC: (self instructionBeforeAddress: followingAddress - 4)) 
 		and: [self instructionIsLD: (self instructionBeforeAddress: followingAddress)]
 ]
@@ -5269,33 +5267,20 @@ CogRiscV64Compiler >> loadCwInto: destReg [
 	self
 		cCode: [  ]
 		inSmalltalk: [ operand := operand bitAnd: 16rFFFFFFFF ]. "Need to clamp the value to a word size since one or two usages actually generate double sized values and rely upon the C code to narrow it within the running VM"
-	(self isAnInstruction:
-		 (cogit cCoerceSimple: operand to: #'AbstractInstruction *')) 
-		ifTrue: [ 
-			operand := (cogit
-				            cCoerceSimple: operand
-				            to: #'AbstractInstruction *') address ].
+	(self isAnInstruction: (cogit cCoerceSimple: operand to: #'AbstractInstruction *')) 
+		ifTrue: [ operand := (cogit cCoerceSimple: operand to: #'AbstractInstruction *') address ].
 	"Try to encode the Cw as a pc-relative first"
 	(cogit addressIsInCurrentCompilation: operand)
 		ifTrue: [ 
 			distance := operand signedIntFromLong - address signedIntFromLong.
 			"Check if the absolute distance fits in 12 bits or produce a way to split the distance between the two instructions
-		 https://forums.sifive.com/t/bit-11-of-jalr-sign-extened-for-call-auipc-jalr/1950"
-			self
-				assertValue: distance isContainedIn: 32.
-					"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
+		    https://forums.sifive.com/t/bit-11-of-jalr-sign-extened-for-call-auipc-jalr/1950"
+			self assertValue: distance isContainedIn: 32.
+			"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
 			offsetLow := self computeSignedValue64Bits: (distance  bitAnd: 16rFFF).
 			offsetHigh := (((self computeSignedValue64Bits: distance) + 16r800) >> 12) bitAnd: 16rFFFFF.
-			self
-				machineCodeAt: 0
-				put: (self addUpperImmediateToPC: offsetHigh toRegister: destReg).
-			self
-				machineCodeAt: 4
-				put:
-				(self
-					 addImmediate: offsetLow
-					 toRegister: destReg
-					 inRegister: destReg).
+			self machineCodeAt: 0 put: (self addUpperImmediateToPC: offsetHigh toRegister: destReg).
+			self machineCodeAt: 4 put: (self addImmediate: offsetLow toRegister: destReg inRegister: destReg).
 			^ machineCodeSize := 8 ].
 	"Otherwise, load the literal in a register"
 	^ self loadLiteralInRegister: destReg
@@ -5367,7 +5352,6 @@ CogRiscV64Compiler >> loadImmediate: immediate inRegister: destReg [
 { #category : #'machine code instruction' }
 CogRiscV64Compiler >> loadLiteralInRegister: destReg [
 
-	self flag: #TODO.
 	^ self loadLiteralInRegister: destReg startingAtIndex: 0 
 ]
 
@@ -5378,9 +5362,6 @@ CogRiscV64Compiler >> loadLiteralInRegister: destReg startingAtIndex: index [
 	"Compute the distance from the current address
 	- auipc to get the PC
 	- ld    to load relative to the PC"
-	self flag: #DONE.
-	"Several guard are checked"
-	"self assert: dependent isNotNil."
 	self assert: dependent opcode = Literal.
 	self assert: (cogit addressIsInCurrentCompilation: dependent address).
 	literalAddress := (cogit cCoerceSimple: dependent to: #'AbstractInstruction *') address.
@@ -5834,7 +5815,7 @@ CogRiscV64Compiler >> padIfPossibleWithStopsFrom: startAddr to: endAddr [
 { #category : #'calling C function in Smalltalk stack' }
 CogRiscV64Compiler >> prepareStackToCallCFunctionInSmalltalkStack: anObject [ 
 
-	self flag: #TODO.
+	self flag: #stack.
 	cogit MoveR: SPReg R: Extra2Reg.
 	cogit AndCq: ((1 << 64) - 16) R: Extra2Reg. 
 	cogit MoveR: Extra2Reg R: SP.
@@ -5842,8 +5823,7 @@ CogRiscV64Compiler >> prepareStackToCallCFunctionInSmalltalkStack: anObject [
 
 { #category : #accessing }
 CogRiscV64Compiler >> pushLinkRegisterByteSize [
-	
-	self flag: #TODO.
+
 	^8
 ]
 
@@ -5853,9 +5833,9 @@ CogRiscV64Compiler >> relocateCallBeforeReturnPC: retpc by: delta [
 	| offset |
 	"1halt."
 	self assert: delta \\ 4 = 0.
-	delta ~= 0 ifTrue:
-		[ offset := self callTargetFromReturnAddress: retpc.
-		  self rewriteCallAt: retpc target: offset + delta]
+	delta = 0 ifTrue: [ ^ self ].
+   offset := self callTargetFromReturnAddress: retpc.
+   self rewriteCallAt: retpc target: offset + delta
 ]
 
 { #category : #'machine code instruction' }
@@ -5885,7 +5865,6 @@ CogRiscV64Compiler >> remainderOfDivisionRegisterValue: srcReg1 byRegisterValue:
 CogRiscV64Compiler >> ret [
 	
 	"ret: Pseudoinstruction that expands to jalr, x0, 0(x1)"
-	self flag: #DONE.
    ^ self jumpTo: LR  withOffset: 0 andStorePreviousPCPlus4in: X0
 	
 ]
