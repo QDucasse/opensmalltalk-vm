@@ -848,29 +848,6 @@ CogRiscV64Compiler >> byteReadsZeroExtend [
 ]
 
 { #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForArithmeticFlagUpdate [ 
-	"Return the number of bytes needed to update the flags, 
-     zero flag setting 
-     carry flag setting 
-     sign flag setting"
-	self flag: #TODO.
-	^ 12
-]
-
-{ #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForCMPCq [
-	
-	| loadOffset | 
-	self flag: #TODO.
-	(self value: (operands at: 0) isContainedIn: 12)
-		ifTrue: [ loadOffset := self bytesToLoadImmediate: (operands at: 0) ] "Immediate embedded in operations" 
-		ifFalse: [ loadOffset := self literalLoadInstructionBytes ].
-	^ loadOffset + self bytesForSUBOverflowCheck + self bytesForArithmeticFlagUpdate + 4
-
-	
-]
-
-{ #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> bytesForDataLoadOperationOfSize: operationSize andImmediateOperationSize: immOperationSize [
 	
 	"When loading, the offset is operands at 0"
@@ -892,13 +869,6 @@ CogRiscV64Compiler >> bytesForDataStoreOperationOfSize: operationSize andImmedia
 			self assertValue: (operands at: 1) isContainedIn: 12.
 			^ immOperationSize ].
 	^ self literalLoadInstructionBytes + operationSize 
-]
-
-{ #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesForSUBOverflowCheck [ 
-
-	self flag: #TODO.
-	^ 16
 ]
 
 { #category : #'concretization helpers - mc size' }
@@ -954,53 +924,6 @@ CogRiscV64Compiler >> canDivQuoRem [
 CogRiscV64Compiler >> canMulRR [
 "we can do a MulRR be we can't simulate it correctly for some reason. More bug-fixing in the simulator one day"
 	^true
-]
-
-{ #category : #concretization }
-CogRiscV64Compiler >> checkSUBFloatingPointOverflowWithSourceReg1: srcReg1 sourceReg2: srcReg2 andResultReg: destReg startingAtIndex: index [
-	"Check for the overflow
-	 sub    res,  src1,  src2 
-  	 fcvt   tfp,  x0,    tfp      # put 0 in tfp  
-	 flt.d  t1,   src2,  tfp      # t1 = (src2 < 0)
-    flt.d  t2,   res,   src1     # t2 = (src1 - src2 < res)
-    bne    t1,   t2,    offset   # overflow if (src2 < 0) && (src1 + src2 < res)    case 1 1 (underflow)
-                                            || (src2 >= 0) && (src1 + src2 >= res)  case 0 0 (overflow) 
-
-	Except the branching is a verification for equality (not equal => overflow)"
-	self flag: #TODO.
-	"As there is no hardwire fp zero we need to get one by converting X0"
-	self machineCodeAt: index put: (self fConvertLongSignedInRegister: X0 toDoublePrecisionInRegister: ConcreteIPFPReg).
-	"1. Check if one operand is negative"
-	self machineCodeAt: index + 4 put: (self fSetOneIn: ConcreteIPReg2 ifRegisterValue: srcReg2 isLessThanRegisterValue: ConcreteIPFPReg).
-	"2. Check if the sum is smaller than one operand"
-	self machineCodeAt: index + 8 put: (self fSetOneIn: ConcreteIPReg3 ifRegisterValue: destReg isLessThanRegisterValue: srcReg1).
-	"Check if both registers are equal -> xor and complement"
-	self machineCodeAt: index + 12 put: (self bitwiseXorBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 inRegister: ConcreteOverflowReg).
-	^ machineCodeSize := 16
-	  
-]
-
-{ #category : #concretization }
-CogRiscV64Compiler >> checkSUBOverflowWithSourceReg1: srcReg1 sourceReg2: srcReg2 andResultReg: destReg startingAtIndex: index [
-	"Check for the overflow, as according to the example in the book: 
-	 sub   res,  src1,  src2    # res = src1 - src2 
-    slti  t1,   src2,  0       # t1 = (src2 < 0)
-    slt   t2,   res,   src1    # t2 = (src1 - src2 < res)
-    be    t1,   t2,    offset  # overflow if (src2 < 0) && (src1 + src2 < res)    case 1 1 (overflow)
-                                          || (src2 >= 0) && (src1 + src2 >= res)  case 0 0 (underflow) 
-
-	As we will not branch directly, we need to check if the two conditions are equal 
-	and set the overflow flag acordingly: different => no overflow"
-	self flag: #TODO.
-   "1. Check if one operand is negative, OR EQUAL TO ZERO"
-	self machineCodeAt: index put: (self setOneIn: ConcreteIPReg2 ifValueIn: srcReg2 isLessThanImmediate: 1). 
-	"2. Check if the sum is smaller than one operand"
-	self machineCodeAt: index + 4 put: (self setOneIn: ConcreteIPReg3 ifValueIn: destReg isLessThanValueIn: srcReg1).
-	"Put one if t2 = t3, xor and complement"
-	self machineCodeAt: index + 8 put: (self bitwiseXorBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 inRegister: ConcreteOverflowReg).
-	self machineCodeAt: index + 12 put: (self setOneIn: ConcreteOverflowReg ifValueInRegisterIsEqualToZero: ConcreteOverflowReg).
-	^ machineCodeSize := 16 
-	  
 ]
 
 { #category : #accessing }
@@ -2057,7 +1980,7 @@ CogRiscV64Compiler >> concretizeDivRR [
 	self machineCodeAt: 0 put: (self 
 		divideRegisterValue: regNumerator 
 		byRegisterValue: regDenominator  
-		intoRegister: regDestination).
+		inRegister: regDestination).
 	^ machineCodeSize := 4
 ]
 
@@ -2466,8 +2389,7 @@ CogRiscV64Compiler >> concretizeMoveAbR [
 	 Tries to use var base first otherwise use the provided literal"
 	
 	<inline: true>
-	| srcAddr destReg instrOffset |
-	self flag: #TODO.
+	| srcAddr destReg loadOffset |
 	srcAddr := operands at: 0.
 	destReg := operands at: 1.
 	(self isAddressRelativeToVarBase: srcAddr) ifTrue: [ "Direct encoding as offset"
@@ -2478,13 +2400,12 @@ CogRiscV64Compiler >> concretizeMoveAbR [
 		^ machineCodeSize := 4 ].
 
 	"Use the provided literal"
-	instrOffset := self loadLiteralInRegister: ConcreteIPReg.
-
-	self machineCodeAt: instrOffset put: (self
+	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
+	self machineCodeAt: loadOffset put: (self
 			 loadUnsignedByteFromAddressInRegister: ConcreteIPReg
 			 withOffset: 0
 			 toRegister: destReg).
-	^ machineCodeSize := instrOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
@@ -2494,8 +2415,7 @@ CogRiscV64Compiler >> concretizeMoveAwR [
 	 Tries to use var base first otherwise use the provided literal"
 
 	<inline: true>
-	| srcAddr destReg instrOffset |
-	self flag: #TODO.
+	| srcAddr destReg loadOffset |
 	srcAddr := operands at: 0.
 	destReg := operands at: 1.
 	(self isAddressRelativeToVarBase: srcAddr) ifTrue: [ "Direct encoding as offset"
@@ -2506,14 +2426,13 @@ CogRiscV64Compiler >> concretizeMoveAwR [
 		^ machineCodeSize := 4 ].
 
 	"load the address into ConcreteIPReg"
-	instrOffset := self loadLiteralInRegister: ConcreteIPReg.
-
-	self machineCodeAt: instrOffset put: (self
+	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
+	self machineCodeAt: loadOffset put: (self
 			 loadDoubleWordFromAddressInRegister: ConcreteIPReg
 			 withOffset: 0
 			 toRegister: destReg).
 
-	^ machineCodeSize := instrOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
@@ -2556,8 +2475,7 @@ CogRiscV64Compiler >> concretizeMoveM16rR [
 
 	<inline: true>
 	<var: #cq type: #sqInt>
-	| baseReg offset destReg instrOffset |
-	self flag: #TODO.
+	| baseReg offset destReg loadOffset |
 	offset := operands at: 0.
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
@@ -2570,18 +2488,18 @@ CogRiscV64Compiler >> concretizeMoveM16rR [
 				toRegister: destReg). 
 			^ machineCodeSize := 4 ].
 	"Use the provided literal"
-	instrOffset := self loadLiteralInRegister: ConcreteIPReg.
+	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
 	"Add the offset to the base address register"
-	self machineCodeAt: instrOffset put: (self 
+	self machineCodeAt: loadOffset put: (self 
 			addRegister: baseReg 
 			toRegister: ConcreteIPReg 
 			inRegister: ConcreteIPReg).
 	"Load the value"
-	self machineCodeAt: instrOffset + 4 put: (self
+	self machineCodeAt: loadOffset + 4 put: (self
 			loadUnsignedHalfWordFromAddressInRegister: ConcreteIPReg  
 			withOffset: 0 
 			toRegister: destReg).
-	^ machineCodeSize := instrOffset + 8
+	^ machineCodeSize := loadOffset + 8
 ]
 
 { #category : #concretization }
@@ -2592,8 +2510,7 @@ CogRiscV64Compiler >> concretizeMoveM32rR [
 
 	<inline: true>
 	<var: #cq type: #sqInt>
-	| baseReg offset destReg instrOffset |
-	self flag: #TODO.
+	| baseReg offset destReg loadOffset |
 	offset := operands at: 0.
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
@@ -2606,18 +2523,18 @@ CogRiscV64Compiler >> concretizeMoveM32rR [
 				toRegister: destReg). 
 			^ machineCodeSize := 4 ].
 	"Use the provided literal"
-	instrOffset :=  self loadLiteralInRegister: ConcreteIPReg.
+	loadOffset :=  self loadLiteralInRegister: ConcreteIPReg.
 	"Add the offset to the base address register"
-	self machineCodeAt: instrOffset put: (self 
+	self machineCodeAt: loadOffset put: (self 
 			addRegister: baseReg 
 			toRegister: ConcreteIPReg 
 			inRegister: ConcreteIPReg).
 	"Load the value"
-	self machineCodeAt: instrOffset + 4 put: (self
+	self machineCodeAt: loadOffset + 4 put: (self
 			 loadUnsignedWordFromAddressInRegister: ConcreteIPReg 
 			 withOffset: 0 
 			 toRegister: destReg).
-	^ machineCodeSize := instrOffset + 8
+	^ machineCodeSize := loadOffset + 8
 ]
 
 { #category : #concretization }
@@ -2626,8 +2543,7 @@ CogRiscV64Compiler >> concretizeMoveM32rRs [
 	"Load a single-precision float from srcReg+offset into FP destReg"
 
 	<inline: true>
-	| baseReg offset destReg instrOffset |
-	self flag: #TODO.
+	| baseReg offset destReg loadOffset |
 	offset := operands at: 0.
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
@@ -2640,18 +2556,18 @@ CogRiscV64Compiler >> concretizeMoveM32rRs [
 				toRegister: destReg). 
 			^ machineCodeSize := 4 ].
 	"Use the provided literal"
-	instrOffset := self loadLiteralInRegister: ConcreteIPReg.
+	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
 	"Add the offset to the base address register"
-	self machineCodeAt: instrOffset put: (self 
+	self machineCodeAt: loadOffset put: (self 
 			addRegister: baseReg 
 			toRegister: ConcreteIPReg 
 			inRegister: ConcreteIPReg).
 	"Load the value"
-	self machineCodeAt: instrOffset + 4 put: (self 
+	self machineCodeAt: loadOffset + 4 put: (self 
 		fLoadWordFromAddressInRegister: ConcreteIPReg 
 		withOffset: 0
 		toRegister: destReg).
-	^ machineCodeSize := instrOffset + 8
+	^ machineCodeSize := loadOffset + 8
 ]
 
 { #category : #concretization }
@@ -2659,8 +2575,7 @@ CogRiscV64Compiler >> concretizeMoveM64rRd [
 	
 	"Load a double-precision float from srcReg+offset into FP destReg"
 	<inline: true>
-	| baseReg offset destReg instrOffset |
-	self flag: #TODO.
+	| baseReg offset destReg loadOffset |
 	offset := operands at: 0.
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
@@ -2673,18 +2588,18 @@ CogRiscV64Compiler >> concretizeMoveM64rRd [
 				toRegister: destReg). 
 			^ machineCodeSize := 4 ] .
 	"Use the provided literal"
-	instrOffset := self loadLiteralInRegister: ConcreteIPReg.
+	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
 	"Add the offset to the base address register"
-	self machineCodeAt: instrOffset put: (self 
+	self machineCodeAt: loadOffset put: (self 
 			addRegister: baseReg 
 			toRegister: ConcreteIPReg 
 			inRegister: ConcreteIPReg).
 	"Load the value"	
-	self machineCodeAt: instrOffset + 4 put: (self 
+	self machineCodeAt: loadOffset + 4 put: (self 
 		fLoadDoubleWordFromAddressInRegister: ConcreteIPReg 
 		withOffset: 0
 		toRegister: destReg).
-	^ machineCodeSize := instrOffset + 8
+	^ machineCodeSize := loadOffset + 8
 ]
 
 { #category : #concretization }
@@ -2696,7 +2611,6 @@ CogRiscV64Compiler >> concretizeMoveMbrR [
 	<var: #offset type: #sqInt>
 	<inline: true>
 	| baseReg offset destReg loadOffset |
-	self flag: #TODO.
 	offset := operands at: 0.
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
@@ -2731,8 +2645,7 @@ CogRiscV64Compiler >> concretizeMoveMwrR [
 
 	<var: #offset type: #sqInt>
 	<inline: true>
-	| baseReg offset destReg instrOffset |
-	self flag: #TODO.
+	| baseReg offset destReg loadOffset |
 	offset := operands at: 0.
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
@@ -2745,18 +2658,18 @@ CogRiscV64Compiler >> concretizeMoveMwrR [
 				toRegister: destReg). 
 			^ machineCodeSize := 4 ].
 	"Use the provided literal"
-	instrOffset := self loadLiteralInRegister: ConcreteIPReg.
+	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
 	"Add the offset to the base address register"
-	self machineCodeAt: instrOffset put: (self 
+	self machineCodeAt: loadOffset put: (self 
 			addRegister: baseReg 
 			toRegister: ConcreteIPReg 
 			inRegister: ConcreteIPReg).
 	"Load the value"
-	self machineCodeAt: instrOffset + 4 put: (self
+	self machineCodeAt: loadOffset + 4 put: (self
 			 loadDoubleWordFromAddressInRegister: ConcreteIPReg
 			 withOffset: 0
 			 toRegister: destReg).
-	^ machineCodeSize := instrOffset + 8
+	^ machineCodeSize := loadOffset + 8
 ]
 
 { #category : #concretization }
@@ -2766,8 +2679,7 @@ CogRiscV64Compiler >> concretizeMoveRAb [
 	 Tries to use var base first otherwise use the provided literal"
 
 	<inline: true>
-	| srcReg destAddress instrOffset |
-	self flag: #TODO.
+	| srcReg destAddress loadOffset |
 	srcReg := operands at: 0.
 	destAddress := operands at: 1.
 	(self isAddressRelativeToVarBase: destAddress) ifTrue: [ 
@@ -2777,12 +2689,12 @@ CogRiscV64Compiler >> concretizeMoveRAb [
 				 withOffset: destAddress - cogit varBaseAddress).
 		^ machineCodeSize := 4 ].
 	"Load provided literal"
-	instrOffset := self loadLiteralInRegister: ConcreteIPReg.
-	self machineCodeAt: instrOffset put: (self
+	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
+	self machineCodeAt: loadOffset put: (self
 			 storeByteFromRegister: srcReg
 			 toAddressInRegister: ConcreteIPReg
 			 withOffset: 0).
-	^ machineCodeSize := instrOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
@@ -2792,8 +2704,7 @@ CogRiscV64Compiler >> concretizeMoveRAw [
 	 Tries to use var base first otherwise use the provided literal"
 
 	<inline: true>
-	| srcReg destAddress instrOffset |
-	self flag: #TODO.
+	| srcReg destAddress loadOffset |
 	srcReg := operands at: 0.
 	destAddress := operands at: 1.
 	(self isAddressRelativeToVarBase: destAddress) ifTrue: [ 
@@ -2803,12 +2714,12 @@ CogRiscV64Compiler >> concretizeMoveRAw [
 				 withOffset: destAddress - cogit varBaseAddress).
 		^ machineCodeSize := 4 ].
 	"Load provided literal"
-	instrOffset := self loadLiteralInRegister: ConcreteIPReg.
-	self machineCodeAt: instrOffset put: (self
+	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
+	self machineCodeAt: loadOffset put: (self
 			 storeDoubleWordFromRegister: srcReg
 			 toAddressInRegister: ConcreteIPReg
 			 withOffset: 0).
-	^ machineCodeSize := instrOffset + 4
+	^ machineCodeSize := loadOffset + 4
 ]
 
 { #category : #concretization }
@@ -2820,7 +2731,6 @@ CogRiscV64Compiler >> concretizeMoveRM16r [
 	<var: #offset type: #sqInt>
 	<inline: true>
 	| srcReg offset baseReg loadOffset |
-	self flag: #TODO.
 	srcReg := operands at: 0.
 	offset := operands at: 1.
 	baseReg := operands at: 2.
@@ -2857,7 +2767,6 @@ CogRiscV64Compiler >> concretizeMoveRM32r [
 	<var: #offset type: #sqInt>
 	<inline: true>
 	| srcReg offset baseReg loadOffset |
-	self flag: #TODO.
 	srcReg := operands at: 0.
 	offset := operands at: 1.
 	baseReg := operands at: 2.
@@ -2893,7 +2802,6 @@ CogRiscV64Compiler >> concretizeMoveRMbr [
 	<var: #offset type: #sqInt>
 	<inline: true>
 	| srcReg offset baseReg loadOffset |
-	self flag: #TODO.
 	srcReg := operands at: 0.
 	offset := operands at: 1.
 	baseReg := operands at: 2.
@@ -2929,7 +2837,6 @@ CogRiscV64Compiler >> concretizeMoveRMwr [
 	<var: #offset type: #sqInt>
 	<inline: true>
 	| srcReg offset baseReg loadOffset |
-	self flag: #TODO.
 	srcReg := operands at: 0.
 	offset := operands at: 1.
 	baseReg := operands at: 2.
@@ -2961,7 +2868,6 @@ CogRiscV64Compiler >> concretizeMoveRR [
 
 	<inline: true>
 	| srcReg destReg |
-	self flag: #TODO.
 	srcReg := operands at: 0.
 	destReg := operands at: 1.
 	self machineCodeAt: 0 put: (self moveRegister: srcReg toRegister: destReg). 
@@ -2975,13 +2881,11 @@ CogRiscV64Compiler >> concretizeMoveRRd [
     Copies the double-precision floating-point number in x[rs1] to f[rd]"
 	<inline: true>
 	| srcReg destReg |
-	self flag: #TODO.
 	srcReg := operands at: 0.
 	destReg := operands at: 1.
 	self machineCodeAt: 0 put: (self
 			fMoveDoubleWordInXRegister: srcReg 
-			toFRegister: destReg 
-	).
+			toFRegister: destReg ).
 	^ machineCodeSize := 4
 ]
 
@@ -2992,7 +2896,6 @@ CogRiscV64Compiler >> concretizeMoveRX32rR [
 
 	<inline: true>
 	| indexReg baseReg srcReg |
-	self flag: #TODO.
 	srcReg := operands at: 0.
 	indexReg := operands at: 1. "index is number of words = size of word * bytes, in 64 bits -> * 8"
 	baseReg := operands at: 2.	
@@ -3021,7 +2924,6 @@ CogRiscV64Compiler >> concretizeMoveRXbrR [
 
 		<inline: true>
 	| indexReg baseReg srcReg |
-	self flag: #TODO.
 	srcReg := operands at: 0.
 	indexReg := operands at: 1. "index is number of words = size of word * bytes, in 64 bits -> * 8"
 	baseReg := operands at: 2.	
@@ -3046,7 +2948,6 @@ CogRiscV64Compiler >> concretizeMoveRXwrR [
 
 		<inline: true>
 	| indexReg baseReg srcReg |
-	self flag: #TODO.
 	srcReg := operands at: 0.
 	indexReg := operands at: 1. "index is number of words = size of word * bytes, in 64 bits -> * 8"
 	baseReg := operands at: 2.	
@@ -3075,7 +2976,6 @@ CogRiscV64Compiler >> concretizeMoveRdM64r [
 
 	<inline: true>
 	| offset baseReg srcReg loadOffset |
-	self flag: #TODO.
 	srcReg := operands at: 0.
 	offset := operands at: 1.
 	baseReg := operands at: 2.
@@ -3109,12 +3009,11 @@ CogRiscV64Compiler >> concretizeMoveRdR [
 
 	<inline: true>
 	| srcReg destReg |
-	self flag: #TODO.
 	srcReg := operands at: 0.
 	destReg := operands at: 1.
-	self
-		machineCodeAt: 0
-		put: (self fMoveDoubleWordInFRegister: srcReg toXRegister: destReg).
+	self machineCodeAt: 0 put: (self 
+		fMoveDoubleWordInFRegister: srcReg 
+		toXRegister: destReg).
 	^ machineCodeSize := 4
 ]
 
@@ -3125,7 +3024,6 @@ CogRiscV64Compiler >> concretizeMoveRsM32r [
 
 	<inline: true>
 	| offset baseReg srcReg loadOffset |
-	self flag: #TODO.
 	srcReg := operands at: 0.
 	offset := operands at: 1.
 	baseReg := operands at: 2.
@@ -3158,7 +3056,6 @@ CogRiscV64Compiler >> concretizeMoveX32rRR [
 
 	<inline: true>
 	| indexReg baseReg destReg |
-	self flag: #TODO.
 	indexReg := operands at: 0. "index is number of words = size of word * bytes, in 64 bits -> * 8"
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
@@ -3188,7 +3085,6 @@ CogRiscV64Compiler >> concretizeMoveXbrRR [
 
 	<inline: true>
 	| indexReg baseReg destReg |
-	self flag: #TODO.
 	indexReg := operands at: 0. "index is number of words = size of word * bytes, in 64 bits -> * 8"
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
@@ -3213,7 +3109,6 @@ CogRiscV64Compiler >> concretizeMoveXwrRR [
 
 	<inline: true>
 	| indexReg baseReg destReg |
-	self flag: #TODO.
 	indexReg := operands at: 0. "index is number of words = size of word * bytes, in 64 bits -> * 8"
 	baseReg := operands at: 1.
 	destReg := operands at: 2.
@@ -4012,7 +3907,7 @@ CogRiscV64Compiler >> dispatchConcretize [
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> divideRegisterValue: srcReg1 byRegisterValue: srcReg2 intoRegister: destReg [
+CogRiscV64Compiler >> divideRegisterValue: srcReg1 byRegisterValue: srcReg2 inRegister: destReg [
 
 	"div: Divides x[rs1] by x[rs2], rounding towards zero, treating the values as two's complement numbers 
 			and writes the quotient to x[rd]
@@ -4020,9 +3915,6 @@ CogRiscV64Compiler >> divideRegisterValue: srcReg1 byRegisterValue: srcReg2 into
 	 31      25 24   20 19    15 14   12 11     7 6         0
 	| 0000001  |  rs2  |  rs1   |  100  |   rd   |  0110011  |
 	"
-
-	self flag: #DONE.
-	"Actual bit instruction"
 	^ (((((2r0000001 << 25) 
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
@@ -4033,7 +3925,7 @@ CogRiscV64Compiler >> divideRegisterValue: srcReg1 byRegisterValue: srcReg2 into
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> divideRegisterValueUnsigned: srcReg1 byRegisterValueUnsigned: srcReg2 intoRegister: destReg [
+CogRiscV64Compiler >> divideRegisterValueUnsigned: srcReg1 byRegisterValueUnsigned: srcReg2 inRegister: destReg [
 
 	"divu: Divides x[rs1] by x[rs2], rounding towards zero, treating the values as unsigned numbers 
 			and writes the quotient to x[rd]
@@ -4041,9 +3933,6 @@ CogRiscV64Compiler >> divideRegisterValueUnsigned: srcReg1 byRegisterValueUnsign
 	 31      25 24   20 19    15 14   12 11     7 6         0
 	| 0000001  |  rs2  |  rs1   |  101  |   rd   |  0110011  |
 	"
-
-	self flag: #DONE.
-	"Actual bit instruction"
 	^ (((((2r0000001 << 25) 
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
@@ -4119,9 +4008,6 @@ CogRiscV64Compiler >> fAddRegister: srcReg1 toRegister: srcReg2 intoRegister: de
 	| 0000001  |  rs2  |  rs1   |  rm  |   rd   |  1010011  |
 	rm = 111 by default
 	"
-
-	self flag: #DONE.
-	"Actual bit instruction"
 	^ (((((2r0000001 << 25) 
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
@@ -4140,9 +4026,7 @@ CogRiscV64Compiler >> fConvertDoublePrecisionInRegister: srcReg toSinglePrecisio
 	
 	 31       25 24     20 19   15 14  12 11   7 6        0
 	|  	0100000  |  00001  |  rs1  |  rm  |  rd  |  1010011  |
-	"
-
-	self flag: #TODO.	
+	"	
 	^ (((((2r0100000  << 25)
 	  bitOr: 2r00001 << 20)
 	  bitOr: (srcReg bitAnd: 16r1f) << 15)
@@ -4161,8 +4045,6 @@ CogRiscV64Compiler >> fConvertLongSignedInRegister: srcReg toDoublePrecisionInRe
 	 31       25 24     20 19   15 14  12 11   7 6        0
 	|  	1101001  |  00010  |  rs1  |  rm  |  rd  |  1010011  |
 	"
-
-	self flag: #TODO.	
 	^ (((((2r1101001  << 25)
 	  bitOr: (2r00010 << 20))
 	  bitOr: (srcReg bitAnd: 16r1f) << 15)
@@ -4181,8 +4063,6 @@ CogRiscV64Compiler >> fConvertSinglePrecisionInRegister: srcReg toDoublePrecisio
 	 31       25 24     20 19   15 14  12 11   7 6        0
 	|  	0100001  |  00000  |  rs1  |  rm  |  rd  |  1010011  |
 	"
-
-	self flag: #TODO.	
 	^ (((((2r0100001  << 25)
 	  bitOr: 2r00000 << 20)
 	  bitOr: (srcReg bitAnd: 16r1f) << 15)
@@ -4201,8 +4081,6 @@ CogRiscV64Compiler >> fDivideRegister: srcReg1 byRegister: srcReg2 intoRegister:
 	 31       25 24   20 19   15 14  12 11   7 6        0
 	|  	0001101  |  rs2  |  rs1  |  rm  |  rd  |  1010011  |
 	"
-
-	self flag: #TODO.	
 	^ (((((2r0001101 << 25)
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
@@ -4222,11 +4100,9 @@ CogRiscV64Compiler >> fLoadDoubleWordFromAddressInRegister: baseRegister withOff
 	"
 
 	| signExtendedOffset |
-	self flag: #DONE.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
-	"Actual bit instruction"
 	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
 	  bitOr: 2r011 << 	12)
@@ -4248,11 +4124,9 @@ CogRiscV64Compiler >> fLoadWordFromAddressInRegister: baseRegister withOffset: o
 	"
 
 	| signExtendedOffset |
-	self flag: #DONE.
 	"Check size and sign"
 	self assertValue: offset isContainedIn: 12.
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
-	"Actual bit instruction"
 	^ ((((((signExtendedOffset bitAnd: 16rfff) << 20) 
 	  bitOr: (baseRegister bitAnd: 16r1f) << 15)
 	  bitOr: 2r010 << 	12)
@@ -4273,9 +4147,6 @@ CogRiscV64Compiler >> fMoveDoubleWordInFRegister: srcFRegister toFRegister: dest
 	 31      25 24     20 19    15 14    12 11     7 6         0
 	| 0010001  |  rs1  |  rs1   |   000  |   rd   |  1010011  |
 	"
-
-	self flag: #DONE.
-	"Actual bit instruction"
 	^ ((((2r0010001 << 25) 
 	  bitOr: (srcFRegister bitAnd: 16r1f) << 20)
 	  bitOr: (srcFRegister bitAnd: 16r1f) << 15)
@@ -4294,9 +4165,6 @@ CogRiscV64Compiler >> fMoveDoubleWordInFRegister: fregister toXRegister: xregist
 	 31      25 24     20 19    15 14    12 11     7 6         0
 	| 1110001  |  00000  |  rs1   |   000  |   rd   |  1010011  |
 	"
-
-	self flag: #DONE.
-	"Actual bit instruction"
 	^ (((2r1110001 << 25) 
 	  bitOr: (fregister bitAnd: 16r1f) << 15)
 	  bitOr: (xregister bitAnd: 16r1f) << 7)
@@ -4314,9 +4182,6 @@ CogRiscV64Compiler >> fMoveDoubleWordInXRegister: xregister toFRegister: fregist
 	 31      25 24     20 19    15 14    12 11     7 6         0
 	| 1111001  |  00000  |  rs1   |   000  |   rd   |  1010011  |
 	"
-
-	self flag: #DONE.
-	"Actual bit instruction"
 	^ (((2r1111001 << 25) 
 	  bitOr: (xregister bitAnd: 16r1f) << 15)
 	  bitOr: (fregister bitAnd: 16r1f) << 7)
@@ -4334,8 +4199,6 @@ CogRiscV64Compiler >> fMultiplyRegister: srcReg1 fromRegister: srcReg2 intoRegis
 	 31       25 24   20 19   15 14  12 11   7 6        0
 	|  	0001001  |  rs2  |  rs1  |  rm  |  rd  |  1010011  |
 	"
-
-	self flag: #TODO.	
 	^ (((((2r0001001 << 25)
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
@@ -4353,10 +4216,7 @@ CogRiscV64Compiler >> fSetOneIn: destReg ifRegisterValue: srcReg1 isEqualToRegis
 	 31       25 24     20 19     15 14    12 11     7 6          0
 	|  1010001  |   rs2   |   rs1   |  010   |   rd   |   1010011  |
 	"
-
-	self flag: #TODO.	
-	^ (((((
-	  2r1010001 << 25) 
+	^ (((((2r1010001 << 25) 
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15) 
 	  bitOr: 2r010 << 12)
@@ -4373,10 +4233,7 @@ CogRiscV64Compiler >> fSetOneIn: destReg ifRegisterValue: srcReg1 isLessThanOrEq
 	 31       25 24     20 19     15 14    12 11     7 6          0
 	|  1010001  |   rs2   |   rs1   |  000   |   rd   |   1010011  |
 	"
-	
-	self flag: #TODO.	
-	^ (((((
-	  2r1010001 << 25) 
+	^ (((((2r1010001 << 25) 
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15) 
 	  bitOr: 2r000 << 12)
@@ -4393,10 +4250,7 @@ CogRiscV64Compiler >> fSetOneIn: destReg ifRegisterValue: srcReg1 isLessThanRegi
 	 31       25 24     20 19     15 14    12 11     7 6          0
 	|  1010001  |   rs2   |   rs1   |  001   |   rd   |   1010011  |
 	"
-
-	self flag: #TODO.	
-	^ (((((
-	  2r1010001 << 25) 
+	^ (((((2r1010001 << 25) 
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15) 
 	  bitOr: 2r001 << 12)
@@ -4414,8 +4268,6 @@ CogRiscV64Compiler >> fSquareRootOfRegister: srcReg inRegister: destReg [
 	 31       25 24     20 19   15 14  12 11   7 6        0
 	|  	0101101  |  00000  |  rs1  |  rm  |  rd  |  1010011  |
 	"
-
-	self flag: #TODO.	
 	^ ((((2r0101101 << 25)
 	  bitOr: (srcReg bitAnd: 16r1f) << 15)
 	  bitOr: (2r111 << 12))
@@ -4433,7 +4285,6 @@ CogRiscV64Compiler >> fStoreDoubleWordFromRegister: sourceRegister toAddressInRe
 	"
 
 	| signExtendedOffset |
-	self flag: #DONE.	
 	"Check for sign and size"
 	self assertValue: offset isContainedIn: 12.
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -4455,8 +4306,7 @@ CogRiscV64Compiler >> fStoreWordFromRegister: sourceRegister toAddressInRegister
 	|  	offset[11:5]  |   rs2   |   rs1   |  010   |   offset[4:0]   |   0100111  |
 	"
 
-	| signExtendedOffset |
-	self flag: #DONE.	
+	| signExtendedOffset |	
 	"Check for sign and size"
 	self assertValue: offset isContainedIn: 12.
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 12.
@@ -4479,8 +4329,6 @@ CogRiscV64Compiler >> fSubtractRegister: srcReg2 fromRegister: srcReg1 intoRegis
 	 31       25 24   20 19   15 14  12 11   7 6        0
 	|  	0000101  |  rs2  |  rs1  |  rm  |  rd  |  1010011  |
 	"
-
-	self flag: #TODO.		
 	^ (((((2r0000101 << 25)
 	  bitOr: (srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
@@ -4529,7 +4377,6 @@ CogRiscV64Compiler >> genDivR: abstractRegDenominator R: abstractRegNumerator Qu
 	 The recommended sequence is: 
 		DIV rdq, rs1, rs2
 		REM rdr, rs1, rs2"
-	self flag: #TODO.
 	cogit gen: DivRR operand: abstractRegNumerator operand: abstractRegDenominator operand: ConcreteIPReg.
 	cogit gen: RemRR operand: abstractRegNumerator operand: abstractRegDenominator operand: abstractRegRemainder.
 	cogit MoveR: ConcreteIPReg R: abstractRegQuotient
@@ -4598,16 +4445,6 @@ CogRiscV64Compiler >> genMarshallNArgs: numArgs arg: regOrConst0 arg: regOrConst
 
 { #category : #'abstract instructions' }
 CogRiscV64Compiler >> genMulR: regSource R: regDest [
-	"In ARMv8 the multiplication operation (MUL) does not set the overflow flag.
-	MUL multiplies two 64bit registers and produces the lower 64bit part of the 128bit result into a register.
-	SMULH multiplies two 64bit registers and produces the higher 64bit part of the 128bit result into a register, sign-extended.
-	An overflow happens in the higher part is just an extension of the sign of the lower part.
-	In other words, an overflow does NOT happen if:
-		=> the number lower part is positive (sign = 0) and the higher part is all 0s or
-		=> the number lower part is negative (sign = 1) and the higher part is all 1s
-	"
-	
-	self flag: #TODO.
 	^ cogit gen: MulRR operand: regSource operand: regDest
 ]
 
@@ -4617,7 +4454,7 @@ CogRiscV64Compiler >> genNopsForEntries [
 	"Generate the correct amount of nops to disalign the cog entry and no check entry
 	 (see genGetInlineCacheClassTagFromgenGetInlineCacheClassTagFrom:  into:  forEntry:)"
 	
-	self flag: #DONE.
+	self flag: #nopalign.
 	cogit Nop.
 	cogit Nop.
 ]
@@ -4683,7 +4520,6 @@ CogRiscV64Compiler >> genRestoreRegs: regMask [
 	"Restore the registers in regMask as saved by genSaveRegs:."
 	<inline: true>
 	| registerCount |
-	self flag: #TODO.
 	self assert: (X17 > X10 and: [X17 - X10 + 1 = 8]).
 	"self deny: (regMask anyMask: (cogit registerMaskFor: SPReg and: FPReg))."
 	
@@ -4719,7 +4555,6 @@ CogRiscV64Compiler >> genSaveRegs: regMask [
 	"Save the registers in regMask for a call into the C run-time from a trampoline"
 	<inline: true>
 	| registerCount |
-	self flag: #TODO.
 	self assert: (X17 > X10 and: [X17 - X10 + 1 = 8]).
 	self deny: (regMask anyMask: (cogit registerMaskFor: SPReg and: FPReg)).
 	
@@ -4846,7 +4681,6 @@ CogRiscV64Compiler >> instructionBeforeAddress: followingAddress [
 { #category : #'instruction detection' }
 CogRiscV64Compiler >> instructionIsADDI: instruction [
 
-	self flag: #TODO.
 	^ ((instruction >> 12 bitAnd: 16r7) = 0) and: [(instruction bitAnd: 16r7F) = 2r0010011].
 
 ]
@@ -4854,7 +4688,6 @@ CogRiscV64Compiler >> instructionIsADDI: instruction [
 { #category : #'instruction detection' }
 CogRiscV64Compiler >> instructionIsADDIW: instruction [
 
-	self flag: #DONE.
 	"Check bits 12 to 14 null"
 	^ ((instruction >> 12 bitAnd: 16r7) = 0) and: [(instruction bitAnd: 16r7F) = 2r0011011].
 ]
@@ -4862,7 +4695,6 @@ CogRiscV64Compiler >> instructionIsADDIW: instruction [
 { #category : #'instruction detection' }
 CogRiscV64Compiler >> instructionIsAUIPC: instruction [
 
-	self flag: #DONE.
 	^ (instruction bitAnd: 16r7F) = 2r0010111.
 
 ]
@@ -4876,7 +4708,6 @@ CogRiscV64Compiler >> instructionIsB: instruction [
 { #category : #'instruction detection' }
 CogRiscV64Compiler >> instructionIsB: instruction withCondition: condition [
 
-	self flag: #DONE.
 	"Check bits 12 to 14 to the correct condition"
 	^ ((instruction >> 12 bitAnd: 16r7) = condition) and: [(instruction bitAnd: 16r7F) = 2r1100011].
 
@@ -4885,17 +4716,7 @@ CogRiscV64Compiler >> instructionIsB: instruction withCondition: condition [
 { #category : #'inline cacheing' }
 CogRiscV64Compiler >> instructionIsConditionalBranch: instruction [
 	
-	
-	self flag: #TODO.
 	^ (instruction bitAnd: 16r7F) = 2r1100011
-]
-
-{ #category : #'instruction detection' }
-CogRiscV64Compiler >> instructionIsConditionalZeroBranch: instruction [ 
-
-	"Check that the instruction is a conditional branch and that it focuses on the concretezeroreg"
-	self flag: #TODO.
-	^ ((instruction bitAnd: 16r7F) = 2r1100011) and: [(instruction >> 15 bitAnd: 16r1F) = ConcreteZeroReg]
 ]
 
 { #category : #'instruction detection' }
