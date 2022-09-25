@@ -660,7 +660,6 @@ CogRiscV64Compiler >> branchTo: offset ifCondition: condition betweenRegister: s
 	"	
 
 	| signExtendedOffset |
-	self flag: #DONE.
 	 "Check size and sign"	
 	self assertValue: offset isContainedIn: 13.
 	signExtendedOffset := self computeSignedValueOf: offset ofSize: 13.
@@ -682,7 +681,6 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValue: srcReg1 isEqualToRegiste
 	31                25 24   20 19   15 14   12 11             7 6         0
 	|  	offset[12|10:5]  |  rs2  |  rs1  |  000  | offset[4:1|11] | 1100011 
 	"
-	self flag: #DONE.
 	^ self branchTo: offset ifCondition: EQ betweenRegister: srcReg1 andRegister: srcReg2
 ]
 
@@ -695,7 +693,6 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValue: srcReg1 isGreaterThanOrE
 	31                25 24   20 19   15 14   12 11             7 6         0
 	|  	offset[12|10:5]  |  rs2  |  rs1  |  101  | offset[4:1|11] | 1100011 
 	"
-	self flag: #DONE.
 	^ self branchTo: offset ifCondition: GE betweenRegister: srcReg1 andRegister: srcReg2
 	
 	
@@ -707,7 +704,6 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValue: srcReg1 isGreaterThanReg
 	"bgt: Pseudo-instruction that adds the offset to the PC if x[rs1] > x[rs2] 
 	 Expands to blt rs2, rs1, offset
 	"
-	self flag: #DONE.
 	^ self branchTo: offset ifCondition: LT betweenRegister: srcReg2 andRegister: srcReg1
 	
 	
@@ -719,7 +715,6 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValue: srcReg1 isLessThanOrEqua
 	"ble: Pseudo-instruction that adds the offset to the PC if x[rs1] <= x[rs2] 
 	 Expands to bge rs2, rs1, offset
 	"
-	self flag: #DONE.
 	^ self branchTo: offset ifCondition: GE betweenRegister: srcReg2 andRegister: srcReg1
 	
 	
@@ -734,7 +729,6 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValue: srcReg1 isLessThanRegist
 	31                25 24   20 19   15 14   12 11             7 6         0
 	|  	offset[12|10:5]  |  rs2  |  rs1  |  100  | offset[4:1|11] | 1100011 
 	"
-	self flag: #DONE.
 	^ self branchTo: offset ifCondition: LT betweenRegister: srcReg1 andRegister: srcReg2
 	
 ]
@@ -747,7 +741,6 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValue: srcReg1 isNotEqualToRegi
 	31                25 24   20 19   15 14   12 11             7 6         0
 	|  	offset[12|10:5]  |  rs2  |  rs1  |  001  | offset[4:1|11] | 1100011 
 	"
-	self flag: #DONE.
 	^ self branchTo: offset ifCondition: NE betweenRegister: srcReg1 andRegister: srcReg2
 	
 	
@@ -759,7 +752,6 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValueIsEqualToZero: srcReg [
 	"beqz: Pseudo instruction that branches to the offset if the value in the register is 0
 	Expands to beq x[rs1], x0, offset
  	"
-	self flag: #DONE.
 	^ self branchTo: offset ifCondition: EQ betweenRegister: srcReg andRegister: X0
 	
 	
@@ -771,7 +763,6 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValueIsNegative: srcReg [
 	"bltz: Pseudo instruction that branches to the offset if the value in the register is < 0
 	Expands to blt x[rs1], x0, offset
  	"
-	self flag: #DONE.
 	^ self branchTo: offset ifRegisterValue: srcReg isLessThanRegisterValue: X0
 	
 	
@@ -783,7 +774,6 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValueIsNonNegative: srcReg [
 	"bgtz: Pseudo instruction that branches to the offset if the value in the register is > 0
 	Expands to blt x0, x[rs1], offset
  	"
-	self flag: #DONE.
 	^ self branchTo: offset ifRegisterValue: X0 isLessThanRegisterValue: srcReg
 	
 	
@@ -795,7 +785,6 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValueIsNotEqualToZero: srcReg [
 	"bnez: Pseudo instruction that branches to the offset if the value in the register is not 0
 	Expands to bne x[rs1], x0, offset
  	"
-	self flag: #DONE.
 	^ self branchTo: offset ifCondition: NE betweenRegister: srcReg andRegister: X0
 	
 	
@@ -810,7 +799,6 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValueUnsigned: srcReg1 isGreate
 	31                25 24   20 19   15 14   12 11             7 6         0
 	|  	offset[12|10:5]  |  rs2  |  rs1  |  111  | offset[4:1|11] | 1100011 
 	"
-	self flag: #DONE.
 	^ self branchTo: offset ifCondition: GEU betweenRegister: srcReg1 andRegister: srcReg2
 	
 	
@@ -823,8 +811,6 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValueUnsigned: srcReg1 isGreate
 	 set the PC to the current PC plus the sign-extended offset
 	Expands to: bltu x[rs2], x[rs1], offset
 	"
-	
-	self flag: #DONE.
 	^ self branchTo: offset ifCondition: LTU betweenRegister: srcReg2 andRegister: srcReg1
 	
 	
@@ -837,8 +823,6 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValueUnsigned: srcReg1 isLessTh
 	 set the PC to the current PC plus the sign-extended offset
 	Expands to: bgeu x[rs2], x[rs1], offset
 	"
-	
-	self flag: #DONE.
 	^ self branchTo: offset ifCondition: GEU betweenRegister: srcReg2 andRegister: srcReg1
 	
 	
@@ -853,7 +837,6 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValueUnsigned: srcReg1 isLessTh
 	31                25 24   20 19   15 14   12 11             7 6         0
 	|  	offset[12|10:5]  |  rs2  |  rs1  |  110  | offset[4:1|11] | 1100011 
 	"
-	self flag: #DONE.
 	^ self branchTo: offset ifCondition: LTU betweenRegister: srcReg1 andRegister: srcReg2
 	
 	
