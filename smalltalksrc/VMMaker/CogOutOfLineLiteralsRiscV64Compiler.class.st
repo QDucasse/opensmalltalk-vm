@@ -18,7 +18,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> cmpC32RTempByteSize [
 CogOutOfLineLiteralsRiscV64Compiler >> concretizeLiteral [
 	"Generate an out-of-line literal.  Copy the value and any annotation from the stand-in in the literals manager."
 	| twoComplement literal literalAsInstruction |
-	self flag: #TODO.
 	"Process the literal if it is an instruction"
 	literalAsInstruction := cogit cCoerceSimple: (operands at: 0) to: #'AbstractInstruction *'.
 	literal := (self isAnInstruction: literalAsInstruction)
@@ -61,7 +60,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> configureStackAlignment [
 	
 	<doNotGenerate>
 	"Acording to RISC-V ISA description, stack should always be kept 16-byte aligned"
-	self flag: #DONE.
 	cogit setStackAlignment: 16 expectedSPOffset: 0 expectedFPOffset: 0.
 ]
 
@@ -77,7 +75,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> getDefaultCogCodeSize [
 CogOutOfLineLiteralsRiscV64Compiler >> inlineCacheTagAt: callSiteReturnAddress [
 
 	<inline: true>
-	self flag: #TODO.
 	^objectMemory unsignedLongAt: (self pcRelativeAddressAt: 
 		"Need to go before the call and at the start of the literal load"
 		(callSiteReturnAddress - self callInstructionByteSize - self loadLiteralByteSize) asUnsignedInteger)
@@ -101,23 +98,12 @@ CogOutOfLineLiteralsRiscV64Compiler >> isSharable [
 ]
 
 { #category : #'inline cacheing' }
-CogOutOfLineLiteralsRiscV64Compiler >> literal32BeforeFollowingAddress: followingAddress [
-	"Return the literal referenced by the instruction immediately preceding followingAddress.
-	 Used for CMP32"
-	self flag: #TODO.
-	^ self literalBeforeFollowingAddress: followingAddress 
-]
-
-{ #category : #'inline cacheing' }
 CogOutOfLineLiteralsRiscV64Compiler >> literalBeforeFollowingAddress: followingAddress [
 	"Return the literal referenced by the instruction immediately preceding followingAddress.
-	 If followingAddress points to an ld instruction, it means it is loading a relative using auipc + ld.
-	 If not, it is comparing to a given literal and is performing auipc + ld + cmp (expands to several instructions in riscv)"
-	self flag: #TODO.
-	^objectMemory long64At: (self pcRelativeAddressAt: 
-		((self instructionIsLD: (self instructionBeforeAddress: followingAddress))
-			ifTrue: [self instructionAddressBefore: followingAddress - 4] "need to go before auipc + ld"
-			ifFalse: [ self instructionAddressBefore: followingAddress + 4 ])) "need to go in the load at the beginning of the cmp"
+	 If followingAddress points to an ld instruction, it means it is loading a relative using auipc + ld."
+	self assert: (self instructionIsAUIPC: (self instructionBeforeAddress: followingAddress - 4)).
+	self assert: (self instructionIsLD: (self instructionBeforeAddress: followingAddress)).
+	^ objectMemory long64At: (self pcRelativeAddressAt: (self instructionAddressBefore: followingAddress - 4))
 ]
 
 { #category : #'concretization helpers' }
@@ -131,8 +117,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> literalOpcodeIndex [
 
 { #category : #accessing }
 CogOutOfLineLiteralsRiscV64Compiler >> loadLiteralByteSize [
-	"Answer the byte size of a MoveCwR opcode's corresponding machine code. On ARM this is a single instruction pc-relative register load - unless we have made a mistake and not turned on the out of line literals manager"
-	self flag: #DONE.
+	"Answer the byte size of a MoveCwR opcode's corresponding machine code. On RISC-V, auipc + ld"
 	^8
 ]
 
@@ -168,8 +153,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> pcRelativeAddressAt: instrAddress [
 	"Extract the address out of a pc-relative load (auipc + ld)"
 	
 	| instAUIPC instLD offsetAUIPC offsetLD |
-	self flag: #TODO.
-	"1halt."
 	instAUIPC := objectMemory long32At: instrAddress.
 	instLD := objectMemory long32At: instrAddress + 4.
 	self assert: (self instructionIsAUIPC: instAUIPC).
@@ -177,9 +160,6 @@ CogOutOfLineLiteralsRiscV64Compiler >> pcRelativeAddressAt: instrAddress [
 	"Each offset is sign-extended then added"
 	offsetAUIPC := self computeSignedValueOf: (instAUIPC >> 12 bitAnd: 16rfffff) << 12 ofSize: 32. "20 upper bits"
 	offsetLD := self computeSignedValueOf: (instLD >> 20 bitAnd: 16rfff) ofSize: 32. "12 lower bits"
-	"((offset allMask: (1 << 12))
-						   ifTrue: [offset negated]
-							ifFalse: [offset])"
 	^instrAddress + offsetAUIPC + offsetLD
 ]
 
@@ -352,7 +332,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[AddCheckOverflowCqR ] -> [^ (self value: (operands at: 0) isContainedIn: 12) not]. 
 		[AndCqR]               -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
 		[AndCqRR]              -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
-		[CmpCqR]               -> [^ (self value: (operands at: 0) isContainedIn: 11) not]. "uses load immediate"
+		[CmpCqR]               -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
 		[CmpC32R]              -> [^ true]. 
 		[OrCqR]                -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
 		[SubCqR]               -> [^ (self value: ((operands at: 0) negated) isContainedIn: 12) not]. 
@@ -368,7 +348,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[SubCwR]		-> [^true].
 		[XorCwR]		-> [^true].
 		"Data Movement - Moves"						
-		[MoveCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 11) not]. "11 because uses loadImmediate:inRegister:"
+		[MoveCqR]		-> [^ (self value: (operands at: 0) isContainedIn: 11) not]. "We dont want the sign extension here!"
 		[MoveC32R]  -> [ self shouldBeImplemented ].
 		"Data Movement - Absolute addresses"
 		[MoveCwR]		-> [^ (self inCurrentCompilation: (operands at: 0)) not].
@@ -394,7 +374,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[MoveM64rRd]	-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
 								
 		[PushCw]		-> [^ (self inCurrentCompilation: (operands at: 0)) not].
-		[PushCq]		-> [^(self value: (operands at: 0) isContainedIn: 11) not]. "11 because uses loadImmediate:"
+		[PushCq]		-> [^ (self value: (operands at: 0) isContainedIn: 12) not].
 		[PrefetchAw] 	-> [^(self isAddressRelativeToVarBase: (operands at: 0)) not].
 
 		"Patcheable instruction. Moves a literal. Uses out of line literal."

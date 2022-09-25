@@ -851,7 +851,6 @@ CogRiscV64Compiler >> byteReadsZeroExtend [
 CogRiscV64Compiler >> bytesForDataLoadOperationOfSize: operationSize andImmediateOperationSize: immOperationSize [
 	
 	"When loading, the offset is operands at 0"
-	self flag: #TODO.
 	dependent
 		ifNil: [ 
 			self assertValue: (operands at: 0) isContainedIn: 12.
@@ -863,7 +862,6 @@ CogRiscV64Compiler >> bytesForDataLoadOperationOfSize: operationSize andImmediat
 CogRiscV64Compiler >> bytesForDataStoreOperationOfSize: operationSize andImmediateOperationSize: immOperationSize [
 	
 	"When storing, the offset is operands at 1"
-	self flag: #TODO.
 	dependent
 		ifNil: [ 
 			self assertValue: (operands at: 1) isContainedIn: 12.
@@ -1054,13 +1052,13 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ LogicalShiftLeftRR ]      -> [ ^ 4 ]).
 			([ LogicalShiftRightRR ]     -> [ ^ 4 ]).
 			([ ArithmeticShiftRightRR ]  -> [ ^ 4 ]).
-			([ RotateLeftCqR ]  -> [ dependent ifNil: [ ^ 12 ]. ^ self literalLoadInstructionBytes + 16 ]).
-			([ RotateRightCqR ] -> [ dependent ifNil: [ ^ 12 ]. ^ self literalLoadInstructionBytes + 16 ]).
+			([ RotateLeftCqR ]           -> [ dependent ifNil: [ ^ 12 ]. ^ self literalLoadInstructionBytes + 16 ]).
+			([ RotateRightCqR ]          -> [ dependent ifNil: [ ^ 12 ]. ^ self literalLoadInstructionBytes + 16 ]).
 
 			"Floating point operations"
 			([ AddRdRd ] -> [ ^ 4 ]).
 			([ SubRdRd ] -> [ ^ 4 ]).
-			([ CmpRdRd ] -> [ ^ 8 ]). "DONE"
+			([ CmpRdRd ] -> [ ^ 8 ]).
 			([ MulRdRd ] -> [ ^ 4 ]).
 			([ DivRdRd ] -> [ ^ 8 ]).
 			([ SqrtRd ]  -> [ ^ 4 ]).
@@ -1070,124 +1068,62 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ PopR ]   -> [ ^ 8 ]).
 			([ PushR ]  -> [ ^ 8 ]).
 			([ PushCw ] -> [ ^ self literalLoadInstructionBytes + 8 ]).
-			([ PushCq ] -> [ dependent
-				 ifNil: [ ^ (self bytesToLoadImmediate: (operands at: 0)) + 8 ]
-				 ifNotNil: [ ^ self literalLoadInstructionBytes + 8 ] ]).
+			([ PushCq ] -> [ dependent ifNil: [ ^ 12 ]. ^ self literalLoadInstructionBytes + 8 ]).
 
 			"Conversion"
-			([ ConvertRdRs ] -> [ ^ 4 ]). "DONE"
-			([ ConvertRsRd ] -> [ ^ 4 ]). "DONE"
-			([ ConvertRRd ] -> [ ^ 4 ]). "DONE"
-			([ MoveRdR ] -> [ ^ 4 ]). "DONE"
-			([ MoveRRd ] -> [ ^ 4 ]). "DONE"
+			([ ConvertRdRs ] -> [ ^ 4 ]). 
+			([ ConvertRsRd ] -> [ ^ 4 ]).
+			([ ConvertRRd ]  -> [ ^ 4 ]).
+			([ MoveRdR ]     -> [ ^ 4 ]).
+			([ MoveRRd ]     -> [ ^ 4 ]).
 			
 			"Prefetch operation"
 			([ PrefetchAw ] -> [ ^ 0 ]).
 			
 			"Data Movement - Basic"
-			([ MoveCqR ] -> [ 
-			 dependent
-				 ifNil: [ 
-					 | cq |
-					 cq := operands at: 0.
-					 self assertValue: cq isContainedIn: 12.
-					 ^ self bytesToLoadImmediate: cq ]
-				 ifNotNil: [ "Literal load" ^ self literalLoadInstructionBytes ] ]). "DONE"
+			([ MoveCqR ]  -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes ]).
 			([ MoveC32R ] -> [ ^ 0 ]). "shouldBeImplemented"
-			([ MoveCwR ] -> [ ^ 8 "always a auipc addi/ld sequence" ]). "DONE"
-			([ MoveRR ] -> [ ^ 4 ]). "DONE"
+			([ MoveCwR ]  -> [ ^ 8 ]). "always a auipc addi/ld sequence"
+			([ MoveRR ]   -> [ ^ 4 ]).
 
 			"Data movement - Absolute addresses"
-			([ MoveAwR ] -> [ 
-			 (self isAddressRelativeToVarBase: (operands at: 0))
-				 ifTrue: [ ^ 4 ]
-				 ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]).
-			([ MoveRAw ] -> [ 
-			 (self isAddressRelativeToVarBase: (operands at: 1))
-				 ifTrue: [ ^ 4 ]
-				 ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]).
-			([ MoveAbR ] -> [ 
-			 (self isAddressRelativeToVarBase: (operands at: 0))
-				 ifTrue: [ ^ 4 ]
-				 ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]).
-			([ MoveRAb ] -> [ 
-			 (self isAddressRelativeToVarBase: (operands at: 1))
-				 ifTrue: [ ^ 4 ]
-				 ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]).
+			([ MoveAwR ] -> [ (self isAddressRelativeToVarBase: (operands at: 0))
+				 ifTrue: [ ^ 4 ] ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]).
+			([ MoveRAw ] -> [  (self isAddressRelativeToVarBase: (operands at: 1))
+				 ifTrue: [ ^ 4 ] ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]).
+			([ MoveAbR ] -> [ (self isAddressRelativeToVarBase: (operands at: 0))
+				 ifTrue: [ ^ 4 ] ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]).
+			([ MoveRAb ] -> [ (self isAddressRelativeToVarBase: (operands at: 1))
+				 ifTrue: [ ^ 4 ] ifFalse: [ ^ self literalLoadInstructionBytes + 4 ] ]).
 
-			"Data Movement - Stores"
-			([ MoveRM8r ] -> [ 
-			 ^ self
-				   bytesForDataStoreOperationOfSize: 8
-				   andImmediateOperationSize: 4 ]). "DONE"
-			([ MoveRMbr ] -> [ 
-			 ^ self
-				   bytesForDataStoreOperationOfSize: 8
-				   andImmediateOperationSize: 4 ]). "DONE"
-			([ MoveRM16r ] -> [ 
-			 ^ self
-				   bytesForDataStoreOperationOfSize: 8
-				   andImmediateOperationSize: 4 ]). "DONE"
-			([ MoveRM32r ] -> [ 
-			^ self
-				   bytesForDataStoreOperationOfSize: 8
-				   andImmediateOperationSize: 4 ]). "DONE"
-			([ MoveRMwr ] -> [ 
-			 ^ self
-				   bytesForDataStoreOperationOfSize: 8
-				   andImmediateOperationSize: 4 ]). "DONE"
-			([ MoveRsM32r ] -> [ 
-			 ^ self
-				   bytesForDataStoreOperationOfSize: 8
-				   andImmediateOperationSize: 4 ]). "DONE"
-			([ MoveRdM64r ] -> [ 
-			 ^ self
-				   bytesForDataStoreOperationOfSize: 8
-				   andImmediateOperationSize: 4 ]). "DONE"
+			"Data Movement - Stores - offset (operand 1) can be loaded as cq"
+			([ MoveRM8r ]   -> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]).
+			([ MoveRMbr ]   -> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]).
+			([ MoveRM16r ]  -> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]).
+			([ MoveRM32r ]  -> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]).
+			([ MoveRMwr ]   -> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]).
+			([ MoveRsM32r ] -> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]).
+			([ MoveRdM64r ] -> [ ^ self bytesForDataStoreOperationOfSize: 8 andImmediateOperationSize: 4 ]).
 
 			"Data Movement - Loads"
-			([ MoveM8rR ] -> [ 
-			 ^ self
-				   bytesForDataLoadOperationOfSize: 8
-				   andImmediateOperationSize: 4 ]). "DONE"
-			([ MoveMbrR ] -> [ 
-			 ^ self
-				   bytesForDataLoadOperationOfSize: 8
-				   andImmediateOperationSize: 4 ]). "DONE"
-			([ MoveM16rR ] -> [ 
-			 ^ self
-				   bytesForDataLoadOperationOfSize: 8
-				   andImmediateOperationSize: 4 ]). "DONE"
-			([ MoveM32rR ] -> [ 
-			 ^ self
-				   bytesForDataLoadOperationOfSize: 8
-				   andImmediateOperationSize: 4 ]). "DONE"
-			([ MoveMwrR ] -> [ 
-			 ^ self
-				   bytesForDataLoadOperationOfSize: 8
-				   andImmediateOperationSize: 4 ]). "DONE"
-			([ MoveM32rRs ] -> [ 
-			 ^ self
-				   bytesForDataLoadOperationOfSize: 8
-				   andImmediateOperationSize: 4 ]). "DONE"
-			([ MoveM64rRd ] -> [ 
-			 ^ self
-				   bytesForDataLoadOperationOfSize: 8
-				   andImmediateOperationSize: 4 ]). "DONE"
+			([ MoveM8rR ]   -> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]).
+			([ MoveMbrR ]   -> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]).
+			([ MoveM16rR ]  -> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]).
+			([ MoveM32rR ]  -> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]).
+			([ MoveMwrR ]   -> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]).
+			([ MoveM32rRs ] -> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]).
+			([ MoveM64rRd ] -> [ ^ self bytesForDataLoadOperationOfSize: 8 andImmediateOperationSize: 4 ]).
 
 			"Data Movement - Relative addresses with multiply"
-			([ MoveXbrRR ] -> [ ^ 8 ]). "DONE"
-			([ MoveX32rRR ] -> [ ^ 12 ]). "DONE"
-			([ MoveXwrRR ] -> [ ^ 12 ]). "DONE"
-			([ MoveRX32rR ] -> [ ^ 12 ]). "DONE"
-			([ MoveRXbrR ] -> [ ^ 8 ]). "DONE"
-			([ MoveRXwrR ] -> [ ^ 12 ]). "DONE"
+			([ MoveXbrRR ]  -> [ ^ 8 ]).
+			([ MoveX32rRR ] -> [ ^ 12 ]).
+			([ MoveXwrRR ]  -> [ ^ 12 ]).
+			([ MoveRX32rR ] -> [ ^ 12 ]).
+			([ MoveRXbrR ]  -> [ ^ 8 ]).
+			([ MoveRXwrR ]  -> [ ^ 12 ]).
 
-			
-			
 			"This is a fixed size instruction using a literal. We need exactly 2 instructions to move a literal from a PC relative position, so this takes ALWAYS 2 instructions of 4 bytes"
-			([ MovePatcheableC32R ] -> [ "DONE" ^ 8 ]) }.
-	"Noops & Pseudo Ops"
+			([ MovePatcheableC32R ] -> [ ^ 8 ]) }.
 	^ 0 "to keep C compiler qui Unmatched "
 ]
 
@@ -1879,13 +1815,14 @@ CogRiscV64Compiler >> concretizeCmpCqR [
 	<var: #cq type: #sqInt>
 	<inline: true>
 	| srcReg cq loadOffset |
-	self flag: #TODO.
+	self flag: #subi.
 	cq := operands at: 0.
 	srcReg := operands at: 1.
-	"Note: There is no sub immediate"
 	dependent 
-		ifNil: [ "Move to a register using immediate operations (no subi but will avoid having too much literals)"
-			loadOffset := self loadImmediate: cq inRegister: ConcreteIPReg]
+		ifNil: [ "immediate"
+				self assertValue: cq isContainedIn: 12.
+				self machineCodeAt: 0 put: (self addImmediate: cq toRegister: X0 inRegister: ConcreteIPReg).
+				loadOffset := 4]
 		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers" 
 			loadOffset := self loadLiteralInRegister: ConcreteIPReg ].
 	"Perform the subtraction"
@@ -2448,11 +2385,12 @@ CogRiscV64Compiler >> concretizeMoveCqR [
 	<inline: true>
 	<var: #cq type: #sqInt>
 	| cq reg |
-	self flag: #TODO.
 	cq := operands at: 0.
 	reg := operands at: 1.
 	dependent ifNil: [ "Immediate value"
-		^ machineCodeSize := self loadImmediate: cq inRegister: reg].
+				self assertValue: cq isContainedIn: 12.
+				self machineCodeAt: 0 put: (self addImmediate: cq toRegister: X0 inRegister: reg).
+				^ machineCodeSize := 4 ].
 	"use the provided literal"
 	^ machineCodeSize := self loadLiteralInRegister: reg
 ]
@@ -3302,9 +3240,10 @@ CogRiscV64Compiler >> concretizePushCq [
 	| cq instrOffset offset |
 	cq := operands at: 0.
 	dependent
-		ifNil: [ 
-			"No literal -> Direct load into a scratch register, number of instructions depends on immediate size"
-			instrOffset := self loadImmediate: cq inRegister: ConcreteIPReg ]
+		ifNil: [ "Load immediate"
+				self assertValue: cq isContainedIn: 12.
+				self machineCodeAt: 0 put: (self addImmediate: cq toRegister: X0 inRegister: ConcreteIPReg).
+				instrOffset := 4 ]
 		ifNotNil: [ 
 			"Literal -> Compute the distance from the current address and add auipc then ld instructions"
 			instrOffset := self loadLiteralInRegister: ConcreteIPReg ].
@@ -4842,6 +4781,7 @@ CogRiscV64Compiler >> isJump [
 { #category : #testing }
 CogRiscV64Compiler >> isJumpAt: pc [
 	| instr |
+	1halt.
 	instr := objectMemory long32At: pc.
 	^(self instructionIsJAL: instr)
 	  or: [self instructionIsJALR: instr]
@@ -5038,7 +4978,6 @@ CogRiscV64Compiler >> loadByteFromAddressInRegister: baseRegister withOffset: of
 CogRiscV64Compiler >> loadCwInto: destReg [
 
 	| operand distance offsetLow offsetHigh |
-	self flag: #TODO.
 	operand := operands at: 0.
 	self
 		cCode: [  ]
