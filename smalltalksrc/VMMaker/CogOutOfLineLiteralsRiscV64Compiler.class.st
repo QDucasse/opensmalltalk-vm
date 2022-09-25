@@ -52,7 +52,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> concretizeMovePatcheableC32R [
 	self machineCodeAt: 4 put: (self
 	  loadDoubleWordFromAddressInRegister: ConcreteIPReg
 	  withOffset: distance
-     toRegister: (operands at: 1)).
+     inRegister: (operands at: 1)).
 	^ machineCodeSize := 8
 ]
 
