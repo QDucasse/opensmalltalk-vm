@@ -48,7 +48,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> concretizeMovePatcheableC32R [
 	| literalAddress distance |
 	literalAddress := (cogit cCoerceSimple: dependent to: #'AbstractInstruction *') address.
 	distance := literalAddress - address.
-	self machineCodeAt: 0 put: (self addUpperImmediateToPC: 0 toRegister: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self addUpperImmediateToPC: 0 inRegister: ConcreteIPReg).
 	self machineCodeAt: 4 put: (self
 	  loadDoubleWordFromAddressInRegister: ConcreteIPReg
 	  withOffset: distance

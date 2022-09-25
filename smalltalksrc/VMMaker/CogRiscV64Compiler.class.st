@@ -400,8 +400,7 @@ CogRiscV64Compiler >> addImmediate: anImmediate toRegister: sourceRegister inReg
 	"
 	
 	| signExtendedImmediate |
-	self flag: #DONE.	
-	"Check size and sign"
+	"Check size when casting to unsigned"
 	self assertValue: anImmediate isContainedIn: 12.
 	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 12.
 	^ ((((signExtendedImmediate bitAnd: 16rfff) << 20) 
@@ -419,8 +418,7 @@ CogRiscV64Compiler >> addRegister: sourceRegister1 toRegister: sourceRegister2 i
 	31        25 24   20 19   15 14  12  11  7  6         0
 	|  	0000000  |  rs2  |  rs1  |  000  |  rd  |  0110011  |
 	"
-	
-	self flag: #DONE.		
+
 	^ ((((sourceRegister2 bitAnd: 16r1f) << 20)
 	  bitOr: (sourceRegister1 bitAnd: 16r1f) << 15) 
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
@@ -428,7 +426,7 @@ CogRiscV64Compiler >> addRegister: sourceRegister1 toRegister: sourceRegister2 i
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> addUpperImmediateToPC: anImmediate toRegister: destinationRegister [
+CogRiscV64Compiler >> addUpperImmediateToPC: anImmediate inRegister: destinationRegister [
 
 	"auipc: Adds the sign-extended 20-bit immediate, left-shifted by 12 bits, to the pc, and writes the result to x[rd].
 	
@@ -437,8 +435,6 @@ CogRiscV64Compiler >> addUpperImmediateToPC: anImmediate toRegister: destination
 	"
 
 	| signExtendedImmediate |
-	self flag: #DONE.
-	"Check size and sign"	
 	self assertValue: anImmediate isContainedIn: 32.
 	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 32.
 	^ (((signExtendedImmediate bitAnd: 16rfffff) << 12) 
@@ -458,8 +454,7 @@ CogRiscV64Compiler >> addWordImmediate: anImmediate toRegister: sourceRegister i
 	"
 	
 	| signExtendedImmediate |
-	self flag: #DONE.
-	"Check size and sign"
+	"Check size when casting to unsigned"
 	self assertValue: anImmediate isContainedIn: 12.
 	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 12.
 	^ ((((signExtendedImmediate bitAnd: 16rfff) << 20) 
@@ -479,7 +474,6 @@ CogRiscV64Compiler >> addWordRegister: sourceRegister1 toRegister: sourceRegiste
 	|  	0000000  |  rs2  |  rs1  |  000  |  rd  | 0111011  |
 	"
 
-	self flag: #DONE.
 	^ ((((sourceRegister1 bitAnd: 16r1f) << 20) 
 	  bitOr: (sourceRegister2 bitAnd: 16r1f) << 15) 
 	  bitOr: (destinationRegister bitAnd: 16r1f) << 7) 
@@ -487,7 +481,7 @@ CogRiscV64Compiler >> addWordRegister: sourceRegister1 toRegister: sourceRegiste
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> arithmeticShiftRightValueInRegister: sourceReg byShiftAmount: shiftAmount intoRegister: destReg [ 
+CogRiscV64Compiler >> arithmeticShiftRightValueInRegister: sourceReg byShiftAmount: shiftAmount inRegister: destReg [ 
 
 	"srai: Shifts register x[rs1] right by shamt bit positions. 
 	 The vacated bits are filled with copies of x[rs1] MSB, and the result is written to x[rd].
@@ -495,8 +489,7 @@ CogRiscV64Compiler >> arithmeticShiftRightValueInRegister: sourceReg byShiftAmou
 	 31     26 25     20 19   15 14   12 11   7 6         0
 	|  010000 |  shamt  |  rs1  |  101  |  rd  |  0010011  |
 	"
-
-	self flag: #DONE.
+	
 	^ ((((((2r1 << 30) 
 	  bitOr: ((shiftAmount bitAnd: 16r3f) << 20))
 	  bitOr: (sourceReg bitAnd: 16r1f) << 15))
@@ -506,7 +499,7 @@ CogRiscV64Compiler >> arithmeticShiftRightValueInRegister: sourceReg byShiftAmou
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> arithmeticShiftRightValueInRegister: sourceReg1 byShiftAmountInRegister: sourceReg2 intoRegister: destReg [ 
+CogRiscV64Compiler >> arithmeticShiftRightValueInRegister: sourceReg1 byShiftAmountInRegister: sourceReg2 inRegister: destReg [ 
 
 	"sra: Shifts register x[rs1] right by x[rs2] bit positions. 
 	 The vacated bits are filled with copies of x[rs1] MSB, and the result is written to x[rd].
@@ -515,7 +508,6 @@ CogRiscV64Compiler >> arithmeticShiftRightValueInRegister: sourceReg1 byShiftAmo
 	|  0100000 |  rs2  |  rs1  |  101  |  rd  |  0110011  |
 	"
 
-	self flag: #DONE.
 	^ ((((((2r1 << 30) 
 	  bitOr: ((sourceReg2 bitAnd: 16r3f) << 20))
 	  bitOr: (sourceReg1 bitAnd: 16r1f) << 15))
@@ -547,7 +539,7 @@ CogRiscV64Compiler >> availableRegisterOrNoneFor: liveRegsMask [
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg andImmediate: anImmediate toRegister: destReg [
+CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg andImmediate: anImmediate inRegister: destReg [
 	
 	"andi: Computes the bitwise AND of registers x[rs1] and sign extended immediate and writes the result to x[rd].
 	
@@ -555,7 +547,6 @@ CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg andImmediate: anImmed
 	|  	immediate[11:0]  |  rs1  |  111  |  rd  |  0010011 
 	"
 	| signExtendedImmediate |
-	self flag: #DONE.
 	"Check size and sign"
 	self assertValue: anImmediate isContainedIn: 12.
 	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 12.
@@ -568,15 +559,14 @@ CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg andImmediate: anImmed
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg1 andRegister: sourceReg2 toRegister: destReg [
+CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg1 andRegister: sourceReg2 inRegister: destReg [
 	
 	"and: Computes the bitwise AND of registers x[rs1] and x[rs2] and writes the result to x[rd].
 	
 	31        25 24    20 19   15 14   12 11   7 6         0
 	|  	0000000  |  rs2   |  rs1  |  111  |  rd  |  0110011 
 	"
-	
-	self flag: #DONE.
+
 	^ (((((sourceReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (sourceReg1 bitAnd: 16r1f) << 15)
 	  bitOr: 2r111 << 12)
@@ -586,7 +576,7 @@ CogRiscV64Compiler >> bitwiseAndBetweenRegister: sourceReg1 andRegister: sourceR
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> bitwiseOrBetweenRegister: sourceReg andImmediate: anImmediate toRegister: destReg [
+CogRiscV64Compiler >> bitwiseOrBetweenRegister: sourceReg andImmediate: anImmediate inRegister: destReg [
 	
 	"ori: Computes the bitwise OR of register x[rs1] and the sign-extended immediate and writes the result to x[rd].
 	
@@ -594,7 +584,6 @@ CogRiscV64Compiler >> bitwiseOrBetweenRegister: sourceReg andImmediate: anImmedi
 	|  	immediate[11:0]  |  rs1  |  110  |  rd  |  0010011 
 	"
 	| signExtendedImmediate |
-	self flag: #DONE.
 	"Check size and sign"
 	self assertValue: anImmediate isContainedIn: 12.	
 	signExtendedImmediate := self computeSignedValueOf: anImmediate ofSize: 12.
@@ -607,15 +596,14 @@ CogRiscV64Compiler >> bitwiseOrBetweenRegister: sourceReg andImmediate: anImmedi
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> bitwiseOrBetweenRegister: sourceReg1 andRegister: sourceReg2 toRegister: destReg [
+CogRiscV64Compiler >> bitwiseOrBetweenRegister: sourceReg1 andRegister: sourceReg2 inRegister: destReg [
 	
 	"or: Computes the bitwise OR of registers x[rs1] and x[rs2] and writes the result to x[rd].
 	
 	31        25 24    20 19   15 14   12 11   7 6         0
 	|  	0000000  |  rs2   |  rs1  |  110  |  rd  |  0110011 
 	"
-	
-	self flag: #DONE.
+
 	^ (((((sourceReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (sourceReg1 bitAnd: 16r1f) << 15)
 	  bitOr: 2r110 << 12)
@@ -625,7 +613,7 @@ CogRiscV64Compiler >> bitwiseOrBetweenRegister: sourceReg1 andRegister: sourceRe
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> bitwiseXorBetweenRegister: srcReg andImmediate: immediate intoRegister: destReg [
+CogRiscV64Compiler >> bitwiseXorBetweenRegister: srcReg andImmediate: immediate inRegister: destReg [
 
 	"xori: Computes the bitwise exclusive-OR of the sign-extended immediate
 	 and register x[rs1] and writes the result to x[rd]
@@ -635,7 +623,6 @@ CogRiscV64Compiler >> bitwiseXorBetweenRegister: srcReg andImmediate: immediate 
 	"
 
 	| signExtendedImmediate |
-	self flag: #DONE.	
 	"Check for sign and size"
 	self assertValue: immediate isContainedIn: 12.	
 	signExtendedImmediate :=	self computeSignedValueOf: immediate ofSize: 12.
@@ -647,7 +634,7 @@ CogRiscV64Compiler >> bitwiseXorBetweenRegister: srcReg andImmediate: immediate 
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> bitwiseXorBetweenRegister: srcReg1 andRegister: srcReg2 intoRegister: destReg [
+CogRiscV64Compiler >> bitwiseXorBetweenRegister: srcReg1 andRegister: srcReg2 inRegister: destReg [
 
 	"xor: Computes the bitwise exclusive-OR of registers x[rs1] and x[rs2] 
 	 and writes the result to x[rd]
@@ -656,7 +643,6 @@ CogRiscV64Compiler >> bitwiseXorBetweenRegister: srcReg1 andRegister: srcReg2 in
 	|  	0000000  |  rs2  |  rs1  |  100  |   rd   |  0110011  |
 	"
 
-	self flag: #DONE.	
 	^ (((((srcReg2 bitAnd: 16r1f) << 20)
 	  bitOr: (srcReg1 bitAnd: 16r1f) << 15)
 	  bitOr: (2r100 << 12))
@@ -1006,7 +992,7 @@ CogRiscV64Compiler >> checkSUBFloatingPointOverflowWithSourceReg1: srcReg1 sourc
 	"2. Check if the sum is smaller than one operand"
 	self machineCodeAt: index + 8 put: (self fSetOneIn: ConcreteIPReg3 ifRegisterValue: destReg isLessThanRegisterValue: srcReg1).
 	"Check if both registers are equal -> xor and complement"
-	self machineCodeAt: index + 12 put: (self bitwiseXorBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 intoRegister: ConcreteOverflowReg).
+	self machineCodeAt: index + 12 put: (self bitwiseXorBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 inRegister: ConcreteOverflowReg).
 	^ machineCodeSize := 16
 	  
 ]
@@ -1028,7 +1014,7 @@ CogRiscV64Compiler >> checkSUBOverflowWithSourceReg1: srcReg1 sourceReg2: srcReg
 	"2. Check if the sum is smaller than one operand"
 	self machineCodeAt: index + 4 put: (self setOneIn: ConcreteIPReg3 ifValueIn: destReg isLessThanValueIn: srcReg1).
 	"Put one if t2 = t3, xor and complement"
-	self machineCodeAt: index + 8 put: (self bitwiseXorBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 intoRegister: ConcreteOverflowReg).
+	self machineCodeAt: index + 8 put: (self bitwiseXorBetweenRegister: ConcreteIPReg2 andRegister: ConcreteIPReg3 inRegister: ConcreteOverflowReg).
 	self machineCodeAt: index + 12 put: (self setOneIn: ConcreteOverflowReg ifValueInRegisterIsEqualToZero: ConcreteOverflowReg).
 	^ machineCodeSize := 16 
 	  
@@ -1504,7 +1490,7 @@ CogRiscV64Compiler >> concretizeAndCqR [
 		self machineCodeAt: 0 put: (self
 				 bitwiseAndBetweenRegister: sourceReg
 				 andImmediate: cq
-				 toRegister: destReg).
+				 inRegister: destReg).
 		^ machineCodeSize :=  4 ].
 	"If the value is a literal, load it in a given register"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
@@ -1512,7 +1498,7 @@ CogRiscV64Compiler >> concretizeAndCqR [
 	self machineCodeAt: loadOffset put: (self
 			 bitwiseAndBetweenRegister: sourceReg
 			 andRegister: ConcreteIPReg
-			 toRegister: destReg).
+			 inRegister: destReg).
 	^ machineCodeSize := loadOffset + 4
 ]
 
@@ -1532,14 +1518,14 @@ CogRiscV64Compiler >> concretizeAndCqRR [
 		self machineCodeAt: 0 put: (self
 				 bitwiseAndBetweenRegister: sourceReg
 				 andImmediate: cq
-				 toRegister: destReg).
+				 inRegister: destReg).
 		^ machineCodeSize := 4 ].
 	"Otherwise, use the literal"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
 	self machineCodeAt: loadOffset put: (self
 			 bitwiseAndBetweenRegister: sourceReg
 			 andRegister: ConcreteIPReg
-			 toRegister: destReg).
+			 inRegister: destReg).
 	^ machineCodeSize := loadOffset + 4
 ]
 
@@ -1555,7 +1541,7 @@ CogRiscV64Compiler >> concretizeAndCwR [
 	self machineCodeAt: loadOffset put: (self
 	      	 bitwiseAndBetweenRegister: sourceReg
 			 andRegister: ConcreteIPReg
-			 toRegister: destReg).
+			 inRegister: destReg).
 	^ machineCodeSize := loadOffset + 4
 			
 ]
@@ -1567,7 +1553,7 @@ CogRiscV64Compiler >> concretizeAndRR [
 	| srcReg1 srcReg2 destReg |
 	srcReg1 := operands at: 0.
 	destReg := srcReg2 := operands at: 1.
-	self machineCodeAt: 0 put: (self bitwiseAndBetweenRegister: srcReg1 andRegister: srcReg2 toRegister: destReg).	
+	self machineCodeAt: 0 put: (self bitwiseAndBetweenRegister: srcReg1 andRegister: srcReg2 inRegister: destReg).	
 	^ machineCodeSize := 4
 ]
 
@@ -1586,14 +1572,14 @@ CogRiscV64Compiler >> concretizeArithmeticShiftRightCqR [
 		self machineCodeAt: 0 put: (self
 				 arithmeticShiftRightValueInRegister: sourceReg
 				 byShiftAmount: cq
-				 intoRegister: destReg).
+				 inRegister: destReg).
 		^ machineCodeSize := 4 ].
 	"Otherwise use the provided literal"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
 	self machineCodeAt: loadOffset put: (self
 			 arithmeticShiftRightValueInRegister: sourceReg
 			 byShiftAmountInRegister: ConcreteIPReg
-			 intoRegister: destReg).
+			 inRegister: destReg).
 	^ machineCodeSize := loadOffset + 4
 ]
 
@@ -1607,7 +1593,7 @@ CogRiscV64Compiler >> concretizeArithmeticShiftRightRR [
 	self machineCodeAt: 0 put: (self 
 		arithmeticShiftRightValueInRegister: srcReg 
 		byShiftAmountInRegister: shiftReg 
-		intoRegister: destReg).
+		inRegister: destReg).
 	^ machineCodeSize := 4
 ]
 
@@ -1780,7 +1766,7 @@ CogRiscV64Compiler >> concretizeBrLongEqualRR [
 	"Branch over the jump if the condition is not met"
 	self machineCodeAt: 0 put: (self  branchTo: 12 ifRegisterValue: leftReg isNotEqualToRegisterValue: rightReg).
 	"Perform the actual jump"
-	self machineCodeAt: 4 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+	self machineCodeAt: 4 put: (self addUpperImmediateToPC: offsetHigh inRegister: ConcreteIPReg).
 	self machineCodeAt: 8 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
 	^ machineCodeSize := 12
 ]
@@ -1804,7 +1790,7 @@ CogRiscV64Compiler >> concretizeBrLongNotEqualRR [
 	"Branch over the jump if the condition is not met"
 	self machineCodeAt: 0 put: (self  branchTo: 12 ifRegisterValue: leftReg isEqualToRegisterValue: rightReg).
 	"Perform the actual jump"
-	self machineCodeAt: 4 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+	self machineCodeAt: 4 put: (self addUpperImmediateToPC: offsetHigh inRegister: ConcreteIPReg).
 	self machineCodeAt: 8 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
 	^ machineCodeSize := 12
 ]
@@ -1947,7 +1933,7 @@ CogRiscV64Compiler >> concretizeCall [
 	offsetLow := self computeSignedValue64Bits: (offset  bitAnd: 16rFFF).
 	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
 	
-	self machineCodeAt: 0 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self addUpperImmediateToPC: offsetHigh inRegister: ConcreteIPReg).
 	self machineCodeAt: 4 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: LR).
 	^ machineCodeSize := 8
 
@@ -2287,7 +2273,7 @@ CogRiscV64Compiler >> concretizeJumpLong [
 	offsetLow := self computeSignedValue64Bits: (offset bitAnd: 16rFFF).
 	offsetHigh := (((self computeSignedValue64Bits: offset) + 16r800) >> 12) bitAnd: 16rFFFFF.
 	
-	self machineCodeAt: 0 put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+	self machineCodeAt: 0 put: (self addUpperImmediateToPC: offsetHigh inRegister: ConcreteIPReg).
 	self machineCodeAt: 4 put: (self jumpTo: ConcreteIPReg withOffset: offsetLow andStorePreviousPCPlus4in: X0).
 	^ machineCodeSize := 8
 ]
@@ -3291,7 +3277,7 @@ CogRiscV64Compiler >> concretizeMulCheckOverflowRR [
 	self machineCodeAt: 8 put: (self
 		arithmeticShiftRightValueInRegister: destReg
 		byShiftAmount: 63
-		intoRegister: ConcreteIPReg3).
+		inRegister: ConcreteIPReg3).
 
 	^ machineCodeSize := 12
 ]
@@ -3355,14 +3341,14 @@ CogRiscV64Compiler >> concretizeOrCqR [
 		self machineCodeAt: 0 put: (self
 				 bitwiseOrBetweenRegister: sourceReg
 				 andImmediate: cq
-				 toRegister: destReg).
+				 inRegister: destReg).
 		^ machineCodeSize := 4 ].
 	"Literal -> compute the distance, load the actual value then and between the 2 registers"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
 	self machineCodeAt: loadOffset put: (self
 			 bitwiseOrBetweenRegister: sourceReg
 			 andRegister: ConcreteIPReg
-			 toRegister: destReg).
+			 inRegister: destReg).
 	^ machineCodeSize := loadOffset + 4
 ]
 
@@ -3378,7 +3364,7 @@ CogRiscV64Compiler >> concretizeOrCwR [
 	self machineCodeAt: loadOffset put: (self
 	      	 bitwiseOrBetweenRegister: sourceReg
 			 andRegister: ConcreteIPReg
-			 toRegister: destReg).
+			 inRegister: destReg).
 	^ machineCodeSize := loadOffset + 4	
 			
 ]
@@ -3391,7 +3377,7 @@ CogRiscV64Compiler >> concretizeOrRR [
 	sourceReg1 := operands at: 0.
 	sourceReg2 := destReg := operands at: 1.
 	"Perform the OR operation"
-	self machineCodeAt: 0 put: (self bitwiseOrBetweenRegister: sourceReg1 andRegister: sourceReg2 toRegister: destReg).
+	self machineCodeAt: 0 put: (self bitwiseOrBetweenRegister: sourceReg1 andRegister: sourceReg2 inRegister: destReg).
 	^ machineCodeSize := 4
 ]
 
@@ -3764,14 +3750,14 @@ CogRiscV64Compiler >> concretizeTstCqR [
 		self machineCodeAt: 0 put: (self
 				 bitwiseAndBetweenRegister: srcReg
 				 andImmediate: cq
-				 toRegister: ConcreteZeroReg).
+				 inRegister: ConcreteZeroReg).
 		^ machineCodeSize :=  4 ].
 	"Literal -> compute the distance, load the actual value then and between the 2 registers"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
 	self machineCodeAt: loadOffset put: (self
 			 bitwiseAndBetweenRegister: srcReg
 			 andRegister: ConcreteIPReg
-			 toRegister: ConcreteZeroReg).
+			 inRegister: ConcreteZeroReg).
 	^ machineCodeSize := loadOffset + 4
 ]
 
@@ -3796,14 +3782,14 @@ CogRiscV64Compiler >> concretizeXorCqR [
 		self machineCodeAt: 0 put: (self
 				 bitwiseXorBetweenRegister: sourceReg
 				 andImmediate: cq
-				 intoRegister: destReg).
+				 inRegister: destReg).
 		^ machineCodeSize :=  4 ].
 	"Literal -> compute the distance, load the actual value then XOR between the 2 registers"
 	loadOffset := self loadLiteralInRegister: ConcreteIPReg.
 	self machineCodeAt: loadOffset put: (self
 			 bitwiseXorBetweenRegister: sourceReg
 			 andRegister: ConcreteIPReg
-			 intoRegister: destReg).
+			 inRegister: destReg).
 	^ machineCodeSize := loadOffset + 4
 ]
 
@@ -3819,7 +3805,7 @@ CogRiscV64Compiler >> concretizeXorCwR [
 	self machineCodeAt: loadOffset put: (self
 					bitwiseXorBetweenRegister: sourceReg  
 					andRegister: ConcreteIPReg 
-					intoRegister: destReg).
+					inRegister: destReg).
 	^ machineCodeSize := loadOffset + 4
 ]
 
@@ -3830,7 +3816,7 @@ CogRiscV64Compiler >> concretizeXorRR [
 	| srcReg1 srcReg2 destReg |
 	srcReg1 := operands at: 0.
 	srcReg2 := destReg := operands at: 1.
-	self machineCodeAt: 0 put: (self bitwiseXorBetweenRegister: srcReg1 andRegister: srcReg2 intoRegister: destReg).
+	self machineCodeAt: 0 put: (self bitwiseXorBetweenRegister: srcReg1 andRegister: srcReg2 inRegister: destReg).
 	^ machineCodeSize := 4
 	
 ]
@@ -5293,7 +5279,7 @@ CogRiscV64Compiler >> loadCwInto: destReg [
 			"https://github.com/llvm/llvm-project/blob/4c3d916c4bd2a392101c74dd270bd1e6a4fec15b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVMatInt.cpp"
 			offsetLow := self computeSignedValue64Bits: (distance  bitAnd: 16rFFF).
 			offsetHigh := (((self computeSignedValue64Bits: distance) + 16r800) >> 12) bitAnd: 16rFFFFF.
-			self machineCodeAt: 0 put: (self addUpperImmediateToPC: offsetHigh toRegister: destReg).
+			self machineCodeAt: 0 put: (self addUpperImmediateToPC: offsetHigh inRegister: destReg).
 			self machineCodeAt: 4 put: (self addImmediate: offsetLow toRegister: destReg inRegister: destReg).
 			^ machineCodeSize := 8 ].
 	"Otherwise, load the literal in a register"
@@ -5381,7 +5367,7 @@ CogRiscV64Compiler >> loadLiteralInRegister: destReg startingAtIndex: index [
 	literalAddress := (cogit cCoerceSimple: dependent to: #'AbstractInstruction *') address.
 	distance := literalAddress - address.
 	self assertValue: distance isContainedIn: 12.
-	self machineCodeAt: index put: (self addUpperImmediateToPC: 0 toRegister: destReg).
+	self machineCodeAt: index put: (self addUpperImmediateToPC: 0 inRegister: destReg).
    	self machineCodeAt: index + 4 put: (self loadDoubleWordFromAddressInRegister: destReg withOffset: distance toRegister: destReg).
 	^ machineCodeSize := 8
 
@@ -5560,7 +5546,6 @@ CogRiscV64Compiler >> machineCodeWords [
 CogRiscV64Compiler >> moveRegister: srcReg toRegister: destReg [
 
 	"mv is pseudo instruction that expands to addi rd, rs1, 0"	
-	self flag: #DONE.
 	^ self addImmediate: 0 toRegister: srcReg inRegister: destReg
 ]
 
@@ -5662,8 +5647,6 @@ CogRiscV64Compiler >> negateValueInRegister: srcReg intoRegister: destReg [
 
 	"neg: Negate value in register x[rs1] and stores it in x[rd].
 	 Expands to sub rd, x0, rs"
-	
-	self flag: #TODO.
 	^ self subtractRegister: srcReg fromRegister: X0 intoRegister: destReg
 
 	
@@ -5673,7 +5656,6 @@ CogRiscV64Compiler >> negateValueInRegister: srcReg intoRegister: destReg [
 CogRiscV64Compiler >> nop [
 	
 	"nop: Pseudoinstruction that expands to addi x0, 0(x0)"
-	self flag: #DONE.
 	^ self addImmediate: 0 toRegister: X0 inRegister: X0 
 ]
 
@@ -6056,7 +6038,7 @@ CogRiscV64Compiler >> rewriteTransferAt: returnAddress target: targetAddress [
 	"auipc"
 	objectMemory
 		long32At: (self instructionAddressBefore: returnAddress - 4)
-		put: (self addUpperImmediateToPC: offsetHigh toRegister: ConcreteIPReg).
+		put: (self addUpperImmediateToPC: offsetHigh inRegister: ConcreteIPReg).
 	"jalr -> rd will be either ra for a call or x0 for a simple jump (extracted from the previous method)"
 	objectMemory
 		long32At: (self instructionAddressBefore: returnAddress)
@@ -6085,7 +6067,7 @@ CogRiscV64Compiler >> rotateLeftValueInRegister: srcReg byShiftAmount: shamt inR
 	"Notice that srcReg is the same as destReg"
 	self machineCodeAt: index put: (self shiftLeftValueInRegister: srcReg byShiftAmount: shamt intoRegister: ConcreteIPReg2).
 	self machineCodeAt: index + 4 put: (self shiftRightValueInRegister: srcReg byShiftAmount: (shamt negated bitAnd: 16r3f) intoRegister: destReg). 
-	self machineCodeAt: index + 8 put: (self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg).
+	self machineCodeAt: index + 8 put: (self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg inRegister: destReg).
 	^ machineCodeSize := 12
 ]
 
@@ -6106,7 +6088,7 @@ CogRiscV64Compiler >> rotateLeftValueInRegister: srcReg byShiftAmountInRegister:
 	self machineCodeAt: 0 put: (self shiftLeftValueInRegister: srcReg byShiftAmountInRegister: shamtReg intoRegister: ConcreteIPReg2).
 	self machineCodeAt: 4 put: (self negateValueInRegister: shamtReg intoRegister: destReg).
 	self machineCodeAt: 8 put: (self shiftRightValueInRegister: srcReg byShiftAmountInRegister: destReg intoRegister: destReg).
-	self machineCodeAt: 12 put: (self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg).
+	self machineCodeAt: 12 put: (self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg inRegister: destReg).
 	^ machineCodeSize := 16
 ]
 
@@ -6126,7 +6108,7 @@ CogRiscV64Compiler >> rotateRightValueInRegister: srcReg byShiftAmount: shamt in
 	self assertValue: shamt isContainedIn: 6. "6 bits for RV64, 5 or RV32"
 	self machineCodeAt: 0 put: (self shiftRightValueInRegister: srcReg byShiftAmount: shamt intoRegister: ConcreteIPReg2).
 	self machineCodeAt: 4 put: (self shiftLeftValueInRegister: srcReg byShiftAmount: (shamt negated bitAnd: 16r3f) intoRegister: destReg).
-	self machineCodeAt: 8 put: (self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg).
+	self machineCodeAt: 8 put: (self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg inRegister: destReg).
 	^ machineCodeSize := 12
 ]
 
@@ -6145,7 +6127,7 @@ CogRiscV64Compiler >> rotateRightValueInRegister: srcReg byShiftAmountInRegister
 	self machineCodeAt: 0 put: (self shiftRightValueInRegister: srcReg byShiftAmountInRegister: shamtReg intoRegister: ConcreteIPReg2).
 	self machineCodeAt: 4 put: (self negateValueInRegister: shamtReg intoRegister: destReg).
 	self machineCodeAt: 8 put: (self shiftLeftValueInRegister: srcReg byShiftAmount: destReg intoRegister: destReg).
-	self machineCodeAt: 12 put: (self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg toRegister: destReg).
+	self machineCodeAt: 12 put: (self bitwiseOrBetweenRegister: ConcreteIPReg2 andRegister: destReg inRegister: destReg).
 	^ machineCodeSize := 16
 ]
 
