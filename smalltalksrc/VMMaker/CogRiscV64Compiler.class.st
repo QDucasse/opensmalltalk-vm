@@ -1029,9 +1029,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 			([ RemRR ]   -> [ ^ 4 ]).
 			([ NegateR ] -> [ ^ 4 ]).
 		
-			([ CmpCqR ] -> [ (self value: (operands at: 0) isContainedIn: 12)
-				ifTrue: [ ^ self bytesToLoadImmediate: (operands at: 0) + 4 ] "Immediate embedded in operations" 
-				ifFalse: [ ^ self literalLoadInstructionBytes + 4 ]. ]). "DONE"
+			([ CmpCqR ] -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes + 4 ]).
 			([ CmpC32R ] -> [ ^ 0 ]).
 			([ CmpCwR ]  -> [ ^ 0 ]).
 			([ CmpRR ]   -> [ ^ 0 ]).
@@ -1073,8 +1071,8 @@ CogRiscV64Compiler >> computeMaximumSize [
 			
 			"Data Movement - Basic"
 			([ MoveCqR ]  -> [ dependent ifNil: [ ^ 4 ]. ^ self literalLoadInstructionBytes ]).
-			([ MoveC32R ] -> [ ^ 0 ]). "shouldBeImplemented"
-			([ MoveCwR ]  -> [ ^ 8 ]). "always a auipc addi/ld sequence"
+			([ MoveC32R ] -> [ ^ 8 ]). "auipc+ld sequence"
+			([ MoveCwR ]  -> [ ^ 8 ]). "auipc addi/ld sequence"
 			([ MoveRR ]   -> [ ^ 4 ]).
 
 			"Data movement - Absolute addresses"
@@ -1806,14 +1804,13 @@ CogRiscV64Compiler >> concretizeCmpCqR [
 	<var: #cq type: #sqInt>
 	<inline: true>
 	| srcReg cq loadOffset |
-	self flag: #subi.
 	cq := operands at: 0.
 	srcReg := operands at: 1.
 	dependent 
 		ifNil: [ "immediate"
-				self assertValue: cq isContainedIn: 12.
-				self machineCodeAt: 0 put: (self addImmediate: cq toRegister: X0 inRegister: ConcreteIPReg).
-				loadOffset := 4]
+				self assertValue: cq negated isContainedIn: 12.
+				self machineCodeAt: 0 put: (self addImmediate: cq negated toRegister: X0 inRegister: ConcreteIPReg).
+				^ machineCodeSize := 4]
 		ifNotNil: [ "Literal -> compute the distance, load the actual value then and between the 2 registers" 
 			loadOffset := self loadLiteralInRegister: ConcreteIPReg ].
 	"Perform the subtraction"
@@ -2364,13 +2361,6 @@ CogRiscV64Compiler >> concretizeMoveAwR [
 ]
 
 { #category : #concretization }
-CogRiscV64Compiler >> concretizeMoveC32R [
-	
-	self flag: #TODO.
-	self shouldBeImplemented.
-]
-
-{ #category : #concretization }
 CogRiscV64Compiler >> concretizeMoveCqR [
 
 	<inline: true>
@@ -2391,7 +2381,6 @@ CogRiscV64Compiler >> concretizeMoveCwR [
 	"Will get inlined into concretizeAt: switch."
 
 	<inline: true>
-	self flag: #DONE.
 	^ machineCodeSize := self loadCwInto: (operands at: 1)
 ]
 
@@ -3782,7 +3771,7 @@ CogRiscV64Compiler >> dispatchConcretize [
 		"Data Movement - basic"
 		[MoveCqR]			-> [ ^ self concretizeMoveCqR ].
 		[MoveCwR]			-> [ ^ self concretizeMoveCwR ].
-		[MoveC32R]		-> [ ^ self concretizeMoveC32R ].
+		[MoveC32R]		-> [ ^ self concretizeMoveCwR ].
 		[MoveRR]			-> [ ^ self concretizeMoveRR ].
 		
 		"Data Movement - Absolute addresses"
@@ -4771,11 +4760,20 @@ CogRiscV64Compiler >> isJump [
 
 { #category : #testing }
 CogRiscV64Compiler >> isJumpAt: pc [
+	
 	| instr |
-	1halt.
 	instr := objectMemory long32At: pc.
-	^(self instructionIsJAL: instr)
-	  or: [self instructionIsJALR: instr]
+	
+	"jalr variations: jalr and jr (expands to jalr, x0(offset)
+	 jal variations:  jal and j (expands to jal, x0(offset)"
+	((self instructionIsJAL: instr) or: [self instructionIsJALR: instr])
+		ifTrue: [ ^ true ].
+		
+	"b variations: beq, bne, bge, blt, bgeu and bltu"
+	(self instructionIsB: instr) ifTrue: [ ^ true ].
+	
+	^ false
+	
 ]
 
 { #category : #testing }
@@ -5358,7 +5356,7 @@ CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 						  operands at: 1 put: ConcreteIPReg].
       [CmpC32R]	 -> [newBranchLeft := operands at: 1.
 						  newBranchRight := ConcreteIPReg. "Need to change once everything is done"
-						  opcode := MoveCwR.
+						  opcode := MoveC32R.
 						  operands at: 1 put: ConcreteIPReg].
 		[TstCqR]	 ->	 [newBranchLeft := ConcreteZeroReg. "Need to change once everything is done"
 						  newBranchRight := X0].
