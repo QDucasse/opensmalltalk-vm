@@ -842,12 +842,12 @@ CogRiscV64Compiler >> branchTo: offset ifRegisterValueUnsigned: srcReg1 isLessTh
 	
 ]
 
-{ #category : #testing }
+{ #category : #accessing }
 CogRiscV64Compiler >> byteReadsZeroExtend [
 	^true
 ]
 
-{ #category : #'concretization helpers - mc size' }
+{ #category : #'concretization helpers - sizing' }
 CogRiscV64Compiler >> bytesForDataLoadOperationOfSize: operationSize andImmediateOperationSize: immOperationSize [
 	
 	"When loading, the offset is operands at 0"
@@ -858,7 +858,7 @@ CogRiscV64Compiler >> bytesForDataLoadOperationOfSize: operationSize andImmediat
 	^ self literalLoadInstructionBytes + operationSize 
 ]
 
-{ #category : #'concretization helpers - mc size' }
+{ #category : #'concretization helpers - sizing' }
 CogRiscV64Compiler >> bytesForDataStoreOperationOfSize: operationSize andImmediateOperationSize: immOperationSize [
 	
 	"When storing, the offset is operands at 1"
@@ -882,7 +882,7 @@ CogRiscV64Compiler >> cStackPointer [
 	^ SP
 ]
 
-{ #category : #accessing }
+{ #category : #'concretization helpers - sizing' }
 CogRiscV64Compiler >> callInstructionByteSize [
 
 	^ 8
@@ -1116,7 +1116,7 @@ CogRiscV64Compiler >> computeMaximumSize [
 	^ 0 "to keep C compiler qui Unmatched "
 ]
 
-{ #category : #'machine code instruction' }
+{ #category : #'helpers - size sign' }
 CogRiscV64Compiler >> computeSignedValue64Bits: aValue [ 
 
 	^ self computeSignedValueOf: aValue ofSize: 64
@@ -3861,7 +3861,7 @@ CogRiscV64Compiler >> divideRegisterValueUnsigned: srcReg1 byRegisterValueUnsign
 
 ]
 
-{ #category : #'inline cacheing' }
+{ #category : #'instruction extraction' }
 CogRiscV64Compiler >> extractOffsetFromAUIPC: instruction [ 
 
 	^ self signExtendValue: ((instruction >> 12) bitAnd: 16rFFFFF) << 12 forSize: 32
@@ -4264,7 +4264,7 @@ CogRiscV64Compiler >> fullCallsAreRelative [
 	^false
 ]
 
-{ #category : #'machine code instruction' }
+{ #category : #'calling C function in Smalltalk stack' }
 CogRiscV64Compiler >> genCaptureCStackPointers: captureFramePointer [
 
 	"Save the register to a caller-saved register.
@@ -4582,14 +4582,14 @@ CogRiscV64Compiler >> inlineCacheTagAt: callSiteReturnAddress [
 	^self subclassResponsibility
 ]
 
-{ #category : #'inline cacheing' }
+{ #category : #'instruction extraction' }
 CogRiscV64Compiler >> instructionAddressBefore: followingAddress [
 	"Answer the instruction address immediately preceding followingAddress."
 	<inline: true>
 	^followingAddress -4
 ]
 
-{ #category : #'inline cacheing' }
+{ #category : #'instruction extraction' }
 CogRiscV64Compiler >> instructionBeforeAddress: followingAddress [
 	"Answer the instruction immediately preceding followingAddress."
 	<inline: true>
@@ -4632,7 +4632,7 @@ CogRiscV64Compiler >> instructionIsB: instruction withCondition: condition [
 
 ]
 
-{ #category : #'inline cacheing' }
+{ #category : #'instruction detection' }
 CogRiscV64Compiler >> instructionIsConditionalBranch: instruction [
 	
 	^ (instruction bitAnd: 16r7F) = 2r1100011
@@ -4691,7 +4691,7 @@ CogRiscV64Compiler >> instructionSizeAt: pc [
 	^4
 ]
 
-{ #category : #testing }
+{ #category : #'address sizing' }
 CogRiscV64Compiler >> isAddressRelativeToVarBase: varAddress [
 	<inline: true>
 	<var: #varAddress type: #usqInt>
@@ -4707,7 +4707,7 @@ CogRiscV64Compiler >> isBigEndian [
 	^false
 ]
 
-{ #category : #testing }
+{ #category : #'instruction detection' }
 CogRiscV64Compiler >> isCallPrecedingReturnPC: mcpc [
 	"Assuming mcpc is a send return pc answer if the instruction before it is a call (not a CallFull)."
 	"There are two types of calls: BL and/BLX encoding"
@@ -4716,35 +4716,35 @@ CogRiscV64Compiler >> isCallPrecedingReturnPC: mcpc [
 	^(self instructionIsJALR: call)
 ]
 
-{ #category : #testing }
+{ #category : #'address sizing' }
 CogRiscV64Compiler >> isInImmediateBranchRange: operand [
 	"RISC-V branches can use immediates of max size 13 bits"
 	<var: #operand type: #'usqIntptr_t'>
 	^ self value: operand isContainedIn: 13
 ]
 
-{ #category : #testing }
+{ #category : #'address sizing' }
 CogRiscV64Compiler >> isInImmediateCallRange: operand [
 	"RISC-V calls and jumps can use immediates of max size 20 bits"
 	<var: #operand type: #'usqIntptr_t'>
 	^ self value: operand isContainedIn: 32
 ]
 
-{ #category : #testing }
+{ #category : #'address sizing' }
 CogRiscV64Compiler >> isInImmediateJumpRange: operand [
 	"RISC-V jal and jalr can use immediates of max size 21 bits"
 	<var: #operand type: #'usqIntptr_t'>
 	^ self value: operand isContainedIn: 21
 ]
 
-{ #category : #testing }
+{ #category : #'address sizing' }
 CogRiscV64Compiler >> isInLongJumpCallRange: offset [
 	"RISC-V calls and jumps can use values of max size 32 bits through auipc / jal|jalr"
 	<var: #operand type: #'usqIntptr_t'>
 	^ self value: offset isContainedIn: 32
 ]
 
-{ #category : #'machine code instruction' }
+{ #category : #'conditional handling' }
 CogRiscV64Compiler >> isJump [
 	^super isJump or: [opcode between: BrEqualRR and: BrFPGreaterEqualRR]
 		"{ BrEqualRR. BrNotEqualRR. 
@@ -4758,7 +4758,7 @@ CogRiscV64Compiler >> isJump [
 		BrFPGreaterRR. BrFPGreaterEqualRR } includes: opcode]"
 ]
 
-{ #category : #testing }
+{ #category : #'instruction detection' }
 CogRiscV64Compiler >> isJumpAt: pc [
 	
 	| instr |
@@ -4776,14 +4776,14 @@ CogRiscV64Compiler >> isJumpAt: pc [
 	
 ]
 
-{ #category : #testing }
+{ #category : #'instruction detection' }
 CogRiscV64Compiler >> isLiteralLoad: followingAddress [
 	"auipc ld"
 	^ (self instructionIsAUIPC: (self instructionBeforeAddress: followingAddress - 4)) 
 		and: [self instructionIsLD: (self instructionBeforeAddress: followingAddress)]
 ]
 
-{ #category : #'concretization helpers - mc size' }
+{ #category : #'concretization helpers - sizing' }
 CogRiscV64Compiler >> jumpLongByteSize [
 "	Branch/Call ranges.  Jump[Cond] can be generated as short as possible.  Call/Jump[Cond]Long must be generated
 	in the same number of bytes irrespective of displacement since their targets may be updated, but they need only
@@ -4797,7 +4797,7 @@ CogRiscV64Compiler >> jumpLongByteSize [
 	^8
 ]
 
-{ #category : #'concretization helpers - mc size' }
+{ #category : #'concretization helpers - sizing' }
 CogRiscV64Compiler >> jumpLongConditionalByteSize [
 	" RISCV-64 does not have conditional long jumps. 
 	 Be a short conditional jump (over the long jump instruction) and a long jump "
@@ -4928,7 +4928,7 @@ CogRiscV64Compiler >> leafCallStackPointerDelta [
 	^0
 ]
 
-{ #category : #'concretization helpers - mc size' }
+{ #category : #'concretization helpers - sizing' }
 CogRiscV64Compiler >> literalLoadInstructionBytes [
 	"Answer the size of a literal load instruction (which may or may not include the size of the literal).
 	 This differs between in-line and out-of-line literal generation."
@@ -5060,7 +5060,7 @@ CogRiscV64Compiler >> loadLiteralInRegister: destReg startingAtIndex: index [
 
 ]
 
-{ #category : #'concretization helpers - mc size' }
+{ #category : #'concretization helpers - sizing' }
 CogRiscV64Compiler >> loadPICLiteralByteSize [
 	"Answer the byte size of a MoveCwR opcode's corresponding machine code
 	 when the argument is a PIC.  This is for the self-reference at the end of a
@@ -5197,7 +5197,7 @@ CogRiscV64Compiler >> machineCodeAt: anOffset put: aWord [
 	machineCode at: anOffset // 4 put: aWord
 ]
 
-{ #category : #'concretization helpers - mc size' }
+{ #category : #'concretization helpers' }
 CogRiscV64Compiler >> machineCodeBytes [
 	"Answer the maximum number of bytes of machine code generated for any abstract instruction.
 	 e.g. MulCheckOverflowRR, AddCheckOverflowCqRR, SubCheckOverflowCqR or  RotateRightCqR/RotateLeftCqR"
@@ -5319,7 +5319,7 @@ CogRiscV64Compiler >> nop [
 	^ self addImmediate: 0 toRegister: X0 inRegister: X0 
 ]
 
-{ #category : #'machine code instruction' }
+{ #category : #'conditional handling' }
 CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 	"Support for processors without condition codes, such as the MIPS.
 	 Answer the branch opcode.  Modify the receiver and the branch to
@@ -5402,7 +5402,7 @@ CogRiscV64Compiler >> noteFollowingConditionalBranch: branch [
 	^branch
 ]
 
-{ #category : #'machine code instruction' }
+{ #category : #'conditional handling' }
 CogRiscV64Compiler >> noteFollowingOverflowBranch: branch [
 	"Support for processors without condition codes, such as the RISC-V.
 	 Answer the branch opcode.  Modify the receiver and the branch to
@@ -5437,7 +5437,7 @@ CogRiscV64Compiler >> noteFollowingOverflowBranch: branch [
 	^branch
 ]
 
-{ #category : #'inline cacheing' }
+{ #category : #'concretization helpers - sizing' }
 CogRiscV64Compiler >> numICacheFlushOpcodes [
 	"ARM needs to do icache flushing when code is written"
 	"for now return 0 to skip it and probably blow up"
@@ -5477,7 +5477,7 @@ CogRiscV64Compiler >> prepareStackToCallCFunctionInSmalltalkStack: anObject [
 	cogit MoveR: Extra2Reg R: SP.
 ]
 
-{ #category : #accessing }
+{ #category : #'concretization helpers - sizing' }
 CogRiscV64Compiler >> pushLinkRegisterByteSize [
 
 	^8
@@ -5646,7 +5646,7 @@ CogRiscV64Compiler >> rewriteJumpLongAt: jumpReturnAddress target: jumpTargetAdd
 	^self rewriteTransferAt: jumpReturnAddress target: jumpTargetAddress
 ]
 
-{ #category : #'concretization helpers' }
+{ #category : #'conditional handling' }
 CogRiscV64Compiler >> rewriteOpcode: anOpcode with: left with: right [
 	<inline: true>
 	opcode := anOpcode.

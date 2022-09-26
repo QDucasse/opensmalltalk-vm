@@ -9,7 +9,7 @@ CogOutOfLineLiteralsRiscV64Compiler class >> literalsManagerClass [
 	^OutOfLineLiteralsManager
 ]
 
-{ #category : #accessing }
+{ #category : #'concretization helpers - sizing' }
 CogOutOfLineLiteralsRiscV64Compiler >> cmpC32RTempByteSize [
 	^ 8
 ]
@@ -115,7 +115,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> literalOpcodeIndex [
 	^(operands at: 2) asInteger
 ]
 
-{ #category : #accessing }
+{ #category : #'concretization helpers - sizing' }
 CogOutOfLineLiteralsRiscV64Compiler >> loadLiteralByteSize [
 	"Answer the byte size of a MoveCwR opcode's corresponding machine code. On RISC-V, auipc + ld"
 	^8
@@ -135,7 +135,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> mapEntryAddress [
 		ifFalse: [address + machineCodeSize]
 ]
 
-{ #category : #'compile abstract instructions' }
+{ #category : #accessing }
 CogOutOfLineLiteralsRiscV64Compiler >> outOfLineLiteralOpcodeLimit [
 	"The maximum offset in a LDR is (1<<12)-1, or (1<<10)-1 instructions.
 	 Be conservative.  The issue is that one abstract instruction can emit
@@ -314,7 +314,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> updateLabel: labelInstruction [
 		[super updateLabel: labelInstruction]
 ]
 
-{ #category : #testing }
+{ #category : #'literal handling' }
 CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 	"Answer if the receiver uses an out-of-line literal.  Needs only
 	 to work for the opcodes created with gen:literal:operand: et al.
