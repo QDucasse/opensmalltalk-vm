@@ -141,8 +141,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> outOfLineLiteralOpcodeLimit [
 	 Be conservative.  The issue is that one abstract instruction can emit
 	 multiple hardware instructions so we assume a 2 to 1 worst case of
 	 hardware instructions to abstract opcodes.."
-	self flag: #TODO.
-	"1halt."
+	self flag: #fix.
 	^1 << (12 "12-bit offset field"
 			- 3 "8 bytes per literal, so 2^3?"
 			- 1 "2 hardware instructions to 1 abstract opcode") - 1
@@ -332,7 +331,7 @@ CogOutOfLineLiteralsRiscV64Compiler >> usesOutOfLineLiteral [
 		[AddCheckOverflowCqR ] -> [^ (self value: (operands at: 0) isContainedIn: 12) not]. 
 		[AndCqR]               -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
 		[AndCqRR]              -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
-		[CmpCqR]               -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
+		[CmpCqR]               -> [^ (self value: ((operands at: 0) negated) isContainedIn: 12) not].
 		[CmpC32R]              -> [^ true]. 
 		[OrCqR]                -> [^ (self value: (operands at: 0) isContainedIn: 12) not].
 		[SubCqR]               -> [^ (self value: ((operands at: 0) negated) isContainedIn: 12) not]. 

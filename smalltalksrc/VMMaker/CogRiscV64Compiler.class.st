@@ -869,15 +869,6 @@ CogRiscV64Compiler >> bytesForDataStoreOperationOfSize: operationSize andImmedia
 	^ self literalLoadInstructionBytes + operationSize 
 ]
 
-{ #category : #'concretization helpers - mc size' }
-CogRiscV64Compiler >> bytesToLoadImmediate: anImmediate [ 
-
-	"Returns the number of bytes (instructions * 4) needed to generate"
-	<inline:true>
-	self flag: #TODO.
-	^ 8
-]
-
 { #category : #abi }
 CogRiscV64Compiler >> cResultRegister [
 	"Answer the register through which C funcitons return integral results."
@@ -5048,19 +5039,6 @@ CogRiscV64Compiler >> loadHalfWordFromAddressInRegister: baseRegister withOffset
 ]
 
 { #category : #'machine code instruction' }
-CogRiscV64Compiler >> loadImmediate: immediate inRegister: destReg [
-
-	"Uses an addi instruction to load an 11-bit long immediate. If 12 bit long, it will get sign-extended and incorrect"
-	self flag: #DONE.
-	self assertValue: immediate isContainedIn: 11.
-	self machineCodeAt: 0 put: (self addImmediate: immediate toRegister: X0 inRegister: destReg).
-	^ machineCodeSize := 4
-	
-	
-	
-]
-
-{ #category : #'machine code instruction' }
 CogRiscV64Compiler >> loadLiteralInRegister: destReg [
 
 	^ self loadLiteralInRegister: destReg startingAtIndex: 0 
@@ -5088,8 +5066,8 @@ CogRiscV64Compiler >> loadLiteralInRegister: destReg startingAtIndex: index [
 CogRiscV64Compiler >> loadPICLiteralByteSize [
 	"Answer the byte size of a MoveCwR opcode's corresponding machine code
 	 when the argument is a PIC.  This is for the self-reference at the end of a
-	 closed PIC.  On RISC-V this is a two instructions pc-relative register load."
-	self flag: #TODO.
+	 closed PIC.  On RISC-V this is a two instructions pc-relative register load:
+	 auipc/addi with direct encoding or auipc/ld with a literal"
 	^8
 ]
 
@@ -5224,24 +5202,17 @@ CogRiscV64Compiler >> machineCodeAt: anOffset put: aWord [
 { #category : #'concretization helpers - mc size' }
 CogRiscV64Compiler >> machineCodeBytes [
 	"Answer the maximum number of bytes of machine code generated for any abstract instruction.
-	 e.g. **CwR =>
-			load full immediate (32) 
-			operation (sub/add/...)"
-	self flag: #TODO.
-	^ 36
+	 e.g. MulCheckOverflowRR, AddCheckOverflowCqRR, SubCheckOverflowCqR or  RotateRightCqR/RotateLeftCqR"
+	self flag: #maxsize.
+	^ 24
 ]
 
 { #category : #'concretization helpers' }
 CogRiscV64Compiler >> machineCodeWords [
 	"Answer the maximum number of words of machine code generated for any abstract instruction.
-	 e.g. CmpCwR =>
-			mov R3, #<addressByte1>, 12
-			orr R3, R3, #<addressByte2>, 8
-			orr R3, R3, #<addressByte3>, 4
-			orr R3, R3, #<addressByte4>, 0
-			cmp R?, R3"
-	self flag: #TODO.
-	^ 15
+	 e.g. MulCheckOverflowRR, AddCheckOverflowCqRR, SubCheckOverflowCqR or  RotateRightCqR/RotateLeftCqR"
+	self flag: #maxsize.
+	^ 6
 ]
 
 { #category : #'machine code instruction' }
@@ -6215,7 +6186,7 @@ CogRiscV64Compiler >> value: value isContainedIn: size [
 	twosComplement := mask - value abs + 1.
 	(value >= 0)
 		ifTrue: [ ^ (value bitAnd: mask) = value ]
-		ifFalse: [ ^ (twosComplement >= 0 and: [twosComplement <= mask]) ]	
+		ifFalse: [ ^ twosComplement between: 0 and: mask ]	
 ]
 
 { #category : #'inline cacheing' }
