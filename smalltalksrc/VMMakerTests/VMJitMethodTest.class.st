@@ -93,7 +93,6 @@ VMJitMethodTest >> testComparingSmallIntegersThatNotFit [
 		receiver: memory nilObject 
 		arguments:  { parameter }
 		returnAddress: callerAddress.
-	
 	self 
 		assert: (memory integerValueOf: machineSimulator receiverRegisterValue)
 		equals: 17

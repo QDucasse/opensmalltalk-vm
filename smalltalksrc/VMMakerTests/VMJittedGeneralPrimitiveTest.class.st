@@ -88,8 +88,8 @@ VMJittedGeneralPrimitiveTest >> testCompareSmallIntegerEqualsToBoxedFloat [
 		cogit receiverTags: memory smallIntegerTag.
 		jump := cogit objectRepresentation genPrimitiveEqual.
 	].
-	"self openMachineDebugger.
-	1halt."
+	self openMachineDebugger.
+	1halt.
 	self 
 		executePrimitiveWithReceiver: (self memory integerObjectOf: 42)
 		withArgument: (self memory boxedFloatObjectOf: 42.0).

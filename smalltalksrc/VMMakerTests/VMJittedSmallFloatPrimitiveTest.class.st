@@ -251,7 +251,8 @@ VMJittedSmallFloatPrimitiveTest >> testPrimitiveLessThanTwoSmallFloatsReturnsFal
 	self 
 		executePrimitiveWithReceiver: (self memory floatObjectOf: 2.0)
 		withArgument: (self memory floatObjectOf: 1.0).
-
+	self openMachineDebugger.
+	1halt.
 	self 
 		assert: machineSimulator receiverRegisterValue
 		equals: memory falseObject

@@ -239,7 +239,8 @@ VMMachineCodeDebugger >> disassembleTrampoline [
 				bytes: (anInstruction codeBytes: cogit objectMemory memoryManager);
 				debugger: self;
 				machineSimulator: machineSimulator;
-				yourself ])
+				yourself ]).
+	self initialDisassembly 
 ]
 
 { #category : #actions }
