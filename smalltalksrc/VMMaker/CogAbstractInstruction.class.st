@@ -912,6 +912,17 @@ CogAbstractInstruction >> genMulR: regSource R: regDest [
 	self subclassResponsibility
 ]
 
+{ #category : 'accessing' }
+CogAbstractInstruction >> genNopsForEntries [ 
+
+	"Generate the correct amount of nops to disalign the cog entry and no check entry.
+	 for more details, see genGetInlineCacheClassTagFrom: into: forEntry:"
+
+	cogit Nop.
+	cogit Nop.
+	cogit Nop. 
+]
+
 { #category : 'smalltalk calling convention' }
 CogAbstractInstruction >> genPushRegisterArgsForAbortMissNumArgs: numArgs [
 	"Ensure that the register args are pushed before the outer and

@@ -536,7 +536,7 @@ CogObjectRepresentationFor64BitSpur >> genGetInlineCacheClassTagFrom: sourceReg 
 
 	"The entry and the noCheckEntry (that will generated after) need to be aligned differently.
 	We do that by forcing some odd number of extra Nop operations here.
-	One Nop is not enough because that causes x86-64 entries to have the same allignment.
+	One Nop is not enough because that causes x86-64 entries to have the same alignment.
 	
 	In ARM64 all instructions are 4 byte long, thus 3 Nops make 
 	   - the entry to be aligned to 8 bytes and
@@ -544,9 +544,7 @@ CogObjectRepresentationFor64BitSpur >> genGetInlineCacheClassTagFrom: sourceReg 
 	
 	In x86-64 instruction size is variable, and 3 Nops take 3 bytes."
 	forEntry ifTrue: [ 
-		cogit Nop.
-		cogit Nop.
-		cogit Nop.
+		 cogit backend genNopsForEntries
 	].
 
 	jumpImm jmpTarget: cogit Label.
