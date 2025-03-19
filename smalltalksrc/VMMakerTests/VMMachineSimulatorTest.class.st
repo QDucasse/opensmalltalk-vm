@@ -18,8 +18,9 @@ VMMachineSimulatorTest >> testInstructionExceptionHasCorrectInstructionAddress [
 		cogit MoveCq: 5 R: ClassReg.
 		label := cogit Label.
 		cogit AddCq: 1 R: TempReg.
-		subInstruction := cogit SubCq: 1 R: ClassReg.
 		breakInstruction := cogit Stop.
+		"Note: for RISCV, a jump will look for the previous instruction and wont understand a Stop"
+		subInstruction := cogit SubCq: 1 R: ClassReg.
 		cogit JumpNonZero: label.
 
 		"This instruction should not be called"
@@ -47,8 +48,9 @@ VMMachineSimulatorTest >> testInstructionExceptionIsRaisedAsUnicornError [
 		cogit MoveCq: 5 R: ClassReg.
 		label := cogit Label.
 		cogit AddCq: 1 R: TempReg.
-		subInstruction := cogit SubCq: 1 R: ClassReg.
 		breakInstruction := cogit Stop.
+		"Note: for RISCV, a jump will look for the previous instruction and wont understand a Stop"
+		subInstruction := cogit SubCq: 1 R: ClassReg.
 		cogit JumpNonZero: label.
 
 		"This instruction should not be called"
@@ -98,11 +100,11 @@ VMMachineSimulatorTest >> testMemoryAccessExceptionComesWithCorrectAddress [
 { #category : 'tests - memory access exception' }
 VMMachineSimulatorTest >> testMemoryAccessExceptionHandledCountIsRespected [
 
-	| label lastInstruction invalidAddressHandled addInstruction jumpInstruction expectedAddress |
+	| label lastInstruction invalidAddressHandled addInstruction instrCount jumpIndex jumpInstruction expectedAddress address |
 
 	self timeLimit: 30 minutes.
 
-	self compile: [ 
+	address := self compile: [ 
 		cogit MoveCq: 0 R: TempReg.
 		cogit MoveCq: 16rFFFF0000 R: ClassReg.
 		cogit MoveMb: 0 r: ClassReg R: ReceiverResultReg. 
@@ -112,7 +114,13 @@ VMMachineSimulatorTest >> testMemoryAccessExceptionHandledCountIsRespected [
 		jumpInstruction := cogit Jump: label.
 		"This instruction is never reach"
 		lastInstruction := cogit RetN: 0 ].
-
+	
+	"Count the number of generated machine instructions up to the jump. 
+	 This is needed because the RISC-V backend generates more machine code
+	 instructions than the number of IR instructions, making the count wrong"
+	jumpIndex := 6.
+	instrCount := ((1 to: jumpIndex) sum: [ :i | (cogit abstractOpcodes at: i) machineCodeSize ]) // 4.
+	
 	self machineSimulator invalidAccessHandler: [:invalidAccess | 
 		invalidAddressHandled := true.
 		self 
@@ -128,7 +136,7 @@ VMMachineSimulatorTest >> testMemoryAccessExceptionHandledCountIsRespected [
 		startAt: cogInitialAddress
 		until: lastInstruction address
 		timeout: 0
-		count: 10. 
+		count: instrCount + 5. 
 	
 	expectedAddress := jumpInstruction address.
 	
