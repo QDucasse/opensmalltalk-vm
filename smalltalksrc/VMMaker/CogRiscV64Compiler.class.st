@@ -2095,11 +2095,35 @@ CogRiscV64Compiler >> concretizeDivRdRd [
 ]
 
 { #category : 'concretization' }
+CogRiscV64Compiler >> concretizeDupRVr [
+
+	"No vector support in RISC-V yet"
+	self flag: #vector.
+	^self shouldBeImplemented
+]
+
+{ #category : 'concretization' }
+CogRiscV64Compiler >> concretizeFaddSRvRvRv [
+
+	"No vector support in RISC-V yet"
+	self flag: #vector.
+	^self shouldBeImplemented
+]
+
+{ #category : 'concretization' }
 CogRiscV64Compiler >> concretizeFill32 [
 	
 	"fill with operand 0 according to the processor's endianness, here little-endian"
 	self machineCodeAt: 0 put: (operands at: 0).
 	^ machineCodeSize := 4
+]
+
+{ #category : 'concretization' }
+CogRiscV64Compiler >> concretizeFsubSRvRvRv [
+
+	"No vector support in RISC-V yet"
+	self flag: #vector.
+	^self shouldBeImplemented
 ]
 
 { #category : 'concretization' }
@@ -2362,6 +2386,14 @@ CogRiscV64Compiler >> concretizeJumpZero [
 	"Should be rewritten by noteFollowingConditionalBranch:"
 	self unreachable.
 	^0
+]
+
+{ #category : 'concretization' }
+CogRiscV64Compiler >> concretizeLd1VrRMw [
+
+	"No vector support in RISC-V yet"
+	self flag: #vector.
+	^self shouldBeImplemented
 ]
 
 { #category : 'concretization' }
@@ -3538,6 +3570,13 @@ CogRiscV64Compiler >> concretizeSqrtRd [
 	srcReg := destReg := operands at: 0.
 	self machineCodeAt: 0 put: (self fSquareRootOfRegister: srcReg inRegister: destReg).
 	^ machineCodeSize := 4	
+]
+
+{ #category : 'concretization' }
+CogRiscV64Compiler >> concretizeSt1VrRMw [
+
+	"No vector support in RISC-V yet"
+	^self shouldBeImplemented 
 ]
 
 { #category : 'concretization' }
@@ -5124,6 +5163,13 @@ CogRiscV64Compiler >> leafCallStackPointerDelta [
 	 to capture the c stack pointer to use in trampolines back into the C run-time."
 	"This might actually be false, since directly after a call, lr, fp and variable registers need be pushed onto the stack. It depends on the implementation of call."
 	^0
+]
+
+{ #category : 'helpers - size sign' }
+CogRiscV64Compiler >> literalBeforeInlineCacheTagAt: callSiteReturnAddress [
+
+	self notYetImplemented: 'Should implement access to the class in directed super sends for ARMv8'.
+	^ 0
 ]
 
 { #category : 'concretization helpers - mc size' }
