@@ -306,13 +306,30 @@ CogOutOfLineLiteralsRiscV64Compiler >> storeLiteral32: literal beforeFollowingAd
 { #category : 'inline cacheing' }
 CogOutOfLineLiteralsRiscV64Compiler >> storeLiteral: literal beforeFollowingAddress: followingAddress [
 	"Rewrite the literal referenced by the instruction immediately preceding followingAddress.
+	 Two cases lead to this method: either a MoveCwR or PushCw.
 	 If followingAddress points to an ld instruction, it means it is loading a relative using auipc + ld."
-	objectMemory
-		longAt: (self pcRelativeAddressAt:
-					((self instructionIsLD: (self instructionBeforeAddress: followingAddress))
-						ifTrue: [self instructionAddressBefore: followingAddress - 4]
-						ifFalse: [self unreachable.])) 
-		put: literal
+	
+	"Cmp/MoveCwR
+	 pc-8 auipc 
+	 pc-4 ld"
+	(self instructionIsLD: (self instructionBeforeAddress: followingAddress)) ifTrue: [ 
+		objectMemory 
+			longAt: (self pcRelativeAddressAt: (self instructionAddressBefore: followingAddress - 4))
+			put: literal
+		 ].
+	
+	"PushCw
+	 pc-16 auipc
+	 pc-12 ld
+	 pc-8  addi
+	 pc-4  sd"
+	(self instructionIsSD: (self instructionBeforeAddress: followingAddress)) ifTrue: [ 
+		objectMemory 
+			longAt: (self pcRelativeAddressAt: (self instructionAddressBefore: followingAddress - 12))
+			put: literal
+		 ].
+
+
 ]
 
 { #category : 'concretization helpers' }
