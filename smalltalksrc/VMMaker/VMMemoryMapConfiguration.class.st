@@ -1,57 +1,127 @@
 Class {
 	#name : 'VMMemoryMapConfiguration',
 	#superclass : 'VMClass',
+	#instVars : [
+		'stackPagesInitialAddress',
+		'permSpaceInitialAddress',
+		'oldSpaceInitialAddress',
+		'newSpaceInitialAddress',
+		'codeZoneInitialAddress',
+		'confWordSize'
+	],
 	#category : 'VMMaker-Memory',
 	#package : 'VMMaker',
 	#tag : 'Memory'
 }
 
 { #category : 'instance-creation' }
-VMMemoryMapConfiguration class >> forWordsize: anInteger [
+VMMemoryMapConfiguration class >> for32Bits [
 
-	anInteger = 8 ifTrue: [ ^ VMMemoryMapConfigurationFor64Bits ].
-
-	^ VMMemoryMapConfigurationFor32Bits
+	^ self new
+		codeZoneInitialAddress: 16r10000000 "(256 MB)";
+		confWordSize: 4;
+		newSpaceInitialAddress: 16r20000000 "(512 MB)";
+		oldSpaceInitialAddress: 16r40000000 "(1024 MB)";
+		permSpaceInitialAddress: 16r80000000 "(2048 MB)";
+		stackPagesInitialAddress: 16r0F000000 "(240 MB)";
+		yourself
 ]
 
-{ #category : 'testing' }
-VMMemoryMapConfiguration class >> isAbstract [
-		
-	^ self == VMMemoryMapConfiguration
+{ #category : 'instance-creation' }
+VMMemoryMapConfiguration class >> for64Bits [
+
+	^ self new
+		codeZoneInitialAddress: 16r320000000  "12.5GB";
+		confWordSize: 8;
+		newSpaceInitialAddress: 16r360000000 "13.5GB";
+		oldSpaceInitialAddress: 16r10000000000 "1024GB";
+		permSpaceInitialAddress: 16r20000000000 "2048GB";
+		stackPagesInitialAddress: 16r300000000 "12GB";
+		yourself
+]
+
+{ #category : 'instance-creation' }
+VMMemoryMapConfiguration class >> forWordsize: anInteger [
+
+	anInteger = 8 ifTrue: [ ^ self for64Bits ].
+
+	^ self for32Bits
 ]
 
 { #category : 'initial addresses' }
 VMMemoryMapConfiguration >> codeZoneInitialAddress [
 
-	^ self subclassResponsibility 
+	<cmacro: '() CodeZoneInitialAddress'>
+	^ codeZoneInitialAddress
+]
+
+{ #category : 'accessing' }
+VMMemoryMapConfiguration >> codeZoneInitialAddress: anObject [
+
+	codeZoneInitialAddress := anObject
 ]
 
 { #category : 'accessing' }
 VMMemoryMapConfiguration >> confWordSize [
 
-	^ self subclassResponsibility
+	<cmacro: '() ConfWordSize'>
+	^ confWordSize
+]
+
+{ #category : 'accessing' }
+VMMemoryMapConfiguration >> confWordSize: anObject [
+
+	confWordSize := anObject
 ]
 
 { #category : 'initial addresses' }
 VMMemoryMapConfiguration >> newSpaceInitialAddress [
 
-	^ self subclassResponsibility 
+	<cmacro: '() NewSpaceInitialAddress'>
+	^ newSpaceInitialAddress
+]
+
+{ #category : 'accessing' }
+VMMemoryMapConfiguration >> newSpaceInitialAddress: anObject [
+
+	newSpaceInitialAddress := anObject
 ]
 
 { #category : 'initial addresses' }
 VMMemoryMapConfiguration >> oldSpaceInitialAddress [
 
-	^ self subclassResponsibility 
+	<cmacro: '() OldSpaceInitialAddress'>
+	^ oldSpaceInitialAddress
+]
+
+{ #category : 'accessing' }
+VMMemoryMapConfiguration >> oldSpaceInitialAddress: anObject [
+
+	oldSpaceInitialAddress := anObject
 ]
 
 { #category : 'initial addresses' }
 VMMemoryMapConfiguration >> permSpaceInitialAddress [
 
-	^ self subclassResponsibility 
+	<cmacro: '() PermSpaceInitialAddress'>
+	^ permSpaceInitialAddress
+]
+
+{ #category : 'accessing' }
+VMMemoryMapConfiguration >> permSpaceInitialAddress: anObject [
+
+	permSpaceInitialAddress := anObject
 ]
 
 { #category : 'initial addresses' }
 VMMemoryMapConfiguration >> stackPagesInitialAddress [
 
-	^ self subclassResponsibility 
+	<cmacro: '() StackPagesInitialAddress'>
+	^ stackPagesInitialAddress
+]
+
+{ #category : 'accessing' }
+VMMemoryMapConfiguration >> stackPagesInitialAddress: anObject [
+
+	stackPagesInitialAddress := anObject
 ]
