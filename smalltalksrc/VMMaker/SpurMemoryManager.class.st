@@ -658,13 +658,16 @@ Class {
 { #category : 'translation' }
 SpurMemoryManager class >> ancilliaryClasses [
 	"Answer any extra classes to be included in the translation."
-	^{	SpurGenerationScavenger. SpurScavengeLogRecord. SpurSegmentManager. SpurSegmentInfo. VMMemoryMap. 
-		VMMemoryMapConfiguration. VMMemoryMapConfiguration forWordsize: self objectMemoryClass wordSize.
-		VMRememberedSet }, 
-		self compactorClass classesForTranslation,
-		SpurNewSpaceSpace withAllSubclasses
-		
-	
+
+	^ {
+		  SpurGenerationScavenger.
+		  SpurScavengeLogRecord.
+		  SpurSegmentManager.
+		  SpurSegmentInfo.
+		  VMMemoryMap.
+		  VMMemoryMapConfiguration.
+		  VMRememberedSet } , self compactorClass classesForTranslation
+	  , SpurNewSpaceSpace withAllSubclasses
 ]
 
 { #category : 'accessing' }
