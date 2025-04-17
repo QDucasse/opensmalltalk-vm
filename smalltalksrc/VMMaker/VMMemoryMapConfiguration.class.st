@@ -1,13 +1,13 @@
 Class {
 	#name : 'VMMemoryMapConfiguration',
 	#superclass : 'VMClass',
-	#instVars : [
-		'stackPagesInitialAddress',
-		'permSpaceInitialAddress',
-		'oldSpaceInitialAddress',
-		'newSpaceInitialAddress',
-		'codeZoneInitialAddress',
-		'confWordSize'
+	#classVars : [
+		'CodeZoneInitialAddress',
+		'ConfWordSize',
+		'NewSpaceInitialAddress',
+		'OldSpaceInitialAddress',
+		'PermSpaceInitialAddress',
+		'StackPagesInitialAddress'
 	],
 	#category : 'VMMaker-Memory',
 	#package : 'VMMaker',
@@ -17,7 +17,12 @@ Class {
 { #category : 'translation' }
 VMMemoryMapConfiguration class >> declareCVarsIn: aCCodeGenerator [
 
-	aCCodeGenerator addHeaderFile:'"memoryMap.h"'
+	aCCodeGenerator addHeaderFile: '"memoryMap.h"'.
+
+	#( ConfWordSize CodeZoneInitialAddress NewSpaceInitialAddress
+	   OldSpaceInitialAddress PermSpaceInitialAddress
+	   StackPagesInitialAddress ) do: [ :e |
+		aCCodeGenerator removeConstant: e ]
 ]
 
 { #category : 'instance-creation' }
@@ -57,77 +62,71 @@ VMMemoryMapConfiguration class >> forWordsize: anInteger [
 { #category : 'initial addresses' }
 VMMemoryMapConfiguration >> codeZoneInitialAddress [
 
-	<cmacro: '() CodeZoneInitialAddress'>
-	^ codeZoneInitialAddress
+	^ CodeZoneInitialAddress
 ]
 
 { #category : 'accessing' }
 VMMemoryMapConfiguration >> codeZoneInitialAddress: anObject [
 
-	codeZoneInitialAddress := anObject
+	CodeZoneInitialAddress := anObject
 ]
 
 { #category : 'accessing' }
 VMMemoryMapConfiguration >> confWordSize [
 
-	<cmacro: '() ConfWordSize'>
-	^ confWordSize
+	^ ConfWordSize
 ]
 
 { #category : 'accessing' }
 VMMemoryMapConfiguration >> confWordSize: anObject [
 
-	confWordSize := anObject
+	ConfWordSize := anObject
 ]
 
 { #category : 'initial addresses' }
 VMMemoryMapConfiguration >> newSpaceInitialAddress [
 
-	<cmacro: '() NewSpaceInitialAddress'>
-	^ newSpaceInitialAddress
+	^ NewSpaceInitialAddress
 ]
 
 { #category : 'accessing' }
 VMMemoryMapConfiguration >> newSpaceInitialAddress: anObject [
 
-	newSpaceInitialAddress := anObject
+	NewSpaceInitialAddress := anObject
 ]
 
 { #category : 'initial addresses' }
 VMMemoryMapConfiguration >> oldSpaceInitialAddress [
 
-	<cmacro: '() OldSpaceInitialAddress'>
-	^ oldSpaceInitialAddress
+	^ OldSpaceInitialAddress
 ]
 
 { #category : 'accessing' }
 VMMemoryMapConfiguration >> oldSpaceInitialAddress: anObject [
 
-	oldSpaceInitialAddress := anObject
+	OldSpaceInitialAddress := anObject
 ]
 
 { #category : 'initial addresses' }
 VMMemoryMapConfiguration >> permSpaceInitialAddress [
 
-	<cmacro: '() PermSpaceInitialAddress'>
-	^ permSpaceInitialAddress
+	^ PermSpaceInitialAddress
 ]
 
 { #category : 'accessing' }
 VMMemoryMapConfiguration >> permSpaceInitialAddress: anObject [
 
-	permSpaceInitialAddress := anObject
+	PermSpaceInitialAddress := anObject
 ]
 
 { #category : 'initial addresses' }
 VMMemoryMapConfiguration >> stackPagesInitialAddress [
 
-	<cmacro: '() StackPagesInitialAddress'>
-	^ stackPagesInitialAddress
+	^ StackPagesInitialAddress
 ]
 
 { #category : 'accessing' }
 VMMemoryMapConfiguration >> stackPagesInitialAddress: anObject [
 
-	stackPagesInitialAddress := anObject
+	StackPagesInitialAddress := anObject
 ]
