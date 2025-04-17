@@ -14,6 +14,12 @@ Class {
 	#tag : 'Memory'
 }
 
+{ #category : 'translation' }
+VMMemoryMapConfiguration class >> declareCVarsIn: aCCodeGenerator [
+
+	aCCodeGenerator addHeaderFile:'"memoryMap.h"'
+]
+
 { #category : 'instance-creation' }
 VMMemoryMapConfiguration class >> for32Bits [
 
